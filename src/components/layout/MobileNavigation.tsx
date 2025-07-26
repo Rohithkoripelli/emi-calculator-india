@@ -43,14 +43,14 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   return (
     <>
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+      <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 px-3 sm:px-4 py-3">
         <div className="flex items-center justify-between">
           {/* App Logo/Title */}
           <div className="flex items-center space-x-2">
             <CalculatorIcon className="w-8 h-8 text-blue-600" />
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">EMI Calculator</h1>
-              <p className="text-xs text-gray-500">Financial Planning Tool</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">EMI Calculator</h1>
+              <p className="text-xs text-gray-500 truncate">Financial Planning Tool</p>
             </div>
           </div>
 
@@ -91,7 +91,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         />
 
         {/* Menu Content */}
-        <div className="absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl">
+        <div className="absolute right-0 top-0 h-full w-72 sm:w-80 max-w-[90vw] bg-white shadow-xl overflow-y-auto">
           {/* Menu Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Calculators</h2>

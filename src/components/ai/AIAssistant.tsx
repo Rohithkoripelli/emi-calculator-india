@@ -557,8 +557,8 @@ ${generateAIResponse(currentInput)}
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 lg:p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl h-[90vh] lg:h-[600px] flex flex-col max-h-[600px]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-lg w-full max-w-2xl h-[95vh] sm:h-[90vh] lg:h-[600px] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-200">
           <div className="flex items-center gap-2 lg:gap-3">
@@ -579,14 +579,14 @@ ${generateAIResponse(currentInput)}
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-4 space-y-2 sm:space-y-3 lg:space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[90%] lg:max-w-[85%] rounded-lg ${
+                className={`max-w-[95%] sm:max-w-[90%] lg:max-w-[85%] rounded-lg break-words ${
                   message.isUser
                     ? 'bg-blue-600 text-white p-2 lg:p-3'
                     : 'bg-gray-50 border border-gray-200'
@@ -600,11 +600,11 @@ ${generateAIResponse(currentInput)}
                     </p>
                   </>
                 ) : (
-                  <div>
-                    <div className="p-3 lg:p-4">
+                  <div className="overflow-hidden">
+                    <div className="p-2 sm:p-3 lg:p-4">
                       <AIResponseFormatter text={message.text} />
                     </div>
-                    <div className="px-3 lg:px-4 pb-2">
+                    <div className="px-2 sm:px-3 lg:px-4 pb-2">
                       <p className="text-xs text-gray-500">
                         {message.timestamp.toLocaleTimeString()}
                       </p>
@@ -632,14 +632,14 @@ ${generateAIResponse(currentInput)}
 
         {/* Suggested Questions */}
         {messages.length === 1 && (
-          <div className="px-3 lg:px-4 pb-2">
+          <div className="px-2 sm:px-3 lg:px-4 pb-2">
             <p className="text-xs text-gray-500 mb-2">Try asking:</p>
             <div className="flex flex-wrap gap-1 lg:gap-2">
               {suggestedQuestions.map((question, index) => (
                 <button
                   key={index}
                   onClick={() => setInputMessage(question)}
-                  className="text-xs bg-gray-100 text-gray-700 px-2 lg:px-3 py-1 rounded-full hover:bg-gray-200 transition-colors"
+                  className="text-xs bg-gray-100 text-gray-700 px-2 lg:px-3 py-1 rounded-full hover:bg-gray-200 transition-colors break-words"
                 >
                   {question}
                 </button>
@@ -649,14 +649,14 @@ ${generateAIResponse(currentInput)}
         )}
 
         {/* Input */}
-        <div className="p-3 lg:p-4 border-t border-gray-200">
+        <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200">
           <div className="flex gap-2">
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me about loans, investments, tax planning..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base"
+              className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base min-h-[2.5rem]"
               rows={2}
               disabled={isLoading}
             />

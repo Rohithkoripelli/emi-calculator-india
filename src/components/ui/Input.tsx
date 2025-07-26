@@ -81,7 +81,7 @@ export const Input: React.FC<InputProps> = ({
       </label>
       <div className="relative">
         {prefix && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+          <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs sm:text-sm font-medium">
             {prefix}
           </div>
         )}
@@ -93,15 +93,15 @@ export const Input: React.FC<InputProps> = ({
           onFocus={handleFocus}
           onBlur={handleBlur}
           className={`
-            w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-base
-            ${prefix ? 'pl-8' : ''}
-            ${suffix ? 'pr-12' : ''}
+            w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base
+            ${prefix ? 'pl-7 sm:pl-8' : ''}
+            ${suffix ? 'pr-10 sm:pr-12' : ''}
             ${error ? 'border-red-500' : ''}
             ${className}
           `}
         />
         {suffix && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+          <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs sm:text-sm font-medium">
             {suffix}
           </div>
         )}

@@ -27,7 +27,7 @@ export const Select: React.FC<SelectProps> = ({
         <select
           {...props}
           className={`
-            w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white appearance-none
+            w-full px-2 sm:px-3 py-2 pr-8 sm:pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white appearance-none text-sm sm:text-base
             ${error ? 'border-red-500' : ''}
             ${className}
           `}
@@ -45,9 +45,9 @@ export const Select: React.FC<SelectProps> = ({
           ))}
         </select>
         {/* Custom dropdown arrow */}
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:pr-3 pointer-events-none">
           <svg 
-            className="w-4 h-4 text-gray-400" 
+            className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"

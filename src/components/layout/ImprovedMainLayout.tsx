@@ -103,12 +103,12 @@ export const ImprovedMainLayout: React.FC = () => {
       {/* Main Content */}
       <div className="relative">
         {/* Calculator Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8">
+        <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 lg:py-8">
           {renderCalculator()}
         </main>
 
         {/* Enhanced AI Assistant Floating Button */}
-        <div className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col gap-3">
+        <div className="fixed bottom-4 right-2 sm:right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col gap-3">
           {/* AI Assistant Button with Enhanced Marketing */}
           <div className="relative">
             <button 
