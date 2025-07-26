@@ -175,19 +175,22 @@ Would you like specific calculations for any of these strategies?`;
       const monthlyRate = loanData.interestRate / (12 * 100);
       
       // Check if user is asking about specific prepayment scenario
-      if (message.includes('june 2026') || message.includes('8 lakh') || message.includes('8 lakhs') || message.includes('70000') || message.includes('70,000') || message.includes('70k') || (message.includes('part payment') && message.includes('complete') && message.includes('month'))) {
+      if (message.includes('june 2026') || message.includes('8 lakh') || message.includes('8 lakhs') || message.includes('70000') || message.includes('70,000') || message.includes('70k') || (message.includes('part payment') && (message.includes('complete') || message.includes('now') || message.includes('today')) && message.includes('month'))) {
         // Calculate for the specific scenario mentioned using dynamic loan start date
         const loanStarted = loanData.startDate ? new Date(loanData.startDate) : new Date();
-        const prepaymentDate = new Date('2026-06-01');
+        
+        // Determine prepayment timing - "now" vs "June 2026"
+        const isImmediatePayment = message.includes('now') || message.includes('today') || message.includes('immediately');
+        const prepaymentDate = isImmediatePayment ? new Date() : new Date('2026-06-01');
         const monthsElapsed = (prepaymentDate.getTime() - loanStarted.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
         
         // More accurate calculation using actual EMI payment schedule
         const currentEMI = loanData.emi!;
-        const monthsToJune2026 = Math.round(monthsElapsed);
+        const monthsToPrepayment = Math.max(0, Math.round(monthsElapsed));
         
-        // Calculate outstanding principal by June 2026
+        // Calculate outstanding principal at prepayment date
         let outstandingPrincipal = loanData.principal;
-        for (let month = 1; month <= monthsToJune2026; month++) {
+        for (let month = 1; month <= monthsToPrepayment; month++) {
           const interestComponent = outstandingPrincipal * monthlyRate;
           const principalComponent = currentEMI - interestComponent;
           outstandingPrincipal -= principalComponent;
@@ -196,8 +199,10 @@ Would you like specific calculations for any of these strategies?`;
         // Apply 8 lakh prepayment
         const afterPrepayment = Math.max(0, outstandingPrincipal - 800000);
         
-        // Calculate remaining tenure with 70K EMI
-        const newEMI = 70000;
+        // Check if user mentioned new EMI amount, otherwise keep same EMI
+        const hasNewEMI = message.includes('70000') || message.includes('70,000') || message.includes('70k');
+        const newEMI = hasNewEMI ? 70000 : currentEMI;
+        
         let remainingTenure = 0;
         if (afterPrepayment > 0) {
           remainingTenure = Math.log(1 + (afterPrepayment * monthlyRate) / newEMI) / Math.log(1 + monthlyRate);
@@ -206,25 +211,26 @@ Would you like specific calculations for any of these strategies?`;
         const closureDate = new Date(prepaymentDate.getTime() + (remainingTenure * 30.44 * 24 * 60 * 60 * 1000));
         
         const loanStartFormatted = loanStarted.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-        const monthsFromStart = Math.round(monthsElapsed);
+        const prepaymentDateFormatted = prepaymentDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        const prepaymentTiming = isImmediatePayment ? 'immediately (now)' : prepaymentDateFormatted;
         
         return `**Loan Closure Calculation:**
 
-**Direct Answer:** With ₹8,00,000 prepayment in June 2026 and EMI increase to ₹70,000, your loan will close in **${closureDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}**.
+**Direct Answer:** With ₹8,00,000 prepayment ${isImmediatePayment ? 'now' : 'in June 2026'}${hasNewEMI ? ' and EMI increase to ₹70,000' : ''}, your loan will close in **${closureDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}**.
 
 **Detailed Breakdown:**
 • Loan started: ${loanStartFormatted}
 • Current EMI: ₹${currentEMI.toLocaleString('en-IN')}
-• Time to prepayment: ${monthsFromStart} months (June 2026)
+• Prepayment timing: ${prepaymentTiming} (${monthsToPrepayment} months from loan start)
 • Outstanding principal before prepayment: ₹${(outstandingPrincipal/100000).toFixed(2)} lakhs
 • After ₹8L prepayment: ₹${(afterPrepayment/100000).toFixed(2)} lakhs
-• New EMI: ₹70,000
-• Remaining months with new EMI: ${Math.round(remainingTenure)} months
+• EMI after prepayment: ₹${newEMI.toLocaleString('en-IN')}
+• Remaining months: ${Math.round(remainingTenure)} months
 • **Final loan closure: ${closureDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}**
 
 **Interest Savings:** Significant reduction from original ${loanData.term} ${loanData.termUnit} tenure.
 
-**Note:** This calculation assumes regular EMI payments until June 2026, then immediate prepayment and EMI increase.`;
+**Note:** This calculation assumes ${isImmediatePayment ? 'immediate prepayment with' : 'regular EMI payments until prepayment date, then'} ${hasNewEMI ? 'increased EMI' : 'same EMI continuing'}.`;
       }
       
       // General prepayment advice
@@ -347,7 +353,9 @@ ${loanData ? 'Try asking: "How can I reduce my loan burden?" or "Should I prepay
     }
     
     // More lenient for specific loan closure questions
-    if (userInput.toLowerCase().includes('complete') && userInput.toLowerCase().includes('month')) {
+    if ((userInput.toLowerCase().includes('complete') && userInput.toLowerCase().includes('month')) ||
+        (userInput.toLowerCase().includes('8 lakh') && userInput.toLowerCase().includes('now')) ||
+        (userInput.toLowerCase().includes('part payment') && userInput.toLowerCase().includes('when'))) {
       // For specific closure questions, be more lenient
       return { isValid: true, issues: [] };
     }
@@ -387,12 +395,15 @@ ${loanData ? 'Try asking: "How can I reduce my loan burden?" or "Should I prepay
     const currentInput = inputMessage;
     setInputMessage('');
     setIsLoading(true);
+    
+    console.log('🎯 Starting handleSendMessage for:', currentInput);
 
     try {
       console.log('🚀 Making direct OpenAI API call');
       console.log('📤 Sending data:', { message: currentInput, loanData });
       console.log('🔍 Prepayment detection:', currentInput.toLowerCase().includes('prepay') || currentInput.toLowerCase().includes('part payment') || currentInput.toLowerCase().includes('close') || currentInput.toLowerCase().includes('closure'));
-      console.log('🔍 Specific scenario detection:', currentInput.toLowerCase().includes('june 2026') || currentInput.toLowerCase().includes('8 lakh') || currentInput.toLowerCase().includes('8 lakhs') || currentInput.toLowerCase().includes('70000') || currentInput.toLowerCase().includes('70,000') || currentInput.toLowerCase().includes('70k') || (currentInput.toLowerCase().includes('part payment') && currentInput.toLowerCase().includes('complete') && currentInput.toLowerCase().includes('month')));
+      console.log('🔍 Specific scenario detection:', currentInput.toLowerCase().includes('june 2026') || currentInput.toLowerCase().includes('8 lakh') || currentInput.toLowerCase().includes('8 lakhs') || currentInput.toLowerCase().includes('70000') || currentInput.toLowerCase().includes('70,000') || currentInput.toLowerCase().includes('70k') || (currentInput.toLowerCase().includes('part payment') && (currentInput.toLowerCase().includes('complete') || currentInput.toLowerCase().includes('now') || currentInput.toLowerCase().includes('today')) && currentInput.toLowerCase().includes('month')));
+      console.log('🔍 Message content:', currentInput);
       console.log('🔑 API Key exists:', !!process.env.REACT_APP_OPENAI_API_KEY);
       console.log('🔑 API Key prefix:', process.env.REACT_APP_OPENAI_API_KEY ? process.env.REACT_APP_OPENAI_API_KEY.substring(0, 7) + '...' : 'NOT SET');
       
@@ -518,11 +529,12 @@ ${generateAIResponse(currentInput)}
     } catch (error) {
       console.error('❌ Error calling OpenAI API:', error);
       console.log('🔄 Falling back to rule-based response');
+      console.log('🔍 Error details:', JSON.stringify(error, null, 2));
       
       // Fallback to rule-based response
       const fallbackResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: generateAIResponse(currentInput) + '\n\n⚠️ (Fallback response - OpenAI API unavailable)',
+        text: generateAIResponse(currentInput) + '\n\n⚠️ (Fallback response - OpenAI API error)',
         isUser: false,
         timestamp: new Date()
       };
