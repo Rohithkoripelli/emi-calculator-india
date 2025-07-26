@@ -76,37 +76,17 @@ ${loanData ? `I have access to your current loan details:
 Ask me anything about your loan or financial planning!` : 'Please ask me any financial question!'}`;
   };
 
-  // Enhanced validation for calculation accuracy
+  // Simplified validation for API responses
   const validateResponse = (responseText: string): { isValid: boolean; issues: string[] } => {
     const issues: string[] = [];
     
-    // Only check for obvious API errors or incomplete responses
-    if (responseText.trim().length < 10) {
+    // Only check for obvious API errors
+    if (responseText.trim().length < 20) {
       issues.push('Response too short');
     }
     
-    if (responseText.includes('I cannot') || responseText.includes('I don\'t have access')) {
+    if (responseText.includes('I cannot') || responseText.includes('I don\'t have access') || responseText.includes('I\'m not able')) {
       issues.push('API limitation response');
-    }
-    
-    // Check for obviously wrong dates (completion date before loan start)
-    if (loanData && (responseText.includes('2024') || responseText.includes('2023'))) {
-      issues.push('Completion date appears to be in the past');
-    }
-    
-    // Check for suspicious calculations (completion date way too far in future)
-    if (responseText.includes('2035') || responseText.includes('2036') || responseText.includes('2037')) {
-      issues.push('Completion date appears unrealistic');
-    }
-    
-    // Check for specific wrong answers we know are incorrect
-    if (responseText.includes('January 2029') || responseText.includes('August 2029')) {
-      issues.push('Known incorrect calculation result');
-    }
-    
-    // Ensure mathematical calculations are present
-    if (responseText.includes('prepayment') && !responseText.includes('ln(') && !responseText.includes('log')) {
-      issues.push('Missing detailed mathematical calculations');
     }
     
     return {
@@ -255,8 +235,13 @@ Remember: Present insights professionally without exposing calculation formulas 
       const aiResponseText = data.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
       const validation = validateResponse(aiResponseText);
       
-      // Use OpenAI response unless there's an obvious error
-      const finalResponseText = validation.isValid ? aiResponseText : generateFallbackResponse(currentInput);
+      // Always use OpenAI response unless it's clearly an error
+      const finalResponseText = aiResponseText.trim() ? aiResponseText : generateFallbackResponse(currentInput);
+      
+      // Log validation issues for debugging but don't reject the response
+      if (!validation.isValid) {
+        console.warn('⚠️ Response validation issues (but using response anyway):', validation.issues);
+      }
       
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
