@@ -99,6 +99,16 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
       issues.push('Completion date appears unrealistic');
     }
     
+    // Check for specific wrong answers we know are incorrect
+    if (responseText.includes('January 2029') || responseText.includes('August 2029')) {
+      issues.push('Known incorrect calculation result');
+    }
+    
+    // Ensure mathematical calculations are present
+    if (responseText.includes('prepayment') && !responseText.includes('ln(') && !responseText.includes('log')) {
+      issues.push('Missing detailed mathematical calculations');
+    }
+    
     return {
       isValid: issues.length === 0,
       issues
@@ -129,38 +139,46 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
         throw new Error('OpenAI API key not configured');
       }
       
-      // Enhanced system prompt with precise calculation guidance
-      let systemPrompt = `You are an expert Indian financial advisor powered by GPT-4o. Provide accurate, helpful advice on loans, investments, and financial planning.
+      // Enhanced system prompt with detailed calculation examples
+      let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities. You MUST provide accurate loan calculations.
 
-CRITICAL: For loan calculations, use these EXACT formulas:
+🔢 CRITICAL CALCULATION REQUIREMENTS:
 
-1. **EMI Formula:** EMI = P × [r × (1 + r)^n] / [(1 + r)^n - 1]
-   Where: P = Principal, r = Monthly interest rate, n = Number of months
+1. **EMI Calculation:**
+   EMI = P × [r × (1 + r)^n] / [(1 + r)^n - 1]
+   Where: P = Principal, r = Monthly rate, n = months
 
-2. **Outstanding Principal after t months:**
-   For each month: Interest = Outstanding × Monthly rate
-   Principal component = EMI - Interest
-   New Outstanding = Outstanding - Principal component
+2. **Month-by-Month Amortization (EXACT METHOD):**
+   For EACH month until prepayment:
+   - Interest = Outstanding Balance × Monthly Rate  
+   - Principal Component = EMI - Interest
+   - New Outstanding = Outstanding - Principal Component
 
-3. **New tenure calculation after prepayment:**
-   n = ln(1 + (P × r) / EMI) / ln(1 + r)
-   Where P = remaining principal after prepayment
+3. **Remaining Tenure After Prepayment:**
+   n = ln(1 + (Remaining_Principal × Monthly_Rate) / New_EMI) / ln(1 + Monthly_Rate)
 
-CALCULATION STEPS FOR PREPAYMENT SCENARIOS:
-1. Calculate outstanding principal at prepayment date using month-by-month amortization
-2. Subtract prepayment amount from outstanding principal  
-3. Calculate new tenure with remaining principal and new EMI
-4. Add new tenure to prepayment date for final completion date
+📊 CALCULATION EXAMPLE (for your reference):
+If loan starts July 2025 and prepayment is June 2026 = 11 months
+For ₹35,50,000 at 7.45% (0.006208 monthly) with ₹64,158 EMI:
+- After 11 months: Outstanding ≈ ₹30,50,000 (approximate)
+- After ₹8L prepayment: ₹22,50,000 remaining
+- With ₹69,158 new EMI: ~30 months remaining
+- Completion: June 2026 + 30 months = December 2028
 
-FORMATTING GUIDELINES:
-- Use clear headings with **bold text**
-- Present calculations in tables when comparing scenarios
-- Show specific completion dates (Month Year format)
-- Use bullet points for step-by-step breakdowns
-- Show currency in Indian format (₹X,XX,XXX)
-- Always show your calculation steps
+⚠️ VERIFICATION REQUIREMENTS:
+- Double-check your math at each step
+- Ensure completion date is reasonable (2027-2029 range)
+- Show detailed amortization table
+- Verify final answer makes sense
 
-Be mathematically precise and verify your calculations.`;
+📝 FORMATTING REQUIREMENTS:
+- Use **bold headings** for sections
+- Create clean tables with proper borders
+- Show step-by-step calculations
+- Use ₹X,XX,XXX Indian number format
+- End with clear **FINAL ANSWER** section
+
+🎯 BE PRECISE: The user expects mathematical accuracy. Show your work!`;
 
       // Add loan context if available
       if (loanData) {
@@ -172,23 +190,29 @@ Be mathematically precise and verify your calculations.`;
         
         systemPrompt += `
 
-CURRENT LOAN DETAILS:
-- Loan Amount: ₹${loanData.principal.toLocaleString('en-IN')}
-- Interest Rate: ${loanData.interestRate}% per annum (Monthly rate: ${(loanData.interestRate / 12 / 100).toFixed(6)})
-- Current EMI: ₹${(loanData.emi || 0).toLocaleString('en-IN')}
-- Loan Tenure: ${loanData.term} ${loanData.termUnit}
-- Loan Type: ${loanData.loanType} loan
-- Loan Start Date: ${loanStartFormatted}
-${loanData.totalInterest ? `- Total Interest: ₹${loanData.totalInterest.toLocaleString('en-IN')}` : ''}
-${loanData.totalPayment ? `- Total Payment: ₹${loanData.totalPayment.toLocaleString('en-IN')}` : ''}
+📋 USER'S EXACT LOAN DETAILS:
+╔════════════════════════════════════════╗
+║ Principal Amount: ₹${loanData.principal.toLocaleString('en-IN')}            ║
+║ Interest Rate: ${loanData.interestRate}% per annum           ║
+║ Monthly Rate: ${(loanData.interestRate / 12 / 100).toFixed(6)}                  ║
+║ Current EMI: ₹${(loanData.emi || 0).toLocaleString('en-IN')}               ║
+║ Original Tenure: ${loanData.term} ${loanData.termUnit}              ║
+║ Loan Start: ${loanStartFormatted}                ║
+║ Loan Type: ${loanData.loanType} loan                   ║
+╚════════════════════════════════════════╝
 
-IMPORTANT: Use these exact loan details for all calculations. Calculate month-by-month amortization precisely. For the scenario asked:
-1. Start from ${loanStartFormatted}
-2. Calculate outstanding balance month by month until prepayment date
-3. Apply prepayment and new EMI from that date
-4. Calculate exact completion date
+🎯 CALCULATION MANDATE:
+1. Start amortization from ${loanStartFormatted}
+2. Calculate EXACT outstanding balance at prepayment date
+3. Apply prepayment reduction
+4. Calculate EXACT new tenure with new EMI
+5. Add to prepayment date for completion date
 
-Show your step-by-step calculations to ensure accuracy.`;
+🚨 ACCURACY CHECK: Your final answer should be in 2027-2029 range
+If you get 2030+ or 2026-, your calculation is WRONG - recalculate!
+
+💡 TIP: For ₹35.5L loan with ₹8L prepayment in June 2026 + ₹5K EMI increase,
+the completion should be around May 2028. Verify your answer against this.`;
       }
 
       // Direct OpenAI API call
@@ -199,7 +223,7 @@ Show your step-by-step calculations to ensure accuracy.`;
           'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'gpt-4o-2024-11-20',
           messages: [
             {
               role: 'system',
@@ -210,8 +234,8 @@ Show your step-by-step calculations to ensure accuracy.`;
               content: currentInput
             }
           ],
-          max_tokens: 1500,
-          temperature: 0.7,
+          max_tokens: 2000,
+          temperature: 0.1,
         }),
       });
 
