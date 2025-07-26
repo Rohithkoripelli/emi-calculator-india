@@ -67,43 +67,46 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
 
   return (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Payment Schedule</h3>
-        <div className="space-x-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 mb-1">Payment Schedule</h3>
+          <p className="text-sm text-gray-600">Year-wise breakdown of your loan payments</p>
+        </div>
+        <div className="flex gap-2">
           <button
             onClick={expandAll}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+            className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
           >
-            Expand All
+            📋 Expand All
           </button>
           <button
             onClick={collapseAll}
-            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
           >
-            Collapse All
+            📁 Collapse All
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm lg:text-base">
-            <thead className="bg-gray-50">
+          <table className="min-w-full">
+            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Year / Month
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  📅 Payment Period
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  EMI
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  💰 EMI Amount
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Principal
+                <th className="px-4 py-4 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
+                  🏦 Principal
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Interest
+                <th className="px-4 py-4 text-left text-xs font-bold text-red-700 uppercase tracking-wider">
+                  📊 Interest
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Balance
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  📈 Outstanding
                 </th>
               </tr>
             </thead>
@@ -112,33 +115,47 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
                 <React.Fragment key={yearGroup.year}>
                   {/* Year Header Row */}
                   <tr 
-                    className="bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                    className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200"
                     onClick={() => toggleYear(yearGroup.year)}
                   >
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {expandedYears.has(yearGroup.year) ? (
-                          <ChevronDownIcon className="h-4 w-4 text-gray-500 mr-2" />
+                          <ChevronDownIcon className="h-5 w-5 text-blue-600 mr-2 transition-transform" />
                         ) : (
-                          <ChevronRightIcon className="h-4 w-4 text-gray-500 mr-2" />
+                          <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2 transition-transform" />
                         )}
-                        <span className="font-medium text-gray-900">Year {yearGroup.year}</span>
-                        <span className="ml-2 text-sm text-gray-500">
-                          ({yearGroup.payments.length} payments)
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900 text-lg">Year {yearGroup.year}</span>
+                          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                            {yearGroup.payments.length} months
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency(yearGroup.totalEmi)}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="font-bold text-gray-900 text-sm">
+                        {formatCurrency(yearGroup.totalEmi)}
+                      </div>
+                      <div className="text-xs text-gray-500">Total yearly EMI</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-600 font-medium">
-                      {formatCurrency(yearGroup.totalPrincipal)}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="font-bold text-blue-700 text-sm">
+                        {formatCurrency(yearGroup.totalPrincipal)}
+                      </div>
+                      <div className="text-xs text-blue-600">Principal paid</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-medium">
-                      {formatCurrency(yearGroup.totalInterest)}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="font-bold text-red-700 text-sm">
+                        {formatCurrency(yearGroup.totalInterest)}
+                      </div>
+                      <div className="text-xs text-red-600">Interest paid</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {formatCurrency(yearGroup.endingBalance)}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="font-bold text-gray-900 text-sm">
+                        {formatCurrency(yearGroup.endingBalance)}
+                      </div>
+                      <div className="text-xs text-gray-500">Year-end balance</div>
                     </td>
                   </tr>
 
@@ -146,27 +163,40 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
                   {expandedYears.has(yearGroup.year) && yearGroup.payments.map((payment, monthIndex) => (
                     <tr 
                       key={`${yearGroup.year}-${payment.month}`}
-                      className={`${monthIndex % 2 === 0 ? 'bg-white' : 'bg-gray-25'} hover:bg-blue-25 transition-colors`}
+                      className={`${monthIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-l-4 border-transparent hover:border-blue-300`}
                     >
-                      <td className="px-4 py-2 whitespace-nowrap pl-8">
-                        <div className="text-sm text-gray-900">
-                          Month {payment.month}
+                      <td className="px-4 py-3 whitespace-nowrap pl-12">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              Month {payment.month}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {format(payment.date, 'MMM yyyy')}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {format(payment.date, 'MMM yyyy')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(payment.emi)}
                         </div>
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(payment.emi)}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-blue-600">
+                          {formatCurrency(payment.principal)}
+                        </div>
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-blue-600">
-                        {formatCurrency(payment.principal)}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-red-600">
+                          {formatCurrency(payment.interest)}
+                        </div>
                       </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-red-600">
-                        {formatCurrency(payment.interest)}
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(payment.balance)}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(payment.balance)}
+                        </div>
                       </td>
                     </tr>
                   ))}

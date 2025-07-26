@@ -29,18 +29,26 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const icon = data.name === 'Principal' ? '🏦' : '📊';
+      
       return (
-        <div className="bg-white p-4 border border-gray-300 rounded-lg shadow-lg">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-xl">
+          <div className="flex items-center gap-3 mb-3">
             <div 
-              className="w-4 h-4 rounded-sm" 
+              className="w-4 h-4 rounded-full shadow-sm" 
               style={{ backgroundColor: COLORS[data.name as keyof typeof COLORS] }}
             ></div>
-            <span className="font-medium text-gray-900">{data.name}</span>
+            <span className="font-bold text-gray-900">{icon} {data.name}</span>
           </div>
-          <div className="space-y-1 text-sm">
-            <div>Amount: {formatCurrency(data.value)}</div>
-            <div>Percentage: {data.percentage}%</div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Amount:</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(data.value)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Share:</span>
+              <span className="font-semibold text-gray-900">{data.percentage}%</span>
+            </div>
           </div>
         </div>
       );
@@ -70,16 +78,16 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Total Payment Breakdown
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          🥧 Total Payment Breakdown
         </h3>
         <p className="text-sm text-gray-600">
-          Overall distribution of principal and interest
+          See how much you pay toward principal vs interest over the loan lifetime
         </p>
       </div>
       
-      <div className="h-80 relative">
+      <div className="h-80 relative bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -102,10 +110,14 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
             <Tooltip content={<CustomTooltip />} />
             <Legend 
               verticalAlign="bottom" 
-              height={36}
+              height={60}
+              wrapperStyle={{
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
               formatter={(value, entry) => (
-                <span style={{ color: entry.color }}>
-                  {value}: {formatCurrency(data.find(d => d.name === value)?.value || 0)}
+                <span style={{ color: entry.color, fontWeight: '600' }}>
+                  {value === 'Principal' ? '🏦' : '📊'} {value}: {formatCurrency(data.find(d => d.name === value)?.value || 0)}
                 </span>
               )}
             />

@@ -41,21 +41,43 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const total = payload[0].value + payload[1].value;
+      const principal = payload[0].value;
+      const interest = payload[1].value;
+      const total = principal + interest;
+      const principalPercentage = ((principal / total) * 100).toFixed(1);
+      const interestPercentage = ((interest / total) * 100).toFixed(1);
+      
       return (
-        <div className="bg-white p-4 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900 mb-2">{label}</p>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-              <span className="text-sm">Principal: {formatCurrency(payload[0].value)}</span>
+        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-xl">
+          <div className="font-bold text-gray-900 mb-3 pb-2 border-b border-gray-100">
+            📊 {label}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-gray-700">Principal</span>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-blue-600">{formatCurrency(principal)}</div>
+                <div className="text-xs text-gray-500">{principalPercentage}%</div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
-              <span className="text-sm">Interest: {formatCurrency(payload[1].value)}</span>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-sm text-gray-700">Interest</span>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-red-600">{formatCurrency(interest)}</div>
+                <div className="text-xs text-gray-500">{interestPercentage}%</div>
+              </div>
             </div>
-            <div className="border-t pt-1 mt-2">
-              <span className="text-sm font-medium">Total: {formatCurrency(total)}</span>
+            <div className="border-t pt-2 mt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Total Payment</span>
+                <span className="text-lg font-bold text-gray-900">{formatCurrency(total)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -66,16 +88,16 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
 
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
-          EMI Breakdown - {showMonthly ? 'Monthly' : 'Yearly'} View
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          📊 EMI Breakdown - {showMonthly ? 'Monthly' : 'Yearly'} Analysis
         </h3>
         <p className="text-sm text-gray-600">
-          Principal vs Interest payments over time
+          Track how your payments are split between principal and interest over time
         </p>
       </div>
       
-      <div className="h-80">
+      <div className="h-96 bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
@@ -101,19 +123,25 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
               tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <Legend 
+              wrapperStyle={{
+                paddingTop: '20px',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            />
             <Bar 
               dataKey="Principal" 
               stackId="a" 
               fill="#3b82f6" 
-              name="Principal"
+              name="🏦 Principal Payment"
               radius={[0, 0, 0, 0]}
             />
             <Bar 
               dataKey="Interest" 
               stackId="a" 
               fill="#ef4444" 
-              name="Interest"
+              name="📊 Interest Payment"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>
