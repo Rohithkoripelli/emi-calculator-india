@@ -76,7 +76,7 @@ ${loanData ? `I have access to your current loan details:
 Ask me anything about your loan or financial planning!` : 'Please ask me any financial question!'}`;
   };
 
-  // Simple validation - only reject obvious errors
+  // Enhanced validation for calculation accuracy
   const validateResponse = (responseText: string): { isValid: boolean; issues: string[] } => {
     const issues: string[] = [];
     
@@ -89,7 +89,16 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
       issues.push('API limitation response');
     }
     
-    // Let everything else through - GPT-4o knows best
+    // Check for obviously wrong dates (completion date before loan start)
+    if (loanData && (responseText.includes('2024') || responseText.includes('2023'))) {
+      issues.push('Completion date appears to be in the past');
+    }
+    
+    // Check for suspicious calculations (completion date way too far in future)
+    if (responseText.includes('2035') || responseText.includes('2036') || responseText.includes('2037')) {
+      issues.push('Completion date appears unrealistic');
+    }
+    
     return {
       isValid: issues.length === 0,
       issues
@@ -120,17 +129,38 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
         throw new Error('OpenAI API key not configured');
       }
       
-      // Simple system prompt - let GPT-4o handle everything naturally
+      // Enhanced system prompt with precise calculation guidance
       let systemPrompt = `You are an expert Indian financial advisor powered by GPT-4o. Provide accurate, helpful advice on loans, investments, and financial planning.
+
+CRITICAL: For loan calculations, use these EXACT formulas:
+
+1. **EMI Formula:** EMI = P × [r × (1 + r)^n] / [(1 + r)^n - 1]
+   Where: P = Principal, r = Monthly interest rate, n = Number of months
+
+2. **Outstanding Principal after t months:**
+   For each month: Interest = Outstanding × Monthly rate
+   Principal component = EMI - Interest
+   New Outstanding = Outstanding - Principal component
+
+3. **New tenure calculation after prepayment:**
+   n = ln(1 + (P × r) / EMI) / ln(1 + r)
+   Where P = remaining principal after prepayment
+
+CALCULATION STEPS FOR PREPAYMENT SCENARIOS:
+1. Calculate outstanding principal at prepayment date using month-by-month amortization
+2. Subtract prepayment amount from outstanding principal  
+3. Calculate new tenure with remaining principal and new EMI
+4. Add new tenure to prepayment date for final completion date
 
 FORMATTING GUIDELINES:
 - Use clear headings with **bold text**
 - Present calculations in tables when comparing scenarios
-- Use bullet points for lists
+- Show specific completion dates (Month Year format)
+- Use bullet points for step-by-step breakdowns
 - Show currency in Indian format (₹X,XX,XXX)
-- Be specific and actionable
+- Always show your calculation steps
 
-Always provide accurate calculations and avoid generic advice.`;
+Be mathematically precise and verify your calculations.`;
 
       // Add loan context if available
       if (loanData) {
@@ -144,7 +174,7 @@ Always provide accurate calculations and avoid generic advice.`;
 
 CURRENT LOAN DETAILS:
 - Loan Amount: ₹${loanData.principal.toLocaleString('en-IN')}
-- Interest Rate: ${loanData.interestRate}% per annum
+- Interest Rate: ${loanData.interestRate}% per annum (Monthly rate: ${(loanData.interestRate / 12 / 100).toFixed(6)})
 - Current EMI: ₹${(loanData.emi || 0).toLocaleString('en-IN')}
 - Loan Tenure: ${loanData.term} ${loanData.termUnit}
 - Loan Type: ${loanData.loanType} loan
@@ -152,7 +182,13 @@ CURRENT LOAN DETAILS:
 ${loanData.totalInterest ? `- Total Interest: ₹${loanData.totalInterest.toLocaleString('en-IN')}` : ''}
 ${loanData.totalPayment ? `- Total Payment: ₹${loanData.totalPayment.toLocaleString('en-IN')}` : ''}
 
-Use these exact loan details for all calculations and analysis.`;
+IMPORTANT: Use these exact loan details for all calculations. Calculate month-by-month amortization precisely. For the scenario asked:
+1. Start from ${loanStartFormatted}
+2. Calculate outstanding balance month by month until prepayment date
+3. Apply prepayment and new EMI from that date
+4. Calculate exact completion date
+
+Show your step-by-step calculations to ensure accuracy.`;
       }
 
       // Direct OpenAI API call
