@@ -1,8 +1,8 @@
 import React from 'react';
-import { MainLayout } from './components/layout/MainLayout';
+import { ImprovedMainLayout } from './components/layout/ImprovedMainLayout';
 
 function App() {
-  return <MainLayout />;
+  return <ImprovedMainLayout />;
 }
 
 export default App;

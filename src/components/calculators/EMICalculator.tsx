@@ -113,6 +113,7 @@ export const EMICalculator: React.FC = () => {
               onChange={(e) => handleInputChange('principal', parseFloat(e.target.value) || 0)}
               error={errors.principal}
               placeholder="Enter loan amount"
+              formatDisplay={true}
             />
 
             <div>
@@ -125,6 +126,7 @@ export const EMICalculator: React.FC = () => {
                 onChange={(e) => handleInputChange('interestRate', parseFloat(e.target.value) || 0)}
                 error={errors.interestRate}
                 placeholder="Enter annual interest rate"
+                formatDisplay={true}
               />
               <p className="text-xs text-gray-500 mt-1">
                 {getInterestRateGuidance(inputs.loanType)}
@@ -139,6 +141,7 @@ export const EMICalculator: React.FC = () => {
                 onChange={(e) => handleInputChange('term', parseFloat(e.target.value) || 0)}
                 error={errors.term}
                 placeholder="Enter term"
+                formatDisplay={true}
               />
               <Select
                 label="Term Unit"

@@ -73,6 +73,7 @@ export const SIPCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('monthlyInvestment', parseFloat(e.target.value) || 0)}
               error={errors.monthlyInvestment}
               placeholder="Enter monthly SIP amount"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Minimum SIP amount varies by fund (typically ₹500 - ₹1,000)
@@ -87,6 +88,7 @@ export const SIPCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('expectedReturn', parseFloat(e.target.value) || 0)}
               error={errors.expectedReturn}
               placeholder="Enter expected return"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Equity funds: 10-15%, Debt funds: 6-8%, Hybrid funds: 8-12%
@@ -98,6 +100,7 @@ export const SIPCalculator: React.FC = () => {
               suffix="years"
               value={inputs.investmentPeriod}
               onChange={(e) => handleInputChange('investmentPeriod', parseFloat(e.target.value) || 0)}
+              formatDisplay={true}
               error={errors.investmentPeriod}
               placeholder="Enter investment period"
             />
@@ -114,6 +117,7 @@ export const SIPCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('stepUpPercentage', parseFloat(e.target.value) || 0)}
               error={errors.stepUpPercentage}
               placeholder="Enter step-up percentage"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Annual increase in SIP amount (recommended: 10-15% to beat inflation)

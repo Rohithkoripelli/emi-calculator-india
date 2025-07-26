@@ -82,6 +82,7 @@ export const CreditCardCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('purchaseAmount', parseFloat(e.target.value) || 0)}
               error={errors.purchaseAmount}
               placeholder="Enter purchase amount"
+              formatDisplay={true}
             />
 
             <Select
@@ -100,6 +101,7 @@ export const CreditCardCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('interestRate', parseFloat(e.target.value) || 0)}
               error={errors.interestRate}
               placeholder="Enter annual interest rate"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Typical credit card rates: 24% - 48% per annum
@@ -113,6 +115,7 @@ export const CreditCardCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('tenure', parseFloat(e.target.value) || 0)}
               error={errors.tenure}
               placeholder="Enter EMI tenure"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Most banks offer 3 to 24 months EMI options

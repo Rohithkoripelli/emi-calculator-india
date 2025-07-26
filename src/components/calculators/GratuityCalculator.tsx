@@ -69,6 +69,7 @@ export const GratuityCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('monthlySalary', parseFloat(e.target.value) || 0)}
               error={errors.monthlySalary}
               placeholder="Enter current monthly salary"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Current basic salary + dearness allowance (if applicable)
@@ -82,6 +83,7 @@ export const GratuityCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('yearsOfService', parseFloat(e.target.value) || 0)}
               error={errors.yearsOfService}
               placeholder="Enter years of service"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Minimum 5 years of continuous service required for gratuity eligibility
@@ -95,6 +97,7 @@ export const GratuityCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('lastDrawnSalary', parseFloat(e.target.value) || 0)}
               error={errors.lastDrawnSalary}
               placeholder="Enter last drawn salary"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Salary at the time of leaving/retirement (basic + DA)

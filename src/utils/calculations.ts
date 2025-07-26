@@ -160,15 +160,50 @@ export const calculateCreditCardEMI = (input: CreditCardInput) => {
   };
 };
 
+// Indian number formatting with proper comma placement
+export const formatIndianNumber = (num: number): string => {
+  if (num === 0) return '0';
+  
+  const numStr = Math.round(Math.abs(num)).toString();
+  const sign = num < 0 ? '-' : '';
+  
+  if (numStr.length <= 3) return sign + numStr;
+  
+  // Indian numbering system: first comma after 3 digits from right, then every 2 digits
+  let result = numStr.slice(-3); // last 3 digits
+  let remaining = numStr.slice(0, -3); // remaining digits
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= 2) {
+      result = remaining + ',' + result;
+      break;
+    } else {
+      result = remaining.slice(-2) + ',' + result;
+      remaining = remaining.slice(0, -2);
+    }
+  }
+  
+  return sign + result;
+};
+
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return '₹' + formatIndianNumber(amount);
 };
 
 export const formatNumber = (number: number): string => {
-  return new Intl.NumberFormat('en-IN').format(Math.round(number));
+  return formatIndianNumber(Math.round(number));
+};
+
+// Format for input fields to remove leading zeros
+export const formatInputNumber = (value: string | number): string => {
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(numValue) || numValue === 0) return '';
+  return numValue.toString();
+};
+
+// Format display values to avoid leading zeros
+export const formatDisplayValue = (value: string | number): string => {
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(numValue)) return '';
+  return numValue.toString();
 };

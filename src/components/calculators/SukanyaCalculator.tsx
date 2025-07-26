@@ -73,6 +73,7 @@ export const SukanyaCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('depositAmount', parseFloat(e.target.value) || 0)}
               error={errors.depositAmount}
               placeholder="Enter annual deposit"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Minimum: ₹250, Maximum: ₹1,50,000 per year
@@ -86,6 +87,7 @@ export const SukanyaCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('currentAge', parseFloat(e.target.value) || 0)}
               error={errors.currentAge}
               placeholder="Enter current age"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Account can be opened for girl child up to 10 years of age
@@ -98,6 +100,7 @@ export const SukanyaCalculator: React.FC = () => {
               value={inputs.termInYears}
               onChange={(e) => handleInputChange('termInYears', parseFloat(e.target.value) || 0)}
               error={errors.termInYears}
+              formatDisplay={true}
               placeholder="Enter investment period"
             />
             <p className="text-xs text-gray-500 -mt-3">
@@ -113,6 +116,7 @@ export const SukanyaCalculator: React.FC = () => {
               onChange={(e) => handleInputChange('interestRate', parseFloat(e.target.value) || 0)}
               error={errors.interestRate}
               placeholder="Enter interest rate"
+              formatDisplay={true}
             />
             <p className="text-xs text-gray-500 -mt-3">
               Current rate: 8.0% p.a. (Government declared rates change annually)
