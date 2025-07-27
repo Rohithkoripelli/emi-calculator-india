@@ -82,29 +82,6 @@ export const ExportOptions: React.FC<ExportOptionsProps> = ({
             </Button>
           </div>
 
-          {/* Export Details */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">📄 What's included in exports:</h4>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p>• Complete loan/investment details and assumptions</p>
-              <p>• Summary of results with key metrics</p>
-              <p>• Full payment schedule with month-by-month breakdown</p>
-              <p>• Yearly summary for easy tax planning</p>
-              <p>• Professional formatting ready for financial planning</p>
-            </div>
-          </div>
-
-          {/* Share Benefits */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h4 className="font-medium text-green-900 mb-2">🔗 Share Link Benefits:</h4>
-            <div className="text-sm text-green-700 space-y-1">
-              <p>• All your input values are preserved in the URL</p>
-              <p>• Recipients see exact same calculation instantly</p>
-              <p>• Perfect for sharing with financial advisors or family</p>
-              <p>• No registration or login required</p>
-              <p>• Bookmark for future reference</p>
-            </div>
-          </div>
         </div>
       </Card>
 
