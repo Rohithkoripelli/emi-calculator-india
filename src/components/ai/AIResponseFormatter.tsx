@@ -410,6 +410,45 @@ const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
 );
 
 const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
+  // First check for HTML tables and handle them separately
+  const htmlTableRegex = /<table[\s\S]*?<\/table>/gi;
+  const htmlTables = text.match(htmlTableRegex);
+  
+  if (htmlTables && htmlTables.length > 0) {
+    // Split text by HTML tables and render each part
+    const parts = text.split(htmlTableRegex);
+    const elements: React.ReactElement[] = [];
+    
+    for (let i = 0; i < parts.length; i++) {
+      // Add text part
+      if (parts[i].trim()) {
+        elements.push(
+          <div key={`text-${i}`}>
+            <EnhancedTextContent text={parts[i]} />
+          </div>
+        );
+      }
+      
+      // Add HTML table if it exists
+      if (htmlTables[i]) {
+        elements.push(
+          <div 
+            key={`table-${i}`} 
+            dangerouslySetInnerHTML={{ __html: htmlTables[i] }}
+            className="my-6 overflow-x-auto"
+          />
+        );
+      }
+    }
+    
+    return <div className="space-y-4">{elements}</div>;
+  }
+  
+  // If no HTML tables, use regular processing
+  return <EnhancedTextContent text={text} />;
+};
+
+const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   // Split text into lines and format each line
   const lines = text.split('\n').filter(line => line.trim());
   const processedElements: React.ReactElement[] = [];
