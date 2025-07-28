@@ -179,43 +179,72 @@ When presenting any tabular information, ALWAYS use this HTML table format:
         const monthlyRate = loanData.interestRate / 12 / 100;
         const tenureMonths = loanData.termUnit === 'years' ? loanData.term * 12 : loanData.term;
         
+        // Calculate exact completion date
+        const completionDate = new Date(loanStartDate);
+        completionDate.setMonth(completionDate.getMonth() + tenureMonths);
+        const completionFormatted = completionDate.toLocaleDateString('en-IN', { 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        // Pre-calculate common scenarios to prevent AI errors
+        const currentEMI = loanData.emi || 0;
+        const totalPayment = currentEMI * tenureMonths;
+        const totalInterest = totalPayment - loanData.principal;
+        
         systemPrompt += `
 
-💼 **EXACT LOAN DETAILS (USE THESE FOR ALL CALCULATIONS):**
-┌─────────────────────┬──────────────────────────┐
-│ Loan Amount         │ ₹${loanData.principal.toLocaleString('en-IN')}                │
-│ Interest Rate       │ ${loanData.interestRate}% per annum              │
-│ Monthly Rate        │ ${(monthlyRate * 100).toFixed(4)}% per month     │
-│ Current EMI         │ ₹${(loanData.emi || 0).toLocaleString('en-IN')}                │
-│ Tenure              │ ${loanData.term} ${loanData.termUnit} (${tenureMonths} months) │
-│ Loan Start Date     │ ${loanStartFormatted}                │
-│ Current Date        │ ${currentDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}              │
-│ Payment Frequency   │ Monthly                              │
-│ Loan Type           │ ${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)} Loan                │
-└─────────────────────┴──────────────────────────┘
+💼 **EXACT LOAN DETAILS (COPY THESE NUMBERS EXACTLY - DO NOT RECALCULATE):**
+
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-family: Arial, sans-serif;">
+<tbody>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Loan Amount</td><td style="padding: 8px; border: 1px solid #ddd;">₹${loanData.principal.toLocaleString('en-IN')}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Interest Rate</td><td style="padding: 8px; border: 1px solid #ddd;">${loanData.interestRate}% per annum</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Monthly Rate</td><td style="padding: 8px; border: 1px solid #ddd;">${(monthlyRate * 100).toFixed(4)}% per month</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Current EMI</td><td style="padding: 8px; border: 1px solid #ddd;">₹${currentEMI.toLocaleString('en-IN')}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Original Tenure</td><td style="padding: 8px; border: 1px solid #ddd;">${tenureMonths} months (${loanData.term} ${loanData.termUnit})</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Loan Start Date</td><td style="padding: 8px; border: 1px solid #ddd;">${loanStartFormatted}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Original Completion</td><td style="padding: 8px; border: 1px solid #ddd;">${completionFormatted}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Total Payment</td><td style="padding: 8px; border: 1px solid #ddd;">₹${totalPayment.toLocaleString('en-IN')}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Total Interest</td><td style="padding: 8px; border: 1px solid #ddd;">₹${totalInterest.toLocaleString('en-IN')}</td></tr>
+<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Loan Type</td><td style="padding: 8px; border: 1px solid #ddd;">${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)} Loan</td></tr>
+</tbody>
+</table>
+
+🚨 **CRITICAL: USE EXACT VALUES ABOVE - DO NOT CALCULATE OR MODIFY THESE NUMBERS!**
 
 🔢 **CRITICAL CALCULATION RULES:**
 
-1. **For Prepayment Calculations:**
-   - ALWAYS calculate month-by-month amortization from start date
-   - Use exact outstanding balance at prepayment date
-   - Apply prepayment to reduce principal
-   - Calculate new tenure using: n = -ln(1 - (P × r)/EMI) / ln(1 + r)
-   - Add months to prepayment date for completion date
+🔍 **VALIDATION CHECKLIST (VERIFY BEFORE RESPONDING):**
 
-2. **Date Calculation Example:**
-   - If prepayment in Month 12: ${loanStartFormatted} + 12 months + remaining tenure
-   - ALWAYS show: "From [prepayment month] to [completion month/year]"
+✅ **Before sending any response, CHECK:**
+1. Interest rate shown = ${loanData.interestRate}% (exactly)
+2. Original tenure shown = ${tenureMonths} months (exactly)  
+3. Completion date calculation = ${loanStartFormatted} + ${tenureMonths} months = ${completionFormatted}
+4. All currency amounts use Indian comma format: ₹X,XX,XXX
+5. Month calculations: 12 months = 1 year, 24 months = 2 years
 
-3. **Validation Checks:**
-   - Tenure reduction in months MUST match year/month difference
-   - If reduction is 18 months, completion date should be 18 months earlier
-   - VERIFY: Start date + original months vs start date + new months
+⚠️ **COMMON MISTAKES TO AVOID:**
+- Do NOT show ${loanData.interestRate}% as any other number
+- Do NOT show ${tenureMonths} months as ${tenureMonths - 20} or any other number
+- Do NOT calculate ${completionFormatted} as anything else
+- Do NOT show raw mathematical formulas to user
 
-4. **Required Response Format:**
-   - Show month-by-month calculation breakdown
-   - Display exact dates: "Loan will complete in [Month Year]"
-   - Show tenure reduction: "X months earlier (Y years Z months)"
+💡 **STEP-BY-STEP PREPAYMENT CALCULATION:**
+1. **Outstanding Balance Calculation:**
+   - Start with ₹${loanData.principal.toLocaleString('en-IN')} principal
+   - Calculate month-by-month amortization to prepayment date
+   - Use monthly rate: ${(monthlyRate * 100).toFixed(4)}%
+
+2. **After Prepayment:**
+   - Subtract prepayment amount from outstanding balance
+   - New EMI = Original EMI + EMI increase
+   - Calculate remaining months using standard amortization formula
+
+3. **Date Calculations:**
+   - Original completion: ${completionFormatted}
+   - New completion: ${loanStartFormatted} + prepayment month + remaining months
+   - Show exact month/year difference`;
 
 🎯 **ACCURACY REQUIREMENTS:**
 - Use EXACT dates provided above
@@ -236,7 +265,7 @@ When presenting any tabular information, ALWAYS use this HTML table format:
    - Remaining months calculation
 3. **Final Answer with Exact Dates**
 
-**HTML Table Format (MANDATORY):**
+**HTML Table Format (MANDATORY - USE EXACT VALUES FROM LOAN DETAILS):**
 <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
 <thead>
 <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
@@ -248,19 +277,25 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 </thead>
 <tbody>
 <tr>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">Current</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">₹64,158</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">68 months</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">March 2030</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">Current Scenario</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">₹${currentEMI.toLocaleString('en-IN')}</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">${tenureMonths} months</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">${completionFormatted}</td>
 </tr>
 <tr>
 <td style="padding: 10px; border: 1px solid #e2e8f0;">After Prepayment</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">₹69,158</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">36 months</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">December 2028</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate new EMI]</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate remaining months]</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate new completion date]</td>
 </tr>
 </tbody>
 </table>
+
+🎯 **DOUBLE-CHECK THESE EXACT VALUES:**
+- Current EMI: ₹${currentEMI.toLocaleString('en-IN')} (not ₹64,158 or any other number)
+- Original tenure: ${tenureMonths} months (not 48 months or any other number)  
+- Interest rate: ${loanData.interestRate}% p.a. (not any other percentage)
+- Completion date: ${completionFormatted} (not any other month/year)`;
 
 Remember: EVERY calculation must be deterministic and repeatable with same inputs!`;
       }
