@@ -32,40 +32,75 @@ const formatCurrency = (amount: string): string => {
 const extractTableData = (text: string): ComparisonData[] => {
   const comparisons: ComparisonData[] = [];
   
-  // Look for ASCII table patterns with dashes and multiple columns
+  // Don't extract table data if HTML tables are present
+  if (text.includes('<table')) {
+    return comparisons;
+  }
+  
+  // Look for scenario comparisons with specific patterns
   const lines = text.split('\n');
-  let tableStartIndex = -1;
-  let headerLine = '';
   
-  // Find table header with dashes
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.includes('---') && line.length > 10) {
-      tableStartIndex = i;
-      headerLine = lines[i - 1]?.trim() || '';
-      break;
-    }
-  }
+  // Look for comparison scenarios
+  const scenarioPatterns = [
+    /current.*scenario/i,
+    /after.*prepayment/i,
+    /with.*prepayment/i,
+    /original.*loan/i,
+    /new.*scenario/i
+  ];
   
-  // If we found a table with dashes, parse it
-  if (tableStartIndex > 0 && headerLine) {
-    for (let i = tableStartIndex + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line || line.includes('---')) continue;
-      
-      // Split by multiple spaces or tabs and filter empty cells
-      const cells = line.split(/\s{2,}|\t/).map(cell => cell.trim()).filter(cell => cell);
-      
-      if (cells.length >= 2) {
-        comparisons.push({
-          scenario: cells[0] || `Scenario ${i - tableStartIndex}`,
-          emi: cells[1] || '',
-          tenure: cells[2] || '',
-          savings: cells[3] || ''
-        });
+  let currentScenario: Partial<ComparisonData> = {};
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Check if this line describes a scenario
+    const isScenario = scenarioPatterns.some(pattern => pattern.test(trimmedLine));
+    
+    if (isScenario) {
+      // Save previous scenario if complete
+      if (currentScenario.scenario && currentScenario.emi) {
+        comparisons.push(currentScenario as ComparisonData);
       }
+      
+      // Start new scenario
+      currentScenario = {
+        scenario: trimmedLine
+      };
+    }
+    
+    // Extract EMI (only actual EMI amounts, not principal)
+    const emiMatch = trimmedLine.match(/EMI.*?₹([\d,]+)/i) || 
+                     trimmedLine.match(/₹([\d,]+).*EMI/i);
+    if (emiMatch && !trimmedLine.toLowerCase().includes('principal') && 
+        !trimmedLine.toLowerCase().includes('amount')) {
+      currentScenario.emi = '₹' + emiMatch[1];
+    }
+    
+    // Extract tenure (months or years)
+    const tenureMatch = trimmedLine.match(/(\d+)\s*(months?|years?)/i);
+    if (tenureMatch && currentScenario.scenario) {
+      currentScenario.tenure = `${tenureMatch[1]} ${tenureMatch[2]}`;
+    }
+    
+    // Extract savings
+    const savingsMatch = trimmedLine.match(/sav.*?₹([\d,]+)/i) ||
+                        trimmedLine.match(/₹([\d,]+).*sav/i);
+    if (savingsMatch) {
+      currentScenario.savings = '₹' + savingsMatch[1];
     }
   }
+  
+  // Add final scenario
+  if (currentScenario.scenario && currentScenario.emi) {
+    comparisons.push(currentScenario as ComparisonData);
+  }
+  
+  return comparisons;
+};
+
+const extractTableDataOld = (text: string): ComparisonData[] => {
+  const comparisons: ComparisonData[] = [];
   
   // Fallback: Look for pipe-separated tables
   if (comparisons.length === 0) {
@@ -222,80 +257,44 @@ const extractKeyMetrics = (text: string): LoanData[] => {
 };
 
 const createSavingsChart = (text: string) => {
-  // More flexible patterns for savings and interest
-  const savingsPatterns = [
-    /sav[ei].*?₹([\d,]+)/gi,
-    /₹([\d,]+).*?sav[ei]/gi,
-    /reduc.*?₹([\d,]+)/gi,
-    /₹([\d,]+).*?reduc/gi
-  ];
+  // Only create charts for meaningful financial breakdowns
   
-  const interestPatterns = [
-    /(?:total |current )?interest.*?₹([\d,]+)/gi,
-    /₹([\d,]+).*?interest/gi
-  ];
+  // Look for explicit interest savings comparisons
+  const savingsMatch = text.match(/(?:save|saving).*?₹([\d,]+)/i);
+  const interestSavedMatch = text.match(/interest.*?saved.*?₹([\d,]+)/i);
+  const remainingInterestMatch = text.match(/remaining.*?interest.*?₹([\d,]+)/i);
   
-  let savingsAmount = 0;
-  let interestAmount = 0;
-  
-  // Find savings amount
-  for (const pattern of savingsPatterns) {
-    const matches = text.match(pattern);
-    if (matches && matches.length > 0) {
-      const amount = parseInt(matches[0].replace(/[₹,\s]/g, '').match(/\d+/)?.[0] || '0');
-      if (amount > savingsAmount) {
-        savingsAmount = amount;
-      }
-    }
-  }
-  
-  // Find interest amount
-  for (const pattern of interestPatterns) {
-    const matches = text.match(pattern);
-    if (matches && matches.length > 0) {
-      const amount = parseInt(matches[0].replace(/[₹,\s]/g, '').match(/\d+/)?.[0] || '0');
-      if (amount > interestAmount) {
-        interestAmount = amount;
-      }
-    }
-  }
-  
-  // Look for any two significant amounts that could represent a comparison
-  const allAmounts = text.match(/₹[\d,]+/g);
-  if (allAmounts && allAmounts.length >= 2 && (!savingsAmount || !interestAmount)) {
-    const amounts = allAmounts.map(amt => parseInt(amt.replace(/[₹,]/g, '')))
-      .filter(amt => amt > 1000) // Filter small amounts
-      .sort((a, b) => b - a); // Sort descending
+  if (savingsMatch && (interestSavedMatch || remainingInterestMatch)) {
+    const savedAmount = parseInt(savingsMatch[1].replace(/,/g, ''));
+    const remainingAmount = remainingInterestMatch ? 
+      parseInt(remainingInterestMatch[1].replace(/,/g, '')) : 
+      savedAmount * 2; // Reasonable estimate
     
-    if (amounts.length >= 2) {
-      interestAmount = interestAmount || amounts[0];
-      savingsAmount = savingsAmount || Math.min(amounts[1], interestAmount * 0.5); // Reasonable savings
-    }
-  }
-  
-  if (savingsAmount > 0 && interestAmount > savingsAmount) {
-    const remainingInterest = interestAmount - savingsAmount;
-    
-    return [
-      { name: 'Interest Saved', value: savingsAmount, color: '#10B981' },
-      { name: 'Remaining Interest', value: remainingInterest, color: '#EF4444' }
-    ];
-  }
-  
-  // If we have EMI or principal amounts, create a simple breakdown
-  if (allAmounts && allAmounts.length >= 2) {
-    const amounts = allAmounts.map(amt => parseInt(amt.replace(/[₹,]/g, '')))
-      .filter(amt => amt > 1000)
-      .sort((a, b) => b - a);
-    
-    if (amounts.length >= 2) {
+    if (savedAmount > 0 && remainingAmount > 0) {
       return [
-        { name: 'Principal Component', value: amounts[1], color: '#3B82F6' },
-        { name: 'Interest Component', value: amounts[0] - amounts[1], color: '#EF4444' }
+        { name: 'Interest Saved', value: savedAmount, color: '#10B981' },
+        { name: 'Remaining Interest', value: remainingAmount, color: '#EF4444' }
       ];
     }
   }
   
+  // Look for principal vs interest breakdown
+  const principalMatch = text.match(/principal.*?₹([\d,]+)/i);
+  const totalInterestMatch = text.match(/total.*?interest.*?₹([\d,]+)/i);
+  
+  if (principalMatch && totalInterestMatch) {
+    const principal = parseInt(principalMatch[1].replace(/,/g, ''));
+    const interest = parseInt(totalInterestMatch[1].replace(/,/g, ''));
+    
+    if (principal > 0 && interest > 0 && principal > interest / 10) { // Sanity check
+      return [
+        { name: 'Principal Amount', value: principal, color: '#3B82F6' },
+        { name: 'Total Interest', value: interest, color: '#EF4444' }
+      ];
+    }
+  }
+  
+  // Only return null if no meaningful financial breakdown is found
   return null;
 };
 

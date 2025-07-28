@@ -175,32 +175,94 @@ When presenting any tabular information, ALWAYS use this HTML table format:
           year: 'numeric' 
         });
         
+        const currentDate = new Date();
+        const monthlyRate = loanData.interestRate / 12 / 100;
+        const tenureMonths = loanData.termUnit === 'years' ? loanData.term * 12 : loanData.term;
+        
         systemPrompt += `
 
-💼 **CURRENT LOAN CONTEXT:**
+💼 **EXACT LOAN DETAILS (USE THESE FOR ALL CALCULATIONS):**
 ┌─────────────────────┬──────────────────────────┐
 │ Loan Amount         │ ₹${loanData.principal.toLocaleString('en-IN')}                │
 │ Interest Rate       │ ${loanData.interestRate}% per annum              │
+│ Monthly Rate        │ ${(monthlyRate * 100).toFixed(4)}% per month     │
 │ Current EMI         │ ₹${(loanData.emi || 0).toLocaleString('en-IN')}                │
-│ Tenure              │ ${loanData.term} ${loanData.termUnit}                 │
+│ Tenure              │ ${loanData.term} ${loanData.termUnit} (${tenureMonths} months) │
+│ Loan Start Date     │ ${loanStartFormatted}                │
+│ Current Date        │ ${currentDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}              │
+│ Payment Frequency   │ Monthly                              │
 │ Loan Type           │ ${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)} Loan                │
-│ Start Date          │ ${loanStartFormatted}                │
 └─────────────────────┴──────────────────────────┘
 
-🎯 **PERSONALIZATION FOCUS:**
-- Base all recommendations on the above loan details
-- Provide specific, actionable advice for this exact scenario
-- Consider current market conditions and trends
-- Suggest optimization strategies relevant to this loan type
+🔢 **CRITICAL CALCULATION RULES:**
 
-📈 **ANALYSIS PRIORITIES:**
-1. EMI optimization opportunities
-2. Interest savings potential
-3. Prepayment strategies
-4. Refinancing considerations
-5. Tax benefits (if applicable)
+1. **For Prepayment Calculations:**
+   - ALWAYS calculate month-by-month amortization from start date
+   - Use exact outstanding balance at prepayment date
+   - Apply prepayment to reduce principal
+   - Calculate new tenure using: n = -ln(1 - (P × r)/EMI) / ln(1 + r)
+   - Add months to prepayment date for completion date
 
-Remember: Present insights professionally without exposing calculation formulas to the user.`;
+2. **Date Calculation Example:**
+   - If prepayment in Month 12: ${loanStartFormatted} + 12 months + remaining tenure
+   - ALWAYS show: "From [prepayment month] to [completion month/year]"
+
+3. **Validation Checks:**
+   - Tenure reduction in months MUST match year/month difference
+   - If reduction is 18 months, completion date should be 18 months earlier
+   - VERIFY: Start date + original months vs start date + new months
+
+4. **Required Response Format:**
+   - Show month-by-month calculation breakdown
+   - Display exact dates: "Loan will complete in [Month Year]"
+   - Show tenure reduction: "X months earlier (Y years Z months)"
+
+🎯 **ACCURACY REQUIREMENTS:**
+- Use EXACT dates provided above
+- Show step-by-step date calculations  
+- Verify all month-year conversions
+- Cross-check completion dates with tenure reductions
+
+📝 **EXACT RESPONSE FORMAT FOR PREPAYMENT QUESTIONS:**
+
+**Question:** "If I pay ₹8,00,000 prepayment and increase EMI by ₹5,000, when will loan close?"
+
+**Required Response Structure:**
+1. **Current Scenario Analysis** (in HTML table)
+2. **Step-by-step Calculation:**
+   - Outstanding balance at prepayment time
+   - New principal after prepayment
+   - New EMI amount
+   - Remaining months calculation
+3. **Final Answer with Exact Dates**
+
+**HTML Table Format (MANDATORY):**
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+<thead>
+<tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Scenario</th>
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">EMI Amount</th>
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Remaining Months</th>
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Completion Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">Current</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">₹64,158</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">68 months</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">March 2030</td>
+</tr>
+<tr>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">After Prepayment</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">₹69,158</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">36 months</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">December 2028</td>
+</tr>
+</tbody>
+</table>
+
+Remember: EVERY calculation must be deterministic and repeatable with same inputs!`;
       }
 
       // Direct OpenAI API call
@@ -223,7 +285,8 @@ Remember: Present insights professionally without exposing calculation formulas 
             }
           ],
           max_tokens: 2000,
-          temperature: 0.1,
+          temperature: 0.0,  // Maximum consistency
+          seed: 42,          // Deterministic responses
         }),
       });
 
