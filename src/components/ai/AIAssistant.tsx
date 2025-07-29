@@ -148,24 +148,24 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
     setIsLoading(true);
     
     try {
-      console.log('🚀 Calling OpenAI API with:', currentInput);
+      console.log('Calling OpenAI API with:', currentInput);
       
       // Check if API key is available
       if (!process.env.REACT_APP_OPENAI_API_KEY) {
-        console.log('❌ OpenAI API key not found in environment variables');
+        console.log('ERROR: OpenAI API key not found in environment variables');
         throw new Error('OpenAI API key not configured');
       }
       
       // Enhanced system prompt for user-friendly responses with HTML tables
       let systemPrompt = `You are an expert Indian financial advisor specialized in loan planning and EMI optimization. 
 
-🎯 **YOUR ROLE:**
+**YOUR ROLE:**
 - Provide personalized, user-friendly financial advice
 - Present calculations in clean, professional HTML table format
 - Hide complex mathematical formulas from responses
 - Focus on actionable insights and recommendations
 
-📊 **CRITICAL: USE HTML TABLES FOR ALL TABULAR DATA**
+**CRITICAL: USE HTML TABLES FOR ALL TABULAR DATA**
 
 When presenting any tabular information, ALWAYS use this HTML table format:
 
@@ -186,19 +186,19 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 
 **NEVER use ASCII tables like:**
 ┌─────────────────────┬──────────────┐
-│ Aspect              │ Amount       │  ❌ DON'T USE THIS
+| Aspect              | Amount       |  DON'T USE THIS
 └─────────────────────┴──────────────┘
 
-**ALWAYS use HTML tables like above** ✅
+**ALWAYS use HTML tables like above**
 
-🔍 **FORMATTING REQUIREMENTS:**
+**FORMATTING REQUIREMENTS:**
 1. **Use HTML tables** for ALL comparisons, schedules, breakdowns
 2. **Indian number format**: ₹50,00,000 (not ₹5000000)
 3. **Summary cards** with emojis for key insights
 4. **Bold headings** with ** syntax
 5. **Professional color scheme** in table styles
 
-📋 **Response Structure:**
+**Response Structure:**
 1. Brief introduction
 2. HTML table with key data
 3. Key insights with emojis
@@ -212,7 +212,7 @@ When presenting any tabular information, ALWAYS use this HTML table format:
           year: 'numeric' 
         });
         
-        const currentDate = new Date();
+        // const currentDate = new Date();
         const monthlyRate = loanData.interestRate / 12 / 100;
         const tenureMonths = loanData.termUnit === 'years' ? loanData.term * 12 : loanData.term;
         
@@ -231,7 +231,7 @@ When presenting any tabular information, ALWAYS use this HTML table format:
         
         systemPrompt += `
 
-💼 **EXACT LOAN DETAILS (COPY THESE NUMBERS EXACTLY - DO NOT RECALCULATE):**
+**EXACT LOAN DETAILS (COPY THESE NUMBERS EXACTLY - DO NOT RECALCULATE):**
 
 <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-family: Arial, sans-serif;">
 <tbody>
@@ -248,26 +248,26 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 </tbody>
 </table>
 
-🚨 **CRITICAL: USE EXACT VALUES ABOVE - DO NOT CALCULATE OR MODIFY THESE NUMBERS!**
+**CRITICAL: USE EXACT VALUES ABOVE - DO NOT CALCULATE OR MODIFY THESE NUMBERS!**
 
-🔢 **CRITICAL CALCULATION RULES:**
+**CRITICAL CALCULATION RULES:**
 
-🔍 **VALIDATION CHECKLIST (VERIFY BEFORE RESPONDING):**
+**VALIDATION CHECKLIST (VERIFY BEFORE RESPONDING):**
 
-✅ **Before sending any response, CHECK:**
+**Before sending any response, CHECK:**
 1. Interest rate shown = ${loanData.interestRate}% (exactly)
 2. Original tenure shown = ${tenureMonths} months (exactly)  
 3. Completion date calculation = ${loanStartFormatted} + ${tenureMonths} months = ${completionFormatted}
 4. All currency amounts use Indian comma format: ₹X,XX,XXX
 5. Month calculations: 12 months = 1 year, 24 months = 2 years
 
-⚠️ **COMMON MISTAKES TO AVOID:**
+**COMMON MISTAKES TO AVOID:**
 - Do NOT show ${loanData.interestRate}% as any other number
 - Do NOT show ${tenureMonths} months as ${tenureMonths - 20} or any other number
 - Do NOT calculate ${completionFormatted} as anything else
 - Do NOT show raw mathematical formulas to user
 
-💡 **STEP-BY-STEP PREPAYMENT CALCULATION:**
+**STEP-BY-STEP PREPAYMENT CALCULATION:**
 1. **Outstanding Balance Calculation:**
    - Start with ₹${loanData.principal.toLocaleString('en-IN')} principal
    - Calculate month-by-month amortization to prepayment date
@@ -281,15 +281,15 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 3. **Date Calculations:**
    - Original completion: ${completionFormatted}
    - New completion: ${loanStartFormatted} + prepayment month + remaining months
-   - Show exact month/year difference`;
+   - Show exact month/year difference
 
-🎯 **ACCURACY REQUIREMENTS:**
+**ACCURACY REQUIREMENTS:**
 - Use EXACT dates provided above
 - Show step-by-step date calculations  
 - Verify all month-year conversions
 - Cross-check completion dates with tenure reductions
 
-📝 **EXACT RESPONSE FORMAT FOR PREPAYMENT QUESTIONS:**
+**EXACT RESPONSE FORMAT FOR PREPAYMENT QUESTIONS:**
 
 **Question:** "If I pay ₹8,00,000 prepayment and increase EMI by ₹5,000, when will loan close?"
 
@@ -328,11 +328,11 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 </tbody>
 </table>
 
-🎯 **DOUBLE-CHECK THESE EXACT VALUES:**
+**DOUBLE-CHECK THESE EXACT VALUES:**
 - Current EMI: ₹${currentEMI.toLocaleString('en-IN')} (not ₹64,158 or any other number)
 - Original tenure: ${tenureMonths} months (not 48 months or any other number)  
 - Interest rate: ${loanData.interestRate}% p.a. (not any other percentage)
-- Completion date: ${completionFormatted} (not any other month/year)`;
+- Completion date: ${completionFormatted} (not any other month/year)
 
 Remember: EVERY calculation must be deterministic and repeatable with same inputs!`;
       }
@@ -367,7 +367,7 @@ Remember: EVERY calculation must be deterministic and repeatable with same input
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ OpenAI API Error response:', errorText);
+        console.error('OpenAI API Error response:', errorText);
         throw new Error(`OpenAI API error! status: ${response.status} - ${errorText}`);
       }
 
@@ -381,7 +381,7 @@ Remember: EVERY calculation must be deterministic and repeatable with same input
       
       // Log validation issues for debugging but don't reject the response
       if (!validation.isValid) {
-        console.warn('⚠️ Response validation issues (but using response anyway):', validation.issues);
+        console.warn('Response validation issues (but using response anyway):', validation.issues);
       }
       
       const aiResponse: Message = {
@@ -394,12 +394,12 @@ Remember: EVERY calculation must be deterministic and repeatable with same input
       setMessages(prev => [...prev, aiResponse]);
       
     } catch (error) {
-      console.error('❌ OpenAI API Error:', error);
+      console.error('OpenAI API Error:', error);
       
       // Simple fallback response
       const fallbackResponse: Message = {
         id: (Date.now() + 1).toString(),
-        text: generateFallbackResponse(currentInput) + '\n\n⚠️ (API temporarily unavailable)',
+        text: generateFallbackResponse(currentInput) + '\n\n(API temporarily unavailable)',
         isUser: false,
         timestamp: new Date()
       };
