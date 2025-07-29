@@ -37,7 +37,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,6 +48,41 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle viewport changes for mobile keyboards
+  useEffect(() => {
+    const handleResize = () => {
+      const newHeight = window.innerHeight;
+      setViewportHeight(newHeight);
+      
+      // Detect keyboard appearance on mobile
+      const heightDiff = window.screen.height - newHeight;
+      if (heightDiff > 150) { // Keyboard likely visible
+        setTimeout(() => {
+          if (textareaRef.current && document.activeElement === textareaRef.current) {
+            textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setViewportHeight(window.innerHeight);
+      }
+    };
+
+    // Use both resize and orientationchange for better mobile support
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
 
   const formatCurrency = (amount: number): string => {
@@ -398,16 +435,21 @@ Remember: EVERY calculation must be deterministic and repeatable with same input
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl h-[95vh] sm:h-[90vh] lg:h-[600px] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-lg w-full max-w-2xl mobile-full-height sm:h-[90vh] lg:h-[600px] flex flex-col overflow-hidden" style={{
+        height: `min(${viewportHeight}px, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)))`,
+        maxHeight: `${viewportHeight - 16}px`
+      }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-200" style={{
+          paddingTop: 'max(12px, env(safe-area-inset-top))'
+        }}>
           <div className="flex items-center gap-2 lg:gap-3">
             <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <ChatBubbleLeftRightIcon className="w-4 h-4 lg:w-6 lg:h-6 text-blue-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 text-sm lg:text-base">AI Financial Assistant</h3>
-              <p className="text-xs lg:text-sm text-gray-500">Powered by GPT-4o • India-specific advice</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-gray-900 text-sm lg:text-base truncate">AI Financial Assistant</h3>
+              <p className="text-xs lg:text-sm text-gray-500 truncate">Powered by GPT-4o • India-specific advice</p>
             </div>
           </div>
           <button
@@ -489,21 +531,28 @@ Remember: EVERY calculation must be deterministic and repeatable with same input
         )}
 
         {/* Input */}
-        <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200">
-          <div className="flex gap-2">
+        <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200" style={{
+          paddingBottom: 'max(8px, env(safe-area-inset-bottom))'
+        }}>
+          <div className="flex gap-2 items-end">
             <textarea
+              ref={textareaRef}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me about loans, investments, tax planning..."
-              className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base min-h-[2.5rem]"
+              className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base min-h-[2.5rem] max-h-[120px]"
               rows={2}
               disabled={isLoading}
+              style={{
+                minHeight: '40px',
+                maxHeight: '120px'
+              }}
             />
             <Button
               onClick={handleSendMessage}
               disabled={!inputMessage.trim() || isLoading}
-              className="px-2 lg:px-3"
+              className="px-2 sm:px-3 lg:px-3 h-[40px] min-w-[40px] flex-shrink-0"
             >
               <PaperAirplaneIcon className="w-4 h-4 lg:w-5 lg:h-5" />
             </Button>
