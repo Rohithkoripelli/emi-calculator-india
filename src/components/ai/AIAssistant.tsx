@@ -268,20 +268,32 @@ When presenting any tabular information, ALWAYS use this HTML table format:
 - Do NOT show raw mathematical formulas to user
 
 **STEP-BY-STEP PREPAYMENT CALCULATION:**
-1. **Outstanding Balance Calculation:**
-   - Start with ₹${loanData.principal.toLocaleString('en-IN')} principal
-   - Calculate month-by-month amortization to prepayment date
-   - Use monthly rate: ${(monthlyRate * 100).toFixed(4)}%
 
-2. **After Prepayment:**
-   - Subtract prepayment amount from outstanding balance
-   - New EMI = Original EMI + EMI increase
-   - Calculate remaining months using standard amortization formula
+**CRITICAL: For immediate prepayment (current month), use these formulas:**
 
-3. **Date Calculations:**
-   - Original completion: ${completionFormatted}
-   - New completion: ${loanStartFormatted} + prepayment month + remaining months
-   - Show exact month/year difference
+1. **Current Outstanding Balance = ₹${loanData.principal.toLocaleString('en-IN')} (use this exact amount)**
+
+2. **After Prepayment Formula:**
+   - New Principal = ₹${loanData.principal.toLocaleString('en-IN')} - Prepayment Amount
+   - For ₹8,00,000 prepayment: New Principal = ₹${(loanData.principal - 800000).toLocaleString('en-IN')}
+
+3. **New Tenure Calculation (Same EMI):**
+   - Use EMI formula: EMI = P × r × (1+r)^n / [(1+r)^n - 1]
+   - Where P = New Principal, r = ${(monthlyRate * 100).toFixed(4)}% monthly, EMI = ₹${currentEMI.toLocaleString('en-IN')}
+   - Solve for n (months): n = log(1 + (P×r/EMI)) / log(1+r)
+   
+4. **Pre-calculated for ₹8,00,000 prepayment:**
+   - New Principal: ₹${(loanData.principal - 800000).toLocaleString('en-IN')}
+   - Monthly Rate: ${(monthlyRate * 100).toFixed(4)}%
+   - Same EMI: ₹${currentEMI.toLocaleString('en-IN')}
+   - New Tenure: ${Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months
+   - Original: ${tenureMonths} months → New: ${Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months (Reduction: ${tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months)
+
+5. **New Completion Date:**
+   - Start: ${loanStartFormatted}
+   - New Duration: ${Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months
+   - New Completion: ${new Date(new Date(loanStartDate).setMonth(new Date(loanStartDate).getMonth() + Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate)))).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+   - Time Saved: ${Math.floor((tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) / 12)} years ${(tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) % 12} months
 
 **ACCURACY REQUIREMENTS:**
 - Use EXACT dates provided above
@@ -302,31 +314,46 @@ When presenting any tabular information, ALWAYS use this HTML table format:
    - Remaining months calculation
 3. **Final Answer with Exact Dates**
 
-**HTML Table Format (MANDATORY - USE EXACT VALUES FROM LOAN DETAILS):**
+**HTML Table Format (MANDATORY - COPY THESE EXACT CALCULATED VALUES):**
+
+**For ₹8,00,000 prepayment with same EMI:**
 <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
 <thead>
 <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
 <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Scenario</th>
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Principal</th>
 <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">EMI Amount</th>
-<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Remaining Months</th>
+<th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Tenure</th>
 <th style="padding: 12px; text-align: left; border: 1px solid #e2e8f0;">Completion Date</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td style="padding: 10px; border: 1px solid #e2e8f0;">Current Scenario</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0;">₹${loanData.principal.toLocaleString('en-IN')}</td>
 <td style="padding: 10px; border: 1px solid #e2e8f0;">₹${currentEMI.toLocaleString('en-IN')}</td>
 <td style="padding: 10px; border: 1px solid #e2e8f0;">${tenureMonths} months</td>
 <td style="padding: 10px; border: 1px solid #e2e8f0;">${completionFormatted}</td>
 </tr>
-<tr>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">After Prepayment</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate new EMI]</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate remaining months]</td>
-<td style="padding: 10px; border: 1px solid #e2e8f0;">[Calculate new completion date]</td>
+<tr style="background-color: #f0fdf4;">
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">After ₹8,00,000 Prepayment</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">₹${(loanData.principal - 800000).toLocaleString('en-IN')}</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">₹${currentEMI.toLocaleString('en-IN')}</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">${Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">${new Date(new Date(loanStartDate).setMonth(new Date(loanStartDate).getMonth() + Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate)))).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</td>
+</tr>
+<tr style="background-color: #fef3c7;">
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #92400e;">Savings</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #92400e;">₹8,00,000 less</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #92400e;">Same</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #92400e;">${tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))} months saved</td>
+<td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; color: #92400e;">${Math.floor((tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) / 12)} years ${(tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) % 12} months earlier</td>
 </tr>
 </tbody>
 </table>
+
+**FINAL ANSWER FORMAT:**
+"Your loan will close in ${new Date(new Date(loanStartDate).setMonth(new Date(loanStartDate).getMonth() + Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate)))).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} after the ₹8,00,000 prepayment, which is ${Math.floor((tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) / 12)} years ${(tenureMonths - Math.ceil(-Math.log(1 - ((loanData.principal - 800000) * monthlyRate) / currentEMI) / Math.log(1 + monthlyRate))) % 12} months earlier than the original completion date."
 
 **DOUBLE-CHECK THESE EXACT VALUES:**
 - Current EMI: ₹${currentEMI.toLocaleString('en-IN')} (not ₹64,158 or any other number)
