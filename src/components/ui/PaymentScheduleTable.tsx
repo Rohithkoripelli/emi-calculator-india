@@ -163,38 +163,38 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
                   {expandedYears.has(yearGroup.year) && yearGroup.payments.map((payment, monthIndex) => (
                     <tr 
                       key={`${yearGroup.year}-${payment.month}`}
-                      className={`${monthIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-l-4 border-transparent hover:border-blue-300`}
+                      className={`${monthIndex % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'} hover:bg-blue-50 dark:hover:bg-blue-600/10 transition-colors border-l-4 border-transparent hover:border-blue-300 dark:hover:border-blue-500`}
                     >
                       <td className="px-4 py-3 whitespace-nowrap pl-12">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 dark:text-dark-text-primary">
                               Month {payment.month}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-dark-text-muted">
                               {format(payment.date, 'MMM yyyy')}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-dark-text-primary">
                           {formatCurrency(payment.emi)}
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600">
+                        <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
                           {formatCurrency(payment.principal)}
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-red-600">
+                        <div className="text-sm font-medium text-red-600 dark:text-red-400">
                           {formatCurrency(payment.interest)}
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-dark-text-primary">
                           {formatCurrency(payment.balance)}
                         </div>
                       </td>
@@ -208,29 +208,29 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
       </div>
 
       {/* Summary Footer */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="mt-4 p-4 bg-gray-50 dark:bg-dark-card rounded-lg border border-gray-200 dark:border-dark-border">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div>
-            <div className="text-xs font-medium text-gray-500 uppercase">Total EMI</div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase">Total EMI</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary">
               {formatCurrency(schedule.reduce((sum, p) => sum + p.emi, 0))}
             </div>
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500 uppercase">Total Principal</div>
-            <div className="text-lg font-semibold text-blue-600">
+            <div className="text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase">Total Principal</div>
+            <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
               {formatCurrency(schedule.reduce((sum, p) => sum + p.principal, 0))}
             </div>
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500 uppercase">Total Interest</div>
-            <div className="text-lg font-semibold text-red-600">
+            <div className="text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase">Total Interest</div>
+            <div className="text-lg font-semibold text-red-600 dark:text-red-400">
               {formatCurrency(schedule.reduce((sum, p) => sum + p.interest, 0))}
             </div>
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500 uppercase">Total Payments</div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase">Total Payments</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary">
               {schedule.length}
             </div>
           </div>

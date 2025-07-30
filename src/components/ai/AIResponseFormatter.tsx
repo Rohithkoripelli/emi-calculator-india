@@ -344,11 +344,11 @@ const createSavingsChart = (text: string) => {
 const LoanMetricsCard: React.FC<{ metrics: LoanData[] }> = ({ metrics }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4 my-4">
     {metrics.map((metric, index) => (
-      <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 lg:p-4 rounded-lg border border-blue-100">
-        <div className="text-xs lg:text-sm text-gray-600 mb-1">{metric.label}</div>
+      <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20 p-3 lg:p-4 rounded-lg border border-blue-100 dark:border-blue-600/30">
+        <div className="text-xs lg:text-sm text-gray-600 dark:text-dark-text-secondary mb-1">{metric.label}</div>
         <div className={`text-base lg:text-lg font-bold ${
-          metric.type === 'currency' ? 'text-green-600' : 
-          metric.type === 'percentage' ? 'text-blue-600' : 'text-gray-800'
+          metric.type === 'currency' ? 'text-green-600 dark:text-green-400' : 
+          metric.type === 'percentage' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-dark-text-primary'
         }`}>
           {metric.value}
         </div>
@@ -358,37 +358,37 @@ const LoanMetricsCard: React.FC<{ metrics: LoanData[] }> = ({ metrics }) => (
 );
 
 const ComparisonTable: React.FC<{ data: ComparisonData[] }> = ({ data }) => (
-  <div className="my-4 lg:my-6 overflow-x-auto rounded-lg border border-gray-200">
-    <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-      <thead className="bg-gray-50">
+  <div className="my-4 lg:my-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border text-xs sm:text-sm">
+      <thead className="bg-gray-50 dark:bg-dark-card">
         <tr>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
             Scenario
           </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
             EMI
           </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
             Tenure
           </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
             Savings
           </th>
         </tr>
       </thead>
-      <tbody className="bg-white divide-y divide-gray-200">
+      <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
         {data.map((row, index) => (
-          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-medium text-gray-900 break-words">
+          <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'}>
+            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-medium text-gray-900 dark:text-dark-text-primary break-words">
               {row.scenario}
             </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 font-semibold text-green-600 break-words">
+            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 dark:text-dark-text-primary font-semibold text-green-600 dark:text-green-400 break-words">
               {row.emi || '-'}
             </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 break-words">
+            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 dark:text-dark-text-primary break-words">
               {row.tenure || '-'}
             </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-semibold text-green-600 break-words">
+            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-semibold text-green-600 dark:text-green-400 break-words">
               {row.savings || '-'}
             </td>
           </tr>
@@ -399,8 +399,8 @@ const ComparisonTable: React.FC<{ data: ComparisonData[] }> = ({ data }) => (
 );
 
 const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
-  <div className="my-4 lg:my-6 bg-white p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-200">
-    <h4 className="text-sm sm:text-base lg:text-lg font-semibold mb-3 lg:mb-4 text-gray-800">Financial Breakdown</h4>
+  <div className="my-4 lg:my-6 bg-white dark:bg-dark-card p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+    <h4 className="text-sm sm:text-base lg:text-lg font-semibold mb-3 lg:mb-4 text-gray-800 dark:text-dark-text-primary">Financial Breakdown</h4>
     <div className="flex flex-col lg:flex-row items-center gap-4">
       {/* Chart */}
       <div className="flex-1 w-full max-w-xs sm:max-w-sm lg:max-w-none">
@@ -432,15 +432,15 @@ const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
       <div className="flex-1 w-full lg:min-w-[200px]">
         <div className="space-y-2 sm:space-y-3">
           {data.map((entry, index) => (
-            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-dark-surface rounded-lg">
               <div className="flex items-center space-x-2">
                 <div 
                   className="w-3 h-3 sm:w-4 sm:h-4 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: entry.color }}
                 ></div>
-                <span className="text-xs sm:text-sm font-medium text-gray-700 break-words">{entry.name}</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-dark-text-secondary break-words">{entry.name}</span>
               </div>
-              <span className="text-xs sm:text-sm font-bold text-gray-900 flex-shrink-0">
+              <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-dark-text-primary flex-shrink-0">
                 ₹{(entry.value / 100000).toFixed(1)}L
               </span>
             </div>
@@ -520,23 +520,23 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
           );
           
           processedElements.push(
-            <div key={i} className="my-6 overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div key={i} className="my-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20">
                   <tr>
                     {headers.map((header, idx) => (
-                      <th key={idx} className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-200 last:border-r-0">
+                      <th key={idx} className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider border-r border-gray-200 dark:border-dark-border last:border-r-0">
                         {header}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
                   {tableData.map((row, rowIdx) => (
-                    <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'}>
                       {row.map((cell, cellIdx) => (
-                        <td key={cellIdx} className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm text-gray-900 border-r border-gray-100 last:border-r-0">
-                          <span className={cell.includes('₹') ? 'font-semibold text-green-600' : ''}>
+                        <td key={cellIdx} className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm text-gray-900 dark:text-dark-text-primary border-r border-gray-100 dark:border-dark-border last:border-r-0">
+                          <span className={cell.includes('₹') ? 'font-semibold text-green-600 dark:text-green-400' : ''}>
                             {cell}
                           </span>
                         </td>
@@ -560,12 +560,12 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       const content = trimmedLine.replace(/^\d+\.\s/, '');
       
       processedElements.push(
-        <div key={i} className="flex items-start space-x-2 lg:space-x-3 p-2 lg:p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-          <span className="flex-shrink-0 w-5 h-5 lg:w-6 lg:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs lg:text-sm font-bold">
+        <div key={i} className="flex items-start space-x-2 lg:space-x-3 p-2 lg:p-3 bg-blue-50 dark:bg-blue-600/20 rounded-lg border-l-4 border-blue-400 dark:border-blue-500">
+          <span className="flex-shrink-0 w-5 h-5 lg:w-6 lg:h-6 bg-blue-500 dark:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs lg:text-sm font-bold">
             {number}
           </span>
           <div className="flex-1">
-            <p className="text-gray-800 font-medium text-sm lg:text-base">{content}</p>
+            <p className="text-gray-800 dark:text-dark-text-primary font-medium text-sm lg:text-base">{content}</p>
           </div>
         </div>
       );
@@ -575,7 +575,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
     else if (trimmedLine.match(/^\*\*(.*?)\*\*:?$/)) {
       const content = trimmedLine.replace(/^\*\*|\*\*:?$/g, '');
       processedElements.push(
-        <h3 key={i} className="text-base lg:text-lg font-bold text-gray-900 mt-4 lg:mt-6 mb-2 pb-2 border-b border-gray-200">
+        <h3 key={i} className="text-base lg:text-lg font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-2 pb-2 border-b border-gray-200 dark:border-dark-border">
           {content}
         </h3>
       );
@@ -585,7 +585,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
     else if (trimmedLine.match(/^#{1,3}\s/)) {
       const content = trimmedLine.replace(/^#{1,3}\s/, '');
       processedElements.push(
-        <h2 key={i} className="text-lg lg:text-xl font-bold text-gray-900 mt-4 lg:mt-6 mb-2 lg:mb-3 pb-2 border-b-2 border-blue-200">
+        <h2 key={i} className="text-lg lg:text-xl font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-2 lg:mb-3 pb-2 border-b-2 border-blue-200 dark:border-blue-600/30">
           {content}
         </h2>
       );
@@ -597,7 +597,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       processedElements.push(
         <div key={i} className="flex items-start space-x-2 lg:space-x-3 ml-2 lg:ml-4">
           <span className="text-blue-500 mt-1 font-bold text-sm lg:text-base">•</span>
-          <p className="text-gray-700 leading-relaxed flex-1 text-sm lg:text-base">{content}</p>
+          <p className="text-gray-700 dark:text-dark-text-secondary leading-relaxed flex-1 text-sm lg:text-base">{content}</p>
         </div>
       );
     }
@@ -618,7 +618,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       processedElements.push(
         <p 
           key={i} 
-          className="text-gray-700 leading-relaxed text-sm lg:text-base"
+          className="text-gray-700 dark:text-dark-text-secondary leading-relaxed text-sm lg:text-base"
           dangerouslySetInnerHTML={{ __html: formattedText }}
         />
       );

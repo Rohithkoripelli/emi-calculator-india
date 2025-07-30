@@ -463,34 +463,34 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl mobile-full-height sm:h-[90vh] lg:h-[600px] flex flex-col overflow-hidden" style={{
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white dark:bg-dark-surface rounded-lg w-full max-w-2xl mobile-full-height sm:h-[90vh] lg:h-[600px] flex flex-col overflow-hidden border border-gray-200 dark:border-dark-border shadow-xl" style={{
         height: `min(${viewportHeight}px, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)))`,
         maxHeight: `${viewportHeight - 16}px`
       }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-200" style={{
+        <div className="flex items-center justify-between p-3 lg:p-4 border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card" style={{
           paddingTop: 'max(12px, env(safe-area-inset-top))'
         }}>
           <div className="flex items-center gap-2 lg:gap-3">
-            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <ChatBubbleLeftRightIcon className="w-4 h-4 lg:w-6 lg:h-6 text-blue-600" />
+            <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-100 dark:bg-blue-600/20 rounded-full flex items-center justify-center">
+              <ChatBubbleLeftRightIcon className="w-4 h-4 lg:w-6 lg:h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-gray-900 text-sm lg:text-base truncate">AI Financial Assistant</h3>
-              <p className="text-xs lg:text-sm text-gray-500 truncate">Powered by GPT-4o • India-specific advice</p>
+              <h3 className="font-semibold text-gray-900 dark:text-dark-text-primary text-sm lg:text-base truncate">AI Financial Assistant</h3>
+              <p className="text-xs lg:text-sm text-gray-500 dark:text-dark-text-muted truncate">Powered by GPT-4o • India-specific advice</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 dark:text-dark-text-muted hover:text-gray-600 dark:hover:text-dark-text-secondary p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
           >
             <XMarkIcon className="w-5 h-5 lg:w-6 lg:h-6" />
           </button>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-4 space-y-2 sm:space-y-3 lg:space-y-4">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-4 space-y-2 sm:space-y-3 lg:space-y-4 bg-gray-50 dark:bg-dark-bg">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -499,14 +499,14 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
               <div
                 className={`max-w-[95%] sm:max-w-[90%] lg:max-w-[85%] rounded-lg break-words ${
                   message.isUser
-                    ? 'bg-blue-600 text-white p-2 lg:p-3'
-                    : 'bg-gray-50 border border-gray-200'
+                    ? 'bg-blue-600 dark:bg-blue-600 text-white p-2 lg:p-3 shadow-sm'
+                    : 'bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border shadow-sm'
                 }`}
               >
                 {message.isUser ? (
                   <>
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                    <p className="text-xs mt-1 text-blue-100">
+                    <p className="text-xs mt-1 text-blue-100 dark:text-blue-200">
                       {message.timestamp.toLocaleTimeString()}
                     </p>
                   </>
@@ -516,7 +516,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
                       <AIResponseFormatter text={message.text} />
                     </div>
                     <div className="px-2 sm:px-3 lg:px-4 pb-2">
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-dark-text-muted">
                         {message.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
@@ -528,11 +528,11 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
           
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-100 p-3 rounded-lg">
+              <div className="bg-gray-100 dark:bg-dark-card p-3 rounded-lg border border-gray-200 dark:border-dark-border">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-dark-text-muted rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-dark-text-muted rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-dark-text-muted rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
               </div>
             </div>
@@ -543,14 +543,14 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
 
         {/* Suggested Questions */}
         {messages.length === 1 && (
-          <div className="px-2 sm:px-3 lg:px-4 pb-2">
-            <p className="text-xs text-gray-500 mb-2">Try asking:</p>
+          <div className="px-2 sm:px-3 lg:px-4 pb-2 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border">
+            <p className="text-xs text-gray-500 dark:text-dark-text-muted mb-2 pt-2">Try asking:</p>
             <div className="flex flex-wrap gap-1 lg:gap-2">
               {suggestedQuestions.map((question, index) => (
                 <button
                   key={index}
                   onClick={() => setInputMessage(question)}
-                  className="text-xs bg-gray-100 text-gray-700 px-2 lg:px-3 py-1 rounded-full hover:bg-gray-200 transition-colors break-words"
+                  className="text-xs bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-dark-text-secondary px-2 lg:px-3 py-1 rounded-full hover:bg-gray-200 dark:hover:bg-dark-surface transition-colors break-words border border-gray-200 dark:border-dark-border"
                 >
                   {question}
                 </button>
@@ -560,7 +560,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         )}
 
         {/* Input */}
-        <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200" style={{
+        <div className="p-2 sm:p-3 lg:p-4 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface" style={{
           paddingBottom: 'max(8px, env(safe-area-inset-bottom))'
         }}>
           <div className="flex gap-2 items-end">
@@ -570,7 +570,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask me about loans, investments, tax planning..."
-              className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base min-h-[2.5rem] max-h-[120px]"
+              className="flex-1 px-2 sm:px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg resize-none bg-white dark:bg-dark-card text-gray-900 dark:text-dark-text-primary placeholder-gray-500 dark:placeholder-dark-text-muted focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 text-sm lg:text-base min-h-[2.5rem] max-h-[120px] transition-colors"
               rows={2}
               disabled={isLoading}
               style={{

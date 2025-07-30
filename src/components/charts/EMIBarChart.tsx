@@ -89,15 +89,15 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text-primary mb-2">
           📊 EMI Breakdown - {showMonthly ? 'Monthly' : 'Yearly'} Analysis
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
           Track how your payments are split between principal and interest over time
         </p>
       </div>
       
-      <div className="h-96 bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
+      <div className="h-96 bg-gradient-to-br from-gray-50 to-white dark:from-dark-surface dark:to-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}

@@ -79,15 +79,15 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text-primary mb-2">
           🥧 Total Payment Breakdown
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
           See how much you pay toward principal vs interest over the loan lifetime
         </p>
       </div>
       
-      <div className="h-80 relative bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
+      <div className="h-80 relative bg-gradient-to-br from-gray-50 to-white dark:from-dark-surface dark:to-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -127,21 +127,21 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
 
       {/* Summary Stats */}
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="text-sm font-medium text-blue-700">Principal Amount</div>
-          <div className="text-lg font-bold text-blue-900">
+        <div className="text-center p-3 bg-blue-50 dark:bg-blue-600/20 rounded-lg border border-blue-200 dark:border-blue-600/30">
+          <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Principal Amount</div>
+          <div className="text-lg font-bold text-blue-900 dark:text-blue-200">
             {formatCurrency(calculation.principal)}
           </div>
-          <div className="text-xs text-blue-600">
+          <div className="text-xs text-blue-600 dark:text-blue-400">
             {((calculation.principal / calculation.totalPayment) * 100).toFixed(1)}% of total
           </div>
         </div>
-        <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-          <div className="text-sm font-medium text-red-700">Interest Amount</div>
-          <div className="text-lg font-bold text-red-900">
+        <div className="text-center p-3 bg-red-50 dark:bg-red-600/20 rounded-lg border border-red-200 dark:border-red-600/30">
+          <div className="text-sm font-medium text-red-700 dark:text-red-300">Interest Amount</div>
+          <div className="text-lg font-bold text-red-900 dark:text-red-200">
             {formatCurrency(calculation.totalInterest)}
           </div>
-          <div className="text-xs text-red-600">
+          <div className="text-xs text-red-600 dark:text-red-400">
             {((calculation.totalInterest / calculation.totalPayment) * 100).toFixed(1)}% of total
           </div>
         </div>
