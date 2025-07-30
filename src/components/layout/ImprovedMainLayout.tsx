@@ -8,6 +8,7 @@ import { CreditCardCalculator } from '../calculators/CreditCardCalculator';
 import { GratuityCalculator } from '../calculators/GratuityCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { NavigationItem } from '../../types';
 import { parseURLParams } from '../../utils/exportUtils';
 
@@ -85,7 +86,12 @@ export const ImprovedMainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {/* Theme Toggle - Fixed Position */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Mobile Navigation */}
       <MobileNavigation
         calculators={calculators}
@@ -170,13 +176,13 @@ export const ImprovedMainLayout: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white">
+      <footer className="bg-gray-800 dark:bg-gray-950 text-white transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* About */}
             <div>
               <h3 className="text-lg font-semibold mb-4">About Our Calculators</h3>
-              <p className="text-gray-300 text-sm">
+              <p className="text-gray-300 dark:text-gray-400 text-sm">
                 Professional-grade financial calculators designed specifically for Indian users. 
                 All calculations follow RBI guidelines and standard banking formulas.
               </p>
@@ -185,7 +191,7 @@ export const ImprovedMainLayout: React.FC = () => {
             {/* Features */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Key Features</h3>
-              <ul className="text-gray-300 text-sm space-y-2">
+              <ul className="text-gray-300 dark:text-gray-400 text-sm space-y-2">
                 <li>✓ Indian number formatting (50,00,000)</li>
                 <li>✓ Tax-saving calculations</li>
                 <li>✓ PDF & Excel export</li>
@@ -197,20 +203,20 @@ export const ImprovedMainLayout: React.FC = () => {
             {/* Accuracy */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Accuracy Guarantee</h3>
-              <p className="text-gray-300 text-sm mb-4">
+              <p className="text-gray-300 dark:text-gray-400 text-sm mb-4">
                 Our calculations are verified by automated tests and follow standard 
                 financial formulas used by Indian banks and institutions.
               </p>
               <button 
                 onClick={() => setShowTests(true)}
-                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 View Test Results
               </button>
             </div>
           </div>
 
-          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
+          <div className="border-t border-gray-700 dark:border-gray-600 mt-8 pt-8 text-center text-gray-400 dark:text-gray-500 text-sm">
             <p>&copy; 2025 EMI Calculator India. Built with ❤️ for the Indian financial community.</p>
           </div>
         </div>

@@ -15,14 +15,14 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
   return (
     <>
       {/* Desktop Banner - Hidden on mobile */}
-      <div className="hidden lg:block bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+      <div className="hidden lg:block bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-900 text-white transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Main Header */}
           <div className="py-4 text-center">
             <h1 className="text-2xl sm:text-3xl font-bold mb-2">
               Financial Calculators for India
             </h1>
-            <p className="text-base text-blue-100 max-w-2xl mx-auto">
+            <p className="text-base text-blue-100 dark:text-blue-200 max-w-2xl mx-auto">
               AI-powered financial planning tools designed for Indian market
             </p>
           </div>
@@ -37,8 +37,8 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                   className={`
                     group relative p-3 rounded-xl transition-all duration-200 transform hover:scale-105
                     ${activeCalculator === calculator.id
-                      ? 'bg-white text-blue-600 shadow-lg'
-                      : 'bg-blue-700 hover:bg-blue-600 text-white border border-blue-500'
+                      ? 'bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 shadow-lg'
+                      : 'bg-blue-700 dark:bg-blue-800 hover:bg-blue-600 dark:hover:bg-blue-700 text-white border border-blue-500 dark:border-blue-600'
                     }
                   `}
                 >
@@ -48,7 +48,7 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                       {calculator.name}
                     </h3>
                     <p className={`text-xs ${
-                      activeCalculator === calculator.id ? 'text-blue-500' : 'text-blue-200'
+                      activeCalculator === calculator.id ? 'text-blue-500 dark:text-blue-600' : 'text-blue-200 dark:text-blue-300'
                     }`}>
                       {calculator.description}
                     </p>

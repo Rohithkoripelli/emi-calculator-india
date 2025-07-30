@@ -69,29 +69,29 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
     <div className="w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
-          <h3 className="text-xl font-bold text-gray-900 mb-1">Payment Schedule</h3>
-          <p className="text-sm text-gray-600">Year-wise breakdown of your loan payments</p>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Payment Schedule</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Year-wise breakdown of your loan payments</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={expandAll}
-            className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+            className="px-4 py-2 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/40 transition-colors font-medium"
           >
             📋 Expand All
           </button>
           <button
             onClick={collapseAll}
-            className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium"
           >
             📁 Collapse All
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full">
-            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800">
               <tr>
                 <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                   📅 Payment Period
@@ -110,7 +110,7 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {yearlyGroups.map((yearGroup, yearIndex) => (
                 <React.Fragment key={yearGroup.year}>
                   {/* Year Header Row */}

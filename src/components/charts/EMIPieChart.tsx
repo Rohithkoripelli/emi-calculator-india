@@ -32,22 +32,22 @@ export const EMIPieChart: React.FC<EMIPieChartProps> = ({ calculation }) => {
       const icon = data.name === 'Principal' ? '🏦' : '📊';
       
       return (
-        <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-xl">
+        <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl">
           <div className="flex items-center gap-3 mb-3">
             <div 
               className="w-4 h-4 rounded-full shadow-sm" 
               style={{ backgroundColor: COLORS[data.name as keyof typeof COLORS] }}
             ></div>
-            <span className="font-bold text-gray-900">{icon} {data.name}</span>
+            <span className="font-bold text-gray-900 dark:text-white">{icon} {data.name}</span>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Amount:</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(data.value)}</span>
+              <span className="text-gray-600 dark:text-gray-300">Amount:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(data.value)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Share:</span>
-              <span className="font-semibold text-gray-900">{data.percentage}%</span>
+              <span className="text-gray-600 dark:text-gray-300">Share:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{data.percentage}%</span>
             </div>
           </div>
         </div>
