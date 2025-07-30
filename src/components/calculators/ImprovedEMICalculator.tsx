@@ -190,13 +190,13 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
       </div>
 
       {/* Hero Section with Quick Calculation */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-4 sm:p-6 lg:p-8 transition-colors">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-surface dark:to-dark-card rounded-2xl p-4 sm:p-6 lg:p-8 transition-colors">
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Input Section */}
           <div className="space-y-4 sm:space-y-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">EMI Calculator</h2>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">Calculate your Equated Monthly Installment instantly</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-dark-text-primary mb-2">EMI Calculator</h2>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-dark-text-secondary">Calculate your Equated Monthly Installment instantly</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
@@ -206,8 +206,8 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                   onClick={() => handleInputChange('loanType', option.value as LoanType)}
                   className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm font-medium ${
                     inputs.loanType === option.value
-                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
+                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-700 dark:text-dark-text-primary hover:border-gray-300 dark:hover:border-dark-border'
                   }`}
                 >
                   {option.label}
@@ -252,7 +252,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                 </div>
               </div>
 
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="text-xs text-gray-500 dark:text-dark-text-muted">
                 {getInterestRateGuidance(inputs.loanType)}
               </div>
             </div>
@@ -263,39 +263,39 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
             {quickCalc ? (
               <div className="space-y-6">
                 <div className="text-center">
-                  <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Monthly EMI</div>
+                  <div className="text-sm text-gray-600 dark:text-dark-text-secondary mb-2">Monthly EMI</div>
                   <div className="text-4xl lg:text-5xl font-bold text-blue-600 dark:text-blue-400 mb-1">
                     {formatCurrency(quickCalc.emi)}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-gray-500 dark:text-dark-text-muted">
                     for {formatIndianNumber(inputs.principal)} at {inputs.interestRate}%
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
-                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <div className="bg-white dark:bg-dark-card rounded-lg p-4 text-center border border-gray-200 dark:border-dark-border">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary">
                       {formatCurrency(quickCalc.totalInterest)}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-300">Total Interest</div>
+                    <div className="text-sm text-gray-500 dark:text-dark-text-secondary">Total Interest</div>
                   </div>
-                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
-                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <div className="bg-white dark:bg-dark-card rounded-lg p-4 text-center border border-gray-200 dark:border-dark-border">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary">
                       {formatCurrency(quickCalc.totalPayment)}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-300">Total Payment</div>
+                    <div className="text-sm text-gray-500 dark:text-dark-text-secondary">Total Payment</div>
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                  <div className="text-sm text-gray-600 dark:text-dark-text-secondary">
                     Interest: {((quickCalc.totalInterest / quickCalc.totalPayment) * 100).toFixed(1)}% of total payment
                   </div>
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-400 dark:text-gray-500">
+                <div className="text-center text-gray-400 dark:text-dark-text-muted">
                   <div className="text-6xl mb-4">🏠</div>
                   <div>Enter loan details to see EMI calculation</div>
                 </div>
@@ -309,13 +309,13 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
       {calculation && (
         <div className="space-y-6">
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <div className="flex border-b border-gray-200 dark:border-dark-border">
             <button
               onClick={() => setActiveTab('results')}
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'results'
                   ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  : 'border-transparent text-gray-500 dark:text-dark-text-muted hover:text-gray-700 dark:hover:text-dark-text-secondary'
               }`}
             >
               Results & Options
@@ -325,7 +325,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'charts'
                   ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  : 'border-transparent text-gray-500 dark:text-dark-text-muted hover:text-gray-700 dark:hover:text-dark-text-secondary'
               }`}
             >
               Charts & Analysis
@@ -335,7 +335,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'schedule'
                   ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  : 'border-transparent text-gray-500 dark:text-dark-text-muted hover:text-gray-700 dark:hover:text-dark-text-secondary'
               }`}
             >
               Payment Schedule

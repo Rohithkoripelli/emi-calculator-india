@@ -20,19 +20,19 @@ export const Select: React.FC<SelectProps> = ({
 }) => {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">
         {label}
       </label>
       <div className="relative">
         <select
           {...props}
           className={`
-            w-full px-2 sm:px-3 py-2 pr-8 sm:pr-10 border border-gray-300 dark:border-gray-500 rounded-lg 
-            bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+            w-full px-2 sm:px-3 py-2 pr-8 sm:pr-10 border border-gray-300 dark:border-dark-border rounded-lg 
+            bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text-primary
             focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
             dark:focus:ring-blue-400 dark:focus:border-blue-400
             transition-all duration-200 appearance-none text-sm sm:text-base
-            shadow-sm dark:shadow-gray-900/10
+            shadow-sm dark:shadow-none
             ${error ? 'border-red-500 dark:border-red-400' : ''}
             ${className}
           `}
@@ -44,7 +44,7 @@ export const Select: React.FC<SelectProps> = ({
           }}
         >
           {options.map((option) => (
-            <option key={option.value} value={option.value} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+            <option key={option.value} value={option.value} className="bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text-primary">
               {option.label}
             </option>
           ))}
@@ -52,7 +52,7 @@ export const Select: React.FC<SelectProps> = ({
         {/* Custom dropdown arrow */}
         <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:pr-3 pointer-events-none">
           <svg 
-            className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 dark:text-gray-400" 
+            className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 dark:text-dark-text-muted" 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"

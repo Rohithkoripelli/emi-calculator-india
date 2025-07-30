@@ -48,15 +48,15 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
       const interestPercentage = ((interest / total) * 100).toFixed(1);
       
       return (
-        <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl">
-          <div className="font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-dark-card p-4 border border-gray-200 dark:border-dark-border rounded-xl shadow-xl dark:shadow-none">
+          <div className="font-bold text-gray-900 dark:text-dark-text-primary mb-3 pb-2 border-b border-gray-100 dark:border-dark-border">
             📊 {label}
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Principal</span>
+                <span className="text-sm text-gray-700 dark:text-dark-text-secondary">Principal</span>
               </div>
               <div className="text-right">
                 <div className="font-semibold text-blue-600 dark:text-blue-400">{formatCurrency(principal)}</div>
@@ -66,17 +66,17 @@ export const EMIBarChart: React.FC<EMIBarChartProps> = ({ data, showMonthly = fa
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Interest</span>
+                <span className="text-sm text-gray-700 dark:text-dark-text-secondary">Interest</span>
               </div>
               <div className="text-right">
                 <div className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(interest)}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{interestPercentage}%</div>
               </div>
             </div>
-            <div className="border-t border-gray-200 dark:border-gray-600 pt-2 mt-3">
+            <div className="border-t border-gray-200 dark:border-dark-border pt-2 mt-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Payment</span>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(total)}</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-dark-text-secondary">Total Payment</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-dark-text-primary">{formatCurrency(total)}</span>
               </div>
             </div>
           </div>
