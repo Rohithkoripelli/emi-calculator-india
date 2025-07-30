@@ -37,6 +37,11 @@ const extractTableData = (text: string): ComparisonData[] => {
     return comparisons;
   }
   
+  // Don't extract table data for generic responses
+  if (!isRelevantForMetrics(text)) {
+    return comparisons;
+  }
+  
   // Look for scenario comparisons with specific patterns
   const lines = text.split('\n');
   
@@ -164,7 +169,32 @@ const extractTableDataOld = (text: string): ComparisonData[] => {
   return comparisons;
 };
 
+const isRelevantForMetrics = (text: string): boolean => {
+  // Only show metrics for loan-specific responses that contain actual calculations
+  const relevantKeywords = [
+    'your loan', 'your emi', 'prepayment', 'current scenario', 'after prepayment',
+    'loan breakdown', 'emi breakdown', 'your current loan', 'based on your loan'
+  ];
+  
+  const genericKeywords = [
+    'tax benefits', 'how to save', 'investment options', 'what is', 'types of', 
+    'generally', 'typically', 'for example', 'in india', 'deduction under'
+  ];
+  
+  const textLower = text.toLowerCase();
+  const hasRelevant = relevantKeywords.some(keyword => textLower.includes(keyword));
+  const hasGeneric = genericKeywords.some(keyword => textLower.includes(keyword));
+  
+  // Only show metrics if it's clearly about user's specific loan and not generic advice
+  return hasRelevant && !hasGeneric;
+};
+
 const extractKeyMetrics = (text: string): LoanData[] => {
+  // Don't extract metrics for generic responses
+  if (!isRelevantForMetrics(text)) {
+    return [];
+  }
+  
   const metrics: LoanData[] = [];
   
   // Extract all currency values
@@ -179,11 +209,15 @@ const extractKeyMetrics = (text: string): LoanData[] => {
   for (const pattern of principalPatterns) {
     const match = text.match(pattern);
     if (match) {
-      metrics.push({
-        label: 'Principal Amount',
-        value: '₹' + match[1],
-        type: 'currency'
-      });
+      const amount = parseInt(match[1].replace(/,/g, ''));
+      // Only show realistic loan amounts (₹1 lakh to ₹10 crore)
+      if (amount >= 100000 && amount <= 100000000) {
+        metrics.push({
+          label: 'Principal Amount',
+          value: '₹' + match[1],
+          type: 'currency'
+        });
+      }
       break;
     }
   }
@@ -216,11 +250,15 @@ const extractKeyMetrics = (text: string): LoanData[] => {
   for (const pattern of emiPatterns) {
     const match = text.match(pattern);
     if (match) {
-      metrics.push({
-        label: 'Monthly EMI',
-        value: '₹' + match[1],
-        type: 'currency'
-      });
+      const amount = parseInt(match[1].replace(/,/g, ''));
+      // Only show realistic EMI amounts (₹1,000 to ₹10 lakh)
+      if (amount >= 1000 && amount <= 1000000) {
+        metrics.push({
+          label: 'Monthly EMI',
+          value: '₹' + match[1],
+          type: 'currency'
+        });
+      }
       break;
     }
   }
@@ -257,6 +295,11 @@ const extractKeyMetrics = (text: string): LoanData[] => {
 };
 
 const createSavingsChart = (text: string) => {
+  // Don't create charts for generic responses
+  if (!isRelevantForMetrics(text)) {
+    return null;
+  }
+  
   // Only create charts for meaningful financial breakdowns
   
   // Look for explicit interest savings comparisons
