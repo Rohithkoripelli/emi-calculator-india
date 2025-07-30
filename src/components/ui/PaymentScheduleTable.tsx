@@ -93,19 +93,19 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
           <table className="min-w-full">
             <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800">
               <tr>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                   📅 Payment Period
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                   💰 EMI Amount
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-blue-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                   🏦 Principal
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-red-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">
                   📊 Interest
                 </th>
-                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
                   📈 Outstanding
                 </th>
               </tr>
@@ -115,47 +115,47 @@ export const PaymentScheduleTable: React.FC<PaymentScheduleTableProps> = ({ sche
                 <React.Fragment key={yearGroup.year}>
                   {/* Year Header Row */}
                   <tr 
-                    className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-200"
+                    className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-800/40 dark:hover:to-indigo-800/40 cursor-pointer transition-all duration-200"
                     onClick={() => toggleYear(yearGroup.year)}
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {expandedYears.has(yearGroup.year) ? (
-                          <ChevronDownIcon className="h-5 w-5 text-blue-600 mr-2 transition-transform" />
+                          <ChevronDownIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 transition-transform" />
                         ) : (
-                          <ChevronRightIcon className="h-5 w-5 text-gray-500 mr-2 transition-transform" />
+                          <ChevronRightIcon className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2 transition-transform" />
                         )}
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-900 text-lg">Year {yearGroup.year}</span>
-                          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                          <span className="font-bold text-gray-900 dark:text-gray-100 text-lg">Year {yearGroup.year}</span>
+                          <span className="bg-blue-100 dark:bg-blue-800/40 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-1 rounded-full">
                             {yearGroup.payments.length} months
                           </span>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="font-bold text-gray-900 text-sm">
+                      <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
                         {formatCurrency(yearGroup.totalEmi)}
                       </div>
-                      <div className="text-xs text-gray-500">Total yearly EMI</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Total yearly EMI</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="font-bold text-blue-700 text-sm">
+                      <div className="font-bold text-blue-700 dark:text-blue-300 text-sm">
                         {formatCurrency(yearGroup.totalPrincipal)}
                       </div>
-                      <div className="text-xs text-blue-600">Principal paid</div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400">Principal paid</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="font-bold text-red-700 text-sm">
+                      <div className="font-bold text-red-700 dark:text-red-300 text-sm">
                         {formatCurrency(yearGroup.totalInterest)}
                       </div>
-                      <div className="text-xs text-red-600">Interest paid</div>
+                      <div className="text-xs text-red-600 dark:text-red-400">Interest paid</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="font-bold text-gray-900 text-sm">
+                      <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
                         {formatCurrency(yearGroup.endingBalance)}
                       </div>
-                      <div className="text-xs text-gray-500">Year-end balance</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Year-end balance</div>
                     </td>
                   </tr>
 

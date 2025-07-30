@@ -164,7 +164,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
   return (
     <div className="space-y-6">
       {/* AI Promotional Banner */}
-      <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-xl p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-green-500 to-blue-600 dark:from-green-600 dark:to-blue-700 text-white rounded-xl p-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="bg-white/20 p-2 rounded-full">
@@ -174,12 +174,12 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
             </div>
             <div>
               <h3 className="font-bold text-lg">🤖 Ask Our AI Financial Assistant</h3>
-              <p className="text-sm text-green-100">Get personalized advice, compare scenarios, and optimize your loans with GPT-4 powered insights!</p>
+              <p className="text-sm text-green-100 dark:text-green-200">Get personalized advice, compare scenarios, and optimize your loans with GPT-4 powered insights!</p>
             </div>
           </div>
           <button 
             onClick={() => onAIOpen?.()}
-            className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+            className="bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-gray-200 transition-colors flex items-center space-x-2"
           >
             <span>Try Now</span>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,13 +190,13 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
       </div>
 
       {/* Hero Section with Quick Calculation */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-4 sm:p-6 lg:p-8">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-4 sm:p-6 lg:p-8 transition-colors">
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Input Section */}
           <div className="space-y-4 sm:space-y-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">EMI Calculator</h2>
-              <p className="text-sm sm:text-base text-gray-600">Calculate your Equated Monthly Installment instantly</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">EMI Calculator</h2>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">Calculate your Equated Monthly Installment instantly</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
@@ -206,8 +206,8 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                   onClick={() => handleInputChange('loanType', option.value as LoanType)}
                   className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-xs sm:text-sm font-medium ${
                     inputs.loanType === option.value
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-500'
                   }`}
                 >
                   {option.label}
@@ -252,7 +252,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                 </div>
               </div>
 
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
                 {getInterestRateGuidance(inputs.loanType)}
               </div>
             </div>
@@ -263,39 +263,39 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
             {quickCalc ? (
               <div className="space-y-6">
                 <div className="text-center">
-                  <div className="text-sm text-gray-600 mb-2">Monthly EMI</div>
-                  <div className="text-4xl lg:text-5xl font-bold text-blue-600 mb-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Monthly EMI</div>
+                  <div className="text-4xl lg:text-5xl font-bold text-blue-600 dark:text-blue-400 mb-1">
                     {formatCurrency(quickCalc.emi)}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     for {formatIndianNumber(inputs.principal)} at {inputs.interestRate}%
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white rounded-lg p-4 text-center">
-                    <div className="text-lg font-semibold text-gray-900">
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
                       {formatCurrency(quickCalc.totalInterest)}
                     </div>
-                    <div className="text-sm text-gray-500">Total Interest</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-300">Total Interest</div>
                   </div>
-                  <div className="bg-white rounded-lg p-4 text-center">
-                    <div className="text-lg font-semibold text-gray-900">
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">
                       {formatCurrency(quickCalc.totalPayment)}
                     </div>
-                    <div className="text-sm text-gray-500">Total Payment</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-300">Total Payment</div>
                   </div>
                 </div>
 
                 <div className="text-center">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
                     Interest: {((quickCalc.totalInterest / quickCalc.totalPayment) * 100).toFixed(1)}% of total payment
                   </div>
                 </div>
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-400">
+                <div className="text-center text-gray-400 dark:text-gray-500">
                   <div className="text-6xl mb-4">🏠</div>
                   <div>Enter loan details to see EMI calculation</div>
                 </div>
@@ -309,13 +309,13 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
       {calculation && (
         <div className="space-y-6">
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setActiveTab('results')}
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'results'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               Results & Options
@@ -324,8 +324,8 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
               onClick={() => setActiveTab('charts')}
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'charts'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               Charts & Analysis
@@ -334,8 +334,8 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
               onClick={() => setActiveTab('schedule')}
               className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === 'schedule'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               Payment Schedule
