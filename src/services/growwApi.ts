@@ -5,8 +5,13 @@ const GROWW_API_BASE = 'https://api.groww.in/v1';
 const GROWW_LIVE_DATA = `${GROWW_API_BASE}/live-data`;
 
 // Environment variables for API credentials
-const GROWW_ACCESS_TOKEN = process.env.REACT_APP_GROWW_ACCESS_TOKEN; // Bearer token
+const GROWW_API_KEY = process.env.REACT_APP_GROWW_API_KEY;
+const GROWW_API_SECRET = process.env.REACT_APP_GROWW_API_SECRET;
+const GROWW_ACCESS_TOKEN = process.env.REACT_APP_GROWW_ACCESS_TOKEN; // Fallback manual token
 const GROWW_API_VERSION = '1.0';
+
+// Token cache to avoid frequent TOTP generation
+let tokenCache: { token: string; expiresAt: number } | null = null;
 
 // Groww API symbol mapping for Indian indices (format: EXCHANGE_SYMBOL for LTP/OHLC)
 const GROWW_INDEX_SYMBOLS: Record<string, { tradingSymbol: string; exchangeSymbol: string; exchange: string; segment: string; displayName: string }> = {
@@ -124,16 +129,93 @@ interface GrowwLTPResponse {
 
 export class GrowwApiService {
   private static validateApiCredentials(): boolean {
-    if (!GROWW_ACCESS_TOKEN) {
-      console.error('Groww Access Token not found. Please set REACT_APP_GROWW_ACCESS_TOKEN in your environment variables.');
+    // Check if we have TOTP credentials (preferred) or fallback token
+    if (GROWW_API_KEY && GROWW_API_SECRET) {
+      console.log('✅ Groww TOTP credentials found - will auto-generate tokens');
+      return true;
+    } else if (GROWW_ACCESS_TOKEN) {
+      console.log('⚠️ Using fallback manual access token (expires daily at 6 AM)');
+      return true;
+    } else {
+      console.error('❌ No Groww credentials found. Set REACT_APP_GROWW_API_KEY + REACT_APP_GROWW_API_SECRET for auto-refresh, or REACT_APP_GROWW_ACCESS_TOKEN for manual mode.');
       return false;
     }
-    return true;
   }
 
-  private static getAuthHeaders(): HeadersInit {
+  private static async getValidAccessToken(): Promise<string> {
+    // If we have TOTP credentials, use them for auto-refresh
+    if (GROWW_API_KEY && GROWW_API_SECRET) {
+      return await this.getAccessTokenViaTOTP();
+    }
+    
+    // Fallback to manual token
+    if (GROWW_ACCESS_TOKEN) {
+      return GROWW_ACCESS_TOKEN;
+    }
+    
+    throw new Error('No valid Groww credentials available');
+  }
+
+  private static async getAccessTokenViaTOTP(): Promise<string> {
+    // Check cache first
+    if (tokenCache && Date.now() < tokenCache.expiresAt) {
+      console.log('Using cached Groww access token');
+      return tokenCache.token;
+    }
+
+    try {
+      console.log('🔄 Generating new Groww access token via TOTP...');
+      
+      // Call our serverless TOTP function
+      const response = await fetch('/api/groww-totp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: GROWW_API_KEY,
+          api_secret: GROWW_API_SECRET
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`TOTP service failed: ${response.status} - ${error}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.access_token) {
+        // Cache token (expires in 12 hours)
+        const expiresIn = data.expires_in || 43200; // 12 hours
+        tokenCache = {
+          token: data.access_token,
+          expiresAt: Date.now() + (expiresIn * 1000)
+        };
+        
+        console.log('✅ Successfully generated Groww access token via TOTP');
+        return data.access_token;
+      }
+      
+      throw new Error('No access token received from TOTP service');
+      
+    } catch (error) {
+      console.error('TOTP token generation failed:', error);
+      
+      // Fallback to manual token if available
+      if (GROWW_ACCESS_TOKEN) {
+        console.log('🔄 Falling back to manual access token');
+        return GROWW_ACCESS_TOKEN;
+      }
+      
+      throw error;
+    }
+  }
+
+  private static async getAuthHeaders(): Promise<HeadersInit> {
+    const token = await this.getValidAccessToken();
     return {
-      'Authorization': `Bearer ${GROWW_ACCESS_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'X-API-VERSION': GROWW_API_VERSION,
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -147,6 +229,9 @@ export class GrowwApiService {
 
     const targetUrl = `${endpoint}?${params.toString()}`;
     console.log(`Making Groww API request to: ${targetUrl}`);
+
+    // Get auth headers (this may involve TOTP generation)
+    const authHeaders = await this.getAuthHeaders();
 
     // Use CORS proxy for browser compatibility
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -163,7 +248,7 @@ export class GrowwApiService {
         },
         body: JSON.stringify({
           method: 'GET',
-          headers: this.getAuthHeaders()
+          headers: authHeaders
         }),
         signal: controller.signal
       });
@@ -199,7 +284,7 @@ export class GrowwApiService {
         console.log('Attempting direct request as fallback...');
         const directResponse = await fetch(targetUrl, {
           method: 'GET',
-          headers: this.getAuthHeaders(),
+          headers: authHeaders,
         });
         
         if (directResponse.ok) {
