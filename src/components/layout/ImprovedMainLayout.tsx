@@ -6,6 +6,8 @@ import { SukanyaCalculator } from '../calculators/SukanyaCalculator';
 import { SIPCalculator } from '../calculators/SIPCalculator';
 import { CreditCardCalculator } from '../calculators/CreditCardCalculator';
 import { GratuityCalculator } from '../calculators/GratuityCalculator';
+import { StockScreener } from '../stocks/StockScreener';
+import { AdditionalCalculators } from '../calculators/AdditionalCalculators';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -14,11 +16,26 @@ import { parseURLParams } from '../../utils/exportUtils';
 
 const calculators: NavigationItem[] = [
   {
+    id: 'stocks',
+    name: 'Stock Screener',
+    icon: '📊',
+    description: 'Indian Stock Market Indices'
+  },
+  {
     id: 'emi',
     name: 'EMI Calculator',
     icon: '🏠',
     description: 'Home, Car & Personal Loans'
   },
+  {
+    id: 'additional',
+    name: 'Additional Calculators',
+    icon: '🧮',
+    description: 'More Financial Tools'
+  }
+];
+
+const additionalCalculators: NavigationItem[] = [
   {
     id: 'sukanya',
     name: 'Sukanya Samridhi',
@@ -46,7 +63,7 @@ const calculators: NavigationItem[] = [
 ];
 
 export const ImprovedMainLayout: React.FC = () => {
-  const [activeCalculator, setActiveCalculator] = useState('emi');
+  const [activeCalculator, setActiveCalculator] = useState('stocks');
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [showTests, setShowTests] = useState(false);
   const [currentLoanData, setCurrentLoanData] = useState<any>(null);
@@ -70,8 +87,12 @@ export const ImprovedMainLayout: React.FC = () => {
     }
 
     switch (activeCalculator) {
+      case 'stocks':
+        return <StockScreener />;
       case 'emi':
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
+      case 'additional':
+        return <AdditionalCalculators calculators={additionalCalculators} onCalculatorSelect={setActiveCalculator} />;
       case 'sukanya':
         return <SukanyaCalculator />;
       case 'sip':
@@ -81,7 +102,7 @@ export const ImprovedMainLayout: React.FC = () => {
       case 'gratuity':
         return <GratuityCalculator />;
       default:
-        return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
+        return <StockScreener />;
     }
   };
 
