@@ -1,21 +1,21 @@
 import { IndexData } from '../types/stock';
-import { AlphaVantageApiService } from './alphaVantageApi';
+import { GrowwApiService } from './growwApi';
 import { StockApiService } from './stockApi';
 
 export class HybridStockApiService {
-  private static useAlphaVantageApi = true;
+  private static useGrowwApi = true;
 
   static async initialize(): Promise<void> {
-    // Check if AlphaVantage API is configured
-    const alphaVantageStatus = AlphaVantageApiService.getApiStatus();
-    this.useAlphaVantageApi = alphaVantageStatus.configured;
+    // Check if Groww API is configured
+    const growwStatus = GrowwApiService.getApiStatus();
+    this.useGrowwApi = growwStatus.configured;
     
-    if (this.useAlphaVantageApi) {
-      console.log('✅ Using AlphaVantage API for accurate real-time data');
+    if (this.useGrowwApi) {
+      console.log('✅ Using Groww API for accurate real-time data');
     } else {
-      console.log('⚠️ AlphaVantage API not configured, falling back to free APIs');
-      if (!alphaVantageStatus.keyPresent) {
-        console.log('💡 To get accurate data, add your AlphaVantage API key to .env file');
+      console.log('⚠️ Groww API not configured, falling back to free APIs');
+      if (!growwStatus.tokenPresent) {
+        console.log('💡 To get accurate data, add your Groww Access Token to .env file');
       }
     }
   }
@@ -23,15 +23,15 @@ export class HybridStockApiService {
   static async getIndexData(symbol: string): Promise<IndexData | null> {
     await this.initialize();
 
-    if (this.useAlphaVantageApi) {
+    if (this.useGrowwApi) {
       try {
-        const data = await AlphaVantageApiService.getIndexDataWithCache(symbol);
+        const data = await GrowwApiService.getIndexDataWithCache(symbol);
         if (data) {
-          console.log(`✅ Got accurate data from AlphaVantage API for ${symbol}`);
+          console.log(`✅ Got accurate data from Groww API for ${symbol}`);
           return data;
         }
       } catch (error) {
-        console.warn(`AlphaVantage API failed for ${symbol}, falling back:`, error);
+        console.warn(`Groww API failed for ${symbol}, falling back:`, error);
       }
     }
 
@@ -43,19 +43,19 @@ export class HybridStockApiService {
   static async getBulkIndexData(symbols: string[]): Promise<Record<string, IndexData | null>> {
     await this.initialize();
 
-    if (this.useAlphaVantageApi) {
+    if (this.useGrowwApi) {
       try {
-        console.log(`🚀 Fetching bulk data for ${symbols.length} symbols using AlphaVantage API`);
-        const data = await AlphaVantageApiService.getBulkIndexData(symbols);
+        console.log(`🚀 Fetching bulk data for ${symbols.length} symbols using Groww API`);
+        const data = await GrowwApiService.getBulkIndexData(symbols);
         
         // Check if we got any data
         const successCount = Object.values(data).filter(Boolean).length;
         if (successCount > 0) {
-          console.log(`✅ Got ${successCount}/${symbols.length} accurate results from AlphaVantage API`);
+          console.log(`✅ Got ${successCount}/${symbols.length} accurate results from Groww API`);
           return data;
         }
       } catch (error) {
-        console.warn('AlphaVantage bulk API failed, falling back:', error);
+        console.warn('Groww bulk API failed, falling back:', error);
       }
     }
 
@@ -96,17 +96,17 @@ export class HybridStockApiService {
     setupRequired: boolean;
     missingCredentials: string[];
   } {
-    const alphaVantageStatus = AlphaVantageApiService.getApiStatus();
+    const growwStatus = GrowwApiService.getApiStatus();
     const missingCredentials: string[] = [];
     
-    if (!alphaVantageStatus.keyPresent) missingCredentials.push('AlphaVantage API Key');
+    if (!growwStatus.tokenPresent) missingCredentials.push('Groww Access Token');
     
-    if (alphaVantageStatus.configured) {
+    if (growwStatus.configured) {
       return {
-        primary: 'AlphaVantage API',
+        primary: 'Groww API',
         configured: true,
-        accuracy: 'Professional Grade - Exchange Licensed Data',
-        cost: 'Free tier available, Premium from $49.99/month',
+        accuracy: 'Professional Trading Platform Accuracy',
+        cost: '₹499 + taxes per month',
         setupRequired: false,
         missingCredentials: []
       };
@@ -123,7 +123,7 @@ export class HybridStockApiService {
   }
 
   static clearCache(): void {
-    AlphaVantageApiService.clearCache();
+    GrowwApiService.clearCache();
     StockApiService.clearCache();
   }
 

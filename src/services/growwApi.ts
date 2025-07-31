@@ -5,80 +5,91 @@ const GROWW_API_BASE = 'https://api.groww.in/v1';
 const GROWW_LIVE_DATA = `${GROWW_API_BASE}/live-data`;
 
 // Environment variables for API credentials
-const GROWW_API_KEY = process.env.REACT_APP_GROWW_API_KEY;
-const GROWW_API_SECRET = process.env.REACT_APP_GROWW_API_SECRET;
-const GROWW_API_VERSION = '1.0.0';
+const GROWW_ACCESS_TOKEN = process.env.REACT_APP_GROWW_ACCESS_TOKEN; // Bearer token
+const GROWW_API_VERSION = '1.0';
 
-// Groww API symbol mapping for Indian indices
-const GROWW_INDEX_SYMBOLS: Record<string, { tradingSymbol: string; exchange: string; segment: string; displayName: string }> = {
+// Groww API symbol mapping for Indian indices (format: EXCHANGE_SYMBOL for LTP/OHLC)
+const GROWW_INDEX_SYMBOLS: Record<string, { tradingSymbol: string; exchangeSymbol: string; exchange: string; segment: string; displayName: string }> = {
   '^NSEI': {
-    tradingSymbol: 'NIFTY 50',
+    tradingSymbol: 'NIFTY',
+    exchangeSymbol: 'NSE_NIFTY',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY 50'
   },
   '^BSESN': {
     tradingSymbol: 'SENSEX',
+    exchangeSymbol: 'BSE_SENSEX',
     exchange: 'BSE',
     segment: 'CASH',
     displayName: 'BSE SENSEX'
   },
   '^CNXBANK': {
-    tradingSymbol: 'NIFTY BANK',
+    tradingSymbol: 'BANKNIFTY',
+    exchangeSymbol: 'NSE_BANKNIFTY',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY Bank'
   },
   '^CNXIT': {
-    tradingSymbol: 'NIFTY IT',
+    tradingSymbol: 'NIFTYIT',
+    exchangeSymbol: 'NSE_NIFTYIT',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY IT'
   },
   '^CNX100': {
-    tradingSymbol: 'NIFTY 100',
+    tradingSymbol: 'NIFTY100',
+    exchangeSymbol: 'NSE_NIFTY100',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY 100'
   },
   '^CNX500': {
-    tradingSymbol: 'NIFTY 500',
+    tradingSymbol: 'NIFTY500',
+    exchangeSymbol: 'NSE_NIFTY500',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY 500'
   },
   '^CNXFIN': {
-    tradingSymbol: 'NIFTY FIN SERVICE',
+    tradingSymbol: 'NIFTYFIN',
+    exchangeSymbol: 'NSE_NIFTYFIN',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'Nifty Financial Services'
   },
   '^CNXAUTO': {
-    tradingSymbol: 'NIFTY AUTO',
+    tradingSymbol: 'NIFTYAUTO',
+    exchangeSymbol: 'NSE_NIFTYAUTO',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY Auto'
   },
   '^CNXPHARMA': {
-    tradingSymbol: 'NIFTY PHARMA',
+    tradingSymbol: 'NIFTYPHARMA',
+    exchangeSymbol: 'NSE_NIFTYPHARMA',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY Pharma'
   },
   '^CNXFMCG': {
-    tradingSymbol: 'NIFTY FMCG',
+    tradingSymbol: 'NIFTYFMCG',
+    exchangeSymbol: 'NSE_NIFTYFMCG',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'Nifty FMCG'
   },
   '^CNXMETAL': {
-    tradingSymbol: 'NIFTY METAL',
+    tradingSymbol: 'NIFTYMETAL',
+    exchangeSymbol: 'NSE_NIFTYMETAL',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY Metal'
   },
   '^CNXPSUBANK': {
-    tradingSymbol: 'NIFTY PSU BANK',
+    tradingSymbol: 'NIFTYPSUBANK',
+    exchangeSymbol: 'NSE_NIFTYPSUBANK',
     exchange: 'NSE',
     segment: 'CASH',
     displayName: 'NIFTY PSU Bank'
@@ -113,22 +124,19 @@ interface GrowwLTPResponse {
 
 export class GrowwApiService {
   private static validateApiCredentials(): boolean {
-    if (!GROWW_API_KEY || !GROWW_API_SECRET) {
-      console.error('Groww API credentials not found. Please set REACT_APP_GROWW_API_KEY and REACT_APP_GROWW_API_SECRET in your environment variables.');
+    if (!GROWW_ACCESS_TOKEN) {
+      console.error('Groww Access Token not found. Please set REACT_APP_GROWW_ACCESS_TOKEN in your environment variables.');
       return false;
     }
     return true;
   }
 
   private static getAuthHeaders(): HeadersInit {
-    // Generate basic auth header using key:secret
-    const credentials = btoa(`${GROWW_API_KEY}:${GROWW_API_SECRET}`);
-    
     return {
-      'Authorization': `Basic ${credentials}`,
-      'X-API-Version': GROWW_API_VERSION,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Authorization': `Bearer ${GROWW_ACCESS_TOKEN}`,
+      'X-API-VERSION': GROWW_API_VERSION,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
     };
   }
 
@@ -137,32 +145,72 @@ export class GrowwApiService {
       throw new Error('Groww API credentials not configured');
     }
 
-    const url = `${endpoint}?${params.toString()}`;
-    console.log(`Making Groww API request to: ${url}`);
+    const targetUrl = `${endpoint}?${params.toString()}`;
+    console.log(`Making Groww API request to: ${targetUrl}`);
+
+    // Use CORS proxy for browser compatibility
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: this.getAuthHeaders(),
+      // Make request through CORS proxy with custom headers
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          method: 'GET',
+          headers: this.getAuthHeaders()
+        }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Groww API Error ${response.status}: ${errorText}`);
+        throw new Error(`Proxy Error ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      console.log('Groww API response received successfully');
-      return data;
+      const proxyData = await response.json();
+      
+      if (!proxyData.contents) {
+        throw new Error('No data received from proxy');
+      }
+
+      let apiData;
+      try {
+        apiData = JSON.parse(proxyData.contents);
+      } catch {
+        // If contents is already an object
+        apiData = proxyData.contents;
+      }
+
+      console.log('Groww API response received successfully through proxy');
+      return apiData;
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Groww API request failed:', error);
+      
+      // Fallback: Try direct request (might fail due to CORS)
+      try {
+        console.log('Attempting direct request as fallback...');
+        const directResponse = await fetch(targetUrl, {
+          method: 'GET',
+          headers: this.getAuthHeaders(),
+        });
+        
+        if (directResponse.ok) {
+          const directData = await directResponse.json();
+          console.log('Direct Groww API request succeeded');
+          return directData;
+        }
+      } catch (directError) {
+        console.warn('Direct request also failed:', directError);
+      }
+      
       throw error;
     }
   }
@@ -178,27 +226,30 @@ export class GrowwApiService {
       const params = new URLSearchParams({
         exchange: mapping.exchange,
         segment: mapping.segment,
-        tradingSymbol: mapping.tradingSymbol
+        trading_symbol: mapping.tradingSymbol
       });
 
-      const response: GrowwQuoteResponse = await this.makeGrowwRequest(
+      const response = await this.makeGrowwRequest(
         `${GROWW_LIVE_DATA}/quote`,
         params
       );
 
-      if (!response || typeof response.ltp !== 'number') {
+      if (!response || response.status !== 'SUCCESS' || !response.data) {
+        console.warn(`No valid data in Groww response for ${symbol}:`, response);
         return null;
       }
 
+      const data = response.data;
+      
       return {
         symbol: symbol,
         name: mapping.displayName,
-        price: parseFloat(response.ltp.toFixed(2)),
-        change: parseFloat(response.dayChange.toFixed(2)),
-        changePercent: parseFloat(response.dayChangePerc.toFixed(2)),
-        dayHigh: parseFloat(response.high.toFixed(2)),
-        dayLow: parseFloat(response.low.toFixed(2)),
-        volume: response.totalTradedVolume || 0,
+        price: parseFloat((data.ltp || data.lastPrice || 0).toFixed(2)),
+        change: parseFloat((data.dayChange || data.change || 0).toFixed(2)),
+        changePercent: parseFloat((data.dayChangePerc || data.changePercent || 0).toFixed(2)),
+        dayHigh: parseFloat((data.dayHigh || data.high || 0).toFixed(2)),
+        dayLow: parseFloat((data.dayLow || data.low || 0).toFixed(2)),
+        volume: data.totalTradedVolume || data.volume || 0,
         lastUpdated: new Date().toISOString()
       };
     } catch (error) {
@@ -224,48 +275,50 @@ export class GrowwApiService {
 
     for (const batch of batches) {
       try {
-        const growwSymbols = batch
+        const exchangeSymbols = batch
           .map(symbol => {
             const mapping = GROWW_INDEX_SYMBOLS[symbol];
-            return mapping ? `${mapping.exchange}:${mapping.segment}:${mapping.tradingSymbol}` : null;
+            return mapping ? mapping.exchangeSymbol : null;
           })
           .filter(Boolean) as string[];
 
-        if (growwSymbols.length === 0) continue;
+        if (exchangeSymbols.length === 0) continue;
 
         const params = new URLSearchParams({
-          instruments: growwSymbols.join(',')
+          segment: 'CASH',
+          exchange_symbols: exchangeSymbols.join(',')
         });
 
-        const response: GrowwLTPResponse = await this.makeGrowwRequest(
+        const response = await this.makeGrowwRequest(
           `${GROWW_LIVE_DATA}/ltp`,
           params
         );
 
-        // Process response and map back to original symbols
-        batch.forEach(symbol => {
-          const mapping = GROWW_INDEX_SYMBOLS[symbol];
-          if (mapping) {
-            const growwKey = `${mapping.exchange}:${mapping.segment}:${mapping.tradingSymbol}`;
-            const data = response[growwKey];
-            
-            if (data && typeof data.ltp === 'number') {
-              results[symbol] = {
-                symbol: symbol,
-                name: mapping.displayName,
-                price: parseFloat(data.ltp.toFixed(2)),
-                change: parseFloat(data.dayChange.toFixed(2)),
-                changePercent: parseFloat(data.dayChangePerc.toFixed(2)),
-                dayHigh: 0, // LTP endpoint doesn't provide OHLC
-                dayLow: 0,
-                volume: 0,
-                lastUpdated: new Date().toISOString()
-              };
-            } else {
-              results[symbol] = null;
+        if (response && response.status === 'SUCCESS' && response.data) {
+          // Process response data
+          batch.forEach(symbol => {
+            const mapping = GROWW_INDEX_SYMBOLS[symbol];
+            if (mapping) {
+              const symbolData = response.data[mapping.exchangeSymbol];
+              
+              if (symbolData && typeof symbolData.ltp === 'number') {
+                results[symbol] = {
+                  symbol: symbol,
+                  name: mapping.displayName,
+                  price: parseFloat(symbolData.ltp.toFixed(2)),
+                  change: parseFloat((symbolData.dayChange || 0).toFixed(2)),
+                  changePercent: parseFloat((symbolData.dayChangePerc || 0).toFixed(2)),
+                  dayHigh: 0, // LTP endpoint doesn't provide OHLC
+                  dayLow: 0,
+                  volume: 0,
+                  lastUpdated: new Date().toISOString()
+                };
+              } else {
+                results[symbol] = null;
+              }
             }
-          }
-        });
+          });
+        }
       } catch (error) {
         console.error(`Error fetching LTP batch:`, error);
         // Set failed symbols to null
@@ -359,11 +412,10 @@ export class GrowwApiService {
     console.log('Groww API cache cleared');
   }
 
-  static getApiStatus(): { configured: boolean; keyPresent: boolean; secretPresent: boolean } {
+  static getApiStatus(): { configured: boolean; tokenPresent: boolean } {
     return {
       configured: this.validateApiCredentials(),
-      keyPresent: !!GROWW_API_KEY,
-      secretPresent: !!GROWW_API_SECRET
+      tokenPresent: !!GROWW_ACCESS_TOKEN
     };
   }
 }
