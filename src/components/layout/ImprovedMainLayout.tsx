@@ -16,12 +16,6 @@ import { parseURLParams } from '../../utils/exportUtils';
 
 const calculators: NavigationItem[] = [
   {
-    id: 'stocks',
-    name: 'Stock Screener',
-    icon: '📊',
-    description: 'Indian Stock Market Indices'
-  },
-  {
     id: 'emi',
     name: 'EMI Calculator',
     icon: '🏠',
@@ -32,6 +26,12 @@ const calculators: NavigationItem[] = [
     name: 'Additional Calculators',
     icon: '🧮',
     description: 'More Financial Tools'
+  },
+  {
+    id: 'stocks',
+    name: 'Stock Screener',
+    icon: '📊',
+    description: 'Indian Stock Market Indices'
   }
 ];
 
@@ -63,7 +63,7 @@ const additionalCalculators: NavigationItem[] = [
 ];
 
 export const ImprovedMainLayout: React.FC = () => {
-  const [activeCalculator, setActiveCalculator] = useState('stocks');
+  const [activeCalculator, setActiveCalculator] = useState('emi');
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [showTests, setShowTests] = useState(false);
   const [currentLoanData, setCurrentLoanData] = useState<any>(null);
@@ -102,7 +102,7 @@ export const ImprovedMainLayout: React.FC = () => {
       case 'gratuity':
         return <GratuityCalculator />;
       default:
-        return <StockScreener />;
+        return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
     }
   };
 

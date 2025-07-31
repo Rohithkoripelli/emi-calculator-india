@@ -29,13 +29,14 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
 
           {/* Calculator Navigation */}
           <div className="pb-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-              {calculators.map((calculator) => (
+            <div className="flex justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 max-w-4xl">
+                {calculators.map((calculator) => (
                 <button
                   key={calculator.id}
                   onClick={() => onCalculatorChange(calculator.id)}
                   className={`
-                    group relative p-3 rounded-xl transition-all duration-200 transform hover:scale-105
+                    group relative p-4 rounded-xl transition-all duration-200 transform hover:scale-105 w-full min-w-[200px]
                     ${activeCalculator === calculator.id
                       ? 'bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 shadow-lg'
                       : 'bg-blue-700 dark:bg-blue-800 hover:bg-blue-600 dark:hover:bg-blue-700 text-white border border-blue-500 dark:border-blue-600'
@@ -44,10 +45,10 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                 >
                   <div className="text-center">
                     <div className="text-2xl mb-1">{calculator.icon}</div>
-                    <h3 className="font-semibold text-xs sm:text-sm mb-1">
+                    <h3 className="font-semibold text-sm mb-2">
                       {calculator.name}
                     </h3>
-                    <p className={`text-xs ${
+                    <p className={`text-xs leading-relaxed ${
                       activeCalculator === calculator.id ? 'text-blue-500 dark:text-blue-600' : 'text-blue-200 dark:text-blue-300'
                     }`}>
                       {calculator.description}
@@ -61,7 +62,8 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                     </div>
                   )}
                 </button>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
