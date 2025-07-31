@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { INDIAN_INDICES } from '../../data/indices';
 import { StockIndex, IndexData } from '../../types/stock';
-import { StockApiService } from '../../services/stockApi';
+import { HybridStockApiService } from '../../services/hybridStockApi';
 import { IndexDetail } from './IndexDetail';
 
 export const StockScreener: React.FC = () => {
@@ -10,6 +10,7 @@ export const StockScreener: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [apiInfo, setApiInfo] = useState(HybridStockApiService.getApiInfo());
 
   useEffect(() => {
     loadIndexData();
@@ -29,25 +30,23 @@ export const StockScreener: React.FC = () => {
     setError(null);
     
     try {
+      // Update API info
+      setApiInfo(HybridStockApiService.getApiInfo());
+      
       // Load data for main indices first (higher priority)
       const priorityIndices = INDIAN_INDICES.slice(0, 12); // Load first 12 indices
-      const promises = priorityIndices.map(async (index) => {
-        try {
-          const data = await StockApiService.getIndexDataWithCache(index.symbol);
-          return { index: index.id, data, success: true };
-        } catch (error) {
-          console.error(`Failed to load data for ${index.name}:`, error);
-          return { index: index.id, data: null, success: false };
-        }
-      });
-
-      const results = await Promise.allSettled(promises);
+      const symbols = priorityIndices.map(index => index.symbol);
+      
+      // Use bulk API for better performance
+      const bulkData = await HybridStockApiService.getBulkIndexData(symbols);
+      
       const newIndexData: Record<string, IndexData> = {};
       let successCount = 0;
-
-      results.forEach((result) => {
-        if (result.status === 'fulfilled' && result.value.data) {
-          newIndexData[result.value.index] = result.value.data;
+      
+      priorityIndices.forEach(index => {
+        const data = bulkData[index.symbol];
+        if (data) {
+          newIndexData[index.id] = data;
           successCount++;
         }
       });
@@ -121,7 +120,7 @@ export const StockScreener: React.FC = () => {
                   ) : data ? (
                     <div>
                       <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        {StockApiService.formatNumber(data.price)}
+                        {HybridStockApiService.formatNumber(data.price)}
                       </div>
                       <div className={`flex items-center justify-end gap-1 text-xs font-medium ${
                         isPositive 
@@ -188,14 +187,14 @@ export const StockScreener: React.FC = () => {
               ) : data ? (
                 <div>
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {StockApiService.formatNumber(data.price)}
+                    {HybridStockApiService.formatNumber(data.price)}
                   </div>
                   <div className={`flex items-center justify-end gap-1 text-sm font-medium ${
                     isPositive 
                       ? 'text-green-600 dark:text-green-400' 
                       : 'text-red-600 dark:text-red-400'
                   }`}>
-                    <span>{isPositive ? '+' : ''}{StockApiService.formatNumber(data.change)}</span>
+                    <span>{isPositive ? '+' : ''}{HybridStockApiService.formatNumber(data.change)}</span>
                     <span>({isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%)</span>
                     {isPositive ? (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -260,8 +259,40 @@ export const StockScreener: React.FC = () => {
           Track real-time performance of major Indian stock market indices. Click on any index to view detailed charts, constituents, and analysis.
         </p>
         
+        {/* API Status Banner */}
+        <div className={`mt-4 p-3 rounded-lg border ${
+          apiInfo.configured 
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+        }`}>
+          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm">
+            <div className={`w-2 h-2 rounded-full ${apiInfo.configured ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+            <span className={`font-medium ${
+              apiInfo.configured 
+                ? 'text-green-800 dark:text-green-200' 
+                : 'text-yellow-800 dark:text-yellow-200'
+            }`}>
+              {apiInfo.configured ? '🚀 Professional Grade Data' : '⚠️ Basic Data Mode'}
+            </span>
+            <span className={`hidden sm:inline ${
+              apiInfo.configured 
+                ? 'text-green-700 dark:text-green-300' 
+                : 'text-yellow-700 dark:text-yellow-300'
+            }`}>
+              • {apiInfo.primary} • {apiInfo.accuracy}
+            </span>
+          </div>
+          {!apiInfo.configured && apiInfo.setupRequired && (
+            <div className="mt-2 text-center">
+              <span className="text-xs text-yellow-700 dark:text-yellow-300">
+                Missing: {apiInfo.missingCredentials.join(', ')} • Add to .env for trading-grade accuracy
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Data Freshness Indicator */}
-        <div className="mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
           <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`}></div>
           <span>
             {loading ? 'Updating...' : `Last updated: ${lastRefresh.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
