@@ -55,55 +55,55 @@ export const IndexOverview: React.FC<IndexOverviewProps> = ({ index, data }) => 
   return (
     <div className="space-y-8">
       {/* Key Statistics */}
-      <div className="bg-white dark:bg-dark-surface rounded-xl p-6 shadow-lg">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-text mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
           Key Statistics
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-1">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
               {StockApiService.formatNumber(data.price)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-dark-text-muted">Current Price</div>
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Current Price</div>
           </div>
           <div className="text-center">
-            <div className={`text-2xl font-bold mb-1 ${
+            <div className={`text-xl sm:text-2xl font-bold mb-1 ${
               isPositive 
                 ? 'text-green-600 dark:text-green-400' 
                 : 'text-red-600 dark:text-red-400'
             }`}>
               {isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%
             </div>
-            <div className="text-sm text-gray-500 dark:text-dark-text-muted">Change %</div>
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Change %</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-1">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
               {StockApiService.formatNumber(data.dayHigh)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-dark-text-muted">Day High</div>
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Day High</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-1">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
               {StockApiService.formatNumber(data.dayLow)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-dark-text-muted">Day Low</div>
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Day Low</div>
           </div>
           {data.volume > 0 && (
             <>
               <div className="text-center lg:col-span-2">
-                <div className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-1">
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                   {StockApiService.formatNumber(data.volume)}
                 </div>
-                <div className="text-sm text-gray-500 dark:text-dark-text-muted">Volume</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Volume</div>
               </div>
             </>
           )}
           {data.marketCap && (
             <div className="text-center lg:col-span-2">
-              <div className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-1">
+              <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                 {StockApiService.formatIndianNumber(data.marketCap)}
               </div>
-              <div className="text-sm text-gray-500 dark:text-dark-text-muted">Market Cap</div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Market Cap</div>
             </div>
           )}
         </div>

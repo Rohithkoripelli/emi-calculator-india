@@ -115,20 +115,20 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className={`${inline ? 'text-xl' : 'text-2xl lg:text-3xl'} font-bold text-gray-900 dark:text-dark-text`}>
+              <h1 className={`${inline ? 'text-xl' : 'text-2xl lg:text-3xl'} font-bold text-gray-900 dark:text-white`}>
                 {index.name}
               </h1>
-              <span className="px-3 py-1 text-sm font-medium bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-dark-text-secondary rounded-full">
+              <span className="px-3 py-1 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
                 {index.exchange}
               </span>
               {index.sector && (
-                <span className="px-3 py-1 text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                <span className="px-3 py-1 text-sm font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full">
                   {index.sector}
                 </span>
               )}
             </div>
             {!inline && (
-              <p className="text-gray-600 dark:text-dark-text-secondary mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 {index.description}
               </p>
             )}
@@ -140,7 +140,7 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
             </div>
           ) : indexData ? (
             <div className="text-right">
-              <div className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-dark-text mb-2">
+              <div className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
                 {StockApiService.formatNumber(indexData.price)}
               </div>
               <div className={`flex items-center justify-end gap-2 text-lg font-medium ${
@@ -160,12 +160,12 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
                   </svg>
                 )}
               </div>
-              <div className="text-sm text-gray-500 dark:text-dark-text-muted mt-2">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 Range: {StockApiService.formatNumber(indexData.dayLow)} - {StockApiService.formatNumber(indexData.dayHigh)}
               </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500 dark:text-dark-text-muted">
+            <div className="text-center text-gray-500 dark:text-gray-400">
               Data unavailable
             </div>
           )}
@@ -173,9 +173,9 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
       </div>
 
       {/* Chart Section */}
-      <div className="bg-white dark:bg-dark-surface rounded-xl p-6 shadow-lg mb-8">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg mb-6 sm:mb-8 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-dark-text">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
             Price Chart
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -183,10 +183,10 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
               <button
                 key={timeFrame.id}
                 onClick={() => setActiveTimeFrame(timeFrame.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTimeFrame === timeFrame.value
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-dark-text-secondary hover:bg-gray-200 dark:hover:bg-gray-700'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {timeFrame.label}
@@ -195,7 +195,7 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
           </div>
         </div>
 
-        <div className="h-96">
+        <div className="h-64 sm:h-96">
           {chartLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -234,7 +234,7 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500 dark:text-dark-text-muted">
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
               No chart data available
             </div>
           )}
@@ -242,33 +242,33 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200 dark:border-dark-border mb-8">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 sm:mb-8 overflow-x-auto">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'overview'
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           Overview
         </button>
         <button
           onClick={() => setActiveTab('companies')}
-          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'companies'
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           Companies
         </button>
         <button
           onClick={() => setActiveTab('faq')}
-          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+          className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'faq'
               ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
           FAQ
