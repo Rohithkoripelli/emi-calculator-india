@@ -1,24 +1,70 @@
 import { IndexData, CompanyData, ChartData } from '../types/stock';
 
-// Multiple API endpoints for accuracy
-const NSE_API_BASE = 'https://www.nseindia.com/api';
-const YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
+// Real-time Indian Stock Market APIs
+const NSE_INDIA_API = 'https://latest-stock-price.p.rapidapi.com/price'; // RapidAPI NSE service
+const STOCK_MARKET_INDIA_API = 'https://stock-market-india-api.vercel.app'; // Open source API
+const NSE_LIVE_API = 'https://www.nseindia.com/api/equity-meta'; // NSE official API
 const YAHOO_QUOTE_BASE = 'https://query1.finance.yahoo.com/v1/finance/quote';
+const YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
-// CORS proxy for development (replace with your own backend in production)
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+// Multiple CORS proxies for better reliability
+const CORS_PROXIES = [
+  'https://api.allorigins.win/get?url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
+  'https://cors-anywhere.herokuapp.com/'
+];
 
-// Alpha Vantage API (free tier available)
-const ALPHA_VANTAGE_KEY = 'demo'; // Replace with actual key
-const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
+// Index symbol mapping for accurate data
+const INDEX_SYMBOL_MAP: Record<string, { yahoo: string; nseName: string; displayName: string }> = {
+  '^NSEI': { yahoo: '^NSEI', nseName: 'NIFTY 50', displayName: 'NIFTY 50' },
+  '^BSESN': { yahoo: '^BSESN', nseName: 'SENSEX', displayName: 'BSE SENSEX' },
+  '^CNXBANK': { yahoo: 'NIFTY_BANK.NS', nseName: 'NIFTY BANK', displayName: 'NIFTY Bank' },
+  '^CNXIT': { yahoo: 'NIFTY_IT.NS', nseName: 'NIFTY IT', displayName: 'NIFTY IT' },
+  '^CNX100': { yahoo: 'NIFTY_100.NS', nseName: 'NIFTY 100', displayName: 'NIFTY 100' },
+  '^CNX500': { yahoo: 'NIFTY_500.NS', nseName: 'NIFTY 500', displayName: 'NIFTY 500' },
+  '^CNXFIN': { yahoo: 'NIFTY_FIN_SERVICE.NS', nseName: 'NIFTY FIN SERVICE', displayName: 'Nifty Financial Services' },
+  '^CNXAUTO': { yahoo: 'NIFTY_AUTO.NS', nseName: 'NIFTY AUTO', displayName: 'NIFTY Auto' },
+  '^CNXPHARMA': { yahoo: 'NIFTY_PHARMA.NS', nseName: 'NIFTY PHARMA', displayName: 'NIFTY Pharma' },
+  '^CNXFMCG': { yahoo: 'NIFTY_FMCG.NS', nseName: 'NIFTY FMCG', displayName: 'Nifty FMCG' },
+  '^CNXMETAL': { yahoo: 'NIFTY_METAL.NS', nseName: 'NIFTY METAL', displayName: 'NIFTY Metal' },
+  '^CNXPSUBANK': { yahoo: 'NIFTY_PSU_BANK.NS', nseName: 'NIFTY PSU BANK', displayName: 'NIFTY PSU Bank' }
+};
 
 export class StockApiService {
-  private static async fetchWithCORS(url: string): Promise<any> {
+  private static async fetchWithCORS(url: string, retryCount = 0): Promise<any> {
+    const maxRetries = CORS_PROXIES.length;
+    
+    if (retryCount >= maxRetries) {
+      throw new Error('All CORS proxies failed');
+    }
+
     try {
-      const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-      const response = await fetch(proxyUrl);
+      const proxy = CORS_PROXIES[retryCount];
+      const proxyUrl = `${proxy}${encodeURIComponent(url)}`;
+      
+      console.log(`Attempting to fetch data from: ${url} via proxy ${retryCount + 1}/${maxRetries}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
       
+      // Handle different proxy response formats
       if (data.contents) {
         try {
           return JSON.parse(data.contents);
@@ -26,119 +72,245 @@ export class StockApiService {
           return data.contents;
         }
       }
+      
       return data;
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.warn(`Proxy ${retryCount + 1} failed:`, error);
+      
+      if (retryCount < maxRetries - 1) {
+        // Try next proxy
+        return this.fetchWithCORS(url, retryCount + 1);
+      }
+      
+      console.error('All proxies failed for URL:', url);
       throw error;
     }
   }
 
-  private static async fetchNSEData(symbol: string): Promise<any> {
+  // Fetch real-time NSE data using multiple sources
+  private static async fetchNSEIndicesData(): Promise<any> {
     try {
-      // Try NSE API first for most accurate data
-      const nseSymbol = symbol.replace('^', '').replace('NSE', '').replace('BSE', '');
-      const url = `${NSE_API_BASE}/equity-stockIndices?index=${nseSymbol}`;
-      return await this.fetchWithCORS(url);
+      // Try stock-market-india API for NSE indices
+      const url = `${STOCK_MARKET_INDIA_API}/nse/get_indices`;
+      const data = await this.fetchWithCORS(url);
+      return data;
     } catch (error) {
-      console.error('NSE API failed:', error);
+      console.error('NSE Indices API failed:', error);
+      return null;
+    }
+  }
+
+  private static async fetchStockMarketIndiaData(symbol: string): Promise<any> {
+    try {
+      const mapping = INDEX_SYMBOL_MAP[symbol];
+      if (!mapping) return null;
+
+      // Try to get index data from stock-market-india API
+      const url = `${STOCK_MARKET_INDIA_API}/nse/get_indices`;
+      const data = await this.fetchWithCORS(url);
+      
+      if (data && Array.isArray(data)) {
+        // Find the matching index
+        const indexData = data.find((item: any) => 
+          item.name?.toUpperCase().includes(mapping.nseName.toUpperCase()) ||
+          item.indexName?.toUpperCase().includes(mapping.nseName.toUpperCase())
+        );
+        return indexData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Stock Market India API failed:', error);
       return null;
     }
   }
 
   static async getIndexData(symbol: string): Promise<IndexData | null> {
-    // Try multiple data sources for accuracy
-    let indexData = null;
-    
-    try {
-      // First try NSE API for Indian indices
-      if (symbol.includes('NSE') || symbol.includes('CNX') || symbol.includes('NIFTY')) {
-        indexData = await this.fetchNSEData(symbol);
-        if (indexData) {
-          return this.parseNSEIndexData(indexData, symbol);
-        }
-      }
-      
-      // Fallback to Yahoo Finance
-      const url = `${YAHOO_QUOTE_BASE}?symbols=${symbol}`;
-      const data = await this.fetchWithCORS(url);
-      
-      if (!data.quoteResponse?.result?.[0]) {
-        return this.getMockData(symbol); // Return mock data if all APIs fail
-      }
-
-      const quote = data.quoteResponse.result[0];
-      
-      return {
-        symbol: quote.symbol,
-        name: quote.longName || quote.shortName,
-        price: quote.regularMarketPrice || 0,
-        change: quote.regularMarketChange || 0,
-        changePercent: quote.regularMarketChangePercent || 0,
-        dayHigh: quote.regularMarketDayHigh || 0,
-        dayLow: quote.regularMarketDayLow || 0,
-        volume: quote.regularMarketVolume || 0,
-        marketCap: quote.marketCap,
-        lastUpdated: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error(`Error fetching index data for ${symbol}:`, error);
-      return this.getMockData(symbol); // Return mock data if all APIs fail
+    const mapping = INDEX_SYMBOL_MAP[symbol];
+    if (!mapping) {
+      console.warn(`No mapping found for symbol: ${symbol}`);
+      return null;
     }
+
+    const dataSources = [
+      () => this.fetchStockMarketIndiaData(symbol),
+      () => this.fetchYahooFinanceData(symbol, mapping),
+      () => this.fetchAlternativeNSEData(symbol, mapping)
+    ];
+
+    // Try each data source in order
+    for (let i = 0; i < dataSources.length; i++) {
+      try {
+        console.log(`Trying data source ${i + 1}/${dataSources.length} for ${symbol}`);
+        const data = await dataSources[i]();
+        
+        if (data && this.validateIndexData(data)) {
+          console.log(`Successfully fetched data from source ${i + 1} for ${symbol}`);
+          return data;
+        }
+      } catch (error) {
+        console.warn(`Data source ${i + 1} failed for ${symbol}:`, error);
+        continue;
+      }
+    }
+
+    console.error(`All data sources failed for ${symbol}`);
+    return null;
   }
 
-  private static parseNSEIndexData(data: any, symbol: string): IndexData | null {
+  private static async fetchYahooFinanceData(symbol: string, mapping: any): Promise<IndexData | null> {
     try {
-      // Parse NSE API response
-      if (data && data.data && data.data.length > 0) {
-        const indexInfo = data.data[0];
+      const yahooUrl = `${YAHOO_QUOTE_BASE}?symbols=${mapping.yahoo}`;
+      const yahooData = await this.fetchWithCORS(yahooUrl);
+      
+      if (yahooData?.quoteResponse?.result?.[0]) {
+        const quote = yahooData.quoteResponse.result[0];
         return {
           symbol: symbol,
-          name: indexInfo.indexName || 'Unknown Index',
-          price: parseFloat(indexInfo.last) || 0,
-          change: parseFloat(indexInfo.netChange) || 0,
-          changePercent: parseFloat(indexInfo.pChange) || 0,
-          dayHigh: parseFloat(indexInfo.dayHigh) || 0,
-          dayLow: parseFloat(indexInfo.dayLow) || 0,
-          volume: parseInt(indexInfo.totalTradedVolume) || 0,
+          name: mapping.displayName,
+          price: parseFloat((quote.regularMarketPrice || 0).toFixed(2)),
+          change: parseFloat((quote.regularMarketChange || 0).toFixed(2)),
+          changePercent: parseFloat((quote.regularMarketChangePercent || 0).toFixed(2)),
+          dayHigh: parseFloat((quote.regularMarketDayHigh || 0).toFixed(2)),
+          dayLow: parseFloat((quote.regularMarketDayLow || 0).toFixed(2)),
+          volume: quote.regularMarketVolume || 0,
+          marketCap: quote.marketCap,
           lastUpdated: new Date().toISOString()
         };
       }
       return null;
     } catch (error) {
-      console.error('Error parsing NSE data:', error);
+      console.error('Yahoo Finance fetch failed:', error);
       return null;
     }
   }
 
-  private static getMockData(symbol: string): IndexData {
-    // Provide realistic mock data with current market context
-    const mockData: Record<string, Partial<IndexData>> = {
-      '^NSEI': { name: 'NIFTY 50', price: 24667.85, change: 142.75, changePercent: 0.58 },
-      '^BSESN': { name: 'BSE SENSEX', price: 81086.21, change: 454.11, changePercent: 0.56 },
-      '^CNXBANK': { name: 'NIFTY Bank', price: 53247.30, change: 298.65, changePercent: 0.56 },
-      '^CNXIT': { name: 'NIFTY IT', price: 42156.25, change: -156.45, changePercent: -0.37 },
-      '^CNX100': { name: 'NIFTY 100', price: 25567.80, change: 134.20, changePercent: 0.53 },
-      '^CNX500': { name: 'NIFTY 500', price: 23845.60, change: 118.35, changePercent: 0.50 },
-    };
+  private static async fetchAlternativeNSEData(symbol: string, mapping: any): Promise<IndexData | null> {
+    try {
+      // Try alternative NSE data source
+      const nseUrl = `https://api.kite.trade/quote/nse:${mapping.nseName.replace(' ', '')}`;
+      const nseData = await this.fetchWithCORS(nseUrl);
+      
+      if (nseData && nseData.data) {
+        const quote = nseData.data;
+        return {
+          symbol: symbol,
+          name: mapping.displayName,
+          price: parseFloat((quote.last_price || 0).toFixed(2)),
+          change: parseFloat((quote.net_change || 0).toFixed(2)),
+          changePercent: parseFloat(((quote.net_change / (quote.last_price - quote.net_change)) * 100 || 0).toFixed(2)),
+          dayHigh: parseFloat((quote.ohlc?.high || 0).toFixed(2)),
+          dayLow: parseFloat((quote.ohlc?.low || 0).toFixed(2)),
+          volume: quote.volume || 0,
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Alternative NSE fetch failed:', error);
+      return null;
+    }
+  }
 
-    const base = mockData[symbol] || { 
-      name: symbol.replace('^', '').replace('CNX', 'NIFTY '), 
-      price: 15000 + Math.random() * 10000, 
-      change: (Math.random() - 0.5) * 200,
-      changePercent: (Math.random() - 0.5) * 2
-    };
+  private static validateIndexData(data: IndexData): boolean {
+    return !!(
+      data &&
+      data.price > 0 &&
+      typeof data.change === 'number' &&
+      typeof data.changePercent === 'number' &&
+      data.symbol &&
+      data.name
+    );
+  }
 
-    return {
-      symbol,
-      name: base.name!,
-      price: base.price!,
-      change: base.change!,
-      changePercent: base.changePercent!,
-      dayHigh: base.price! * (1 + Math.random() * 0.02),
-      dayLow: base.price! * (1 - Math.random() * 0.02),
-      volume: Math.floor(Math.random() * 1000000),
-      lastUpdated: new Date().toISOString()
-    };
+  private static parseStockMarketIndiaData(data: any, symbol: string, displayName: string): IndexData | null {
+    try {
+      // Parse Stock Market India API response
+      if (data) {
+        const price = parseFloat(data.lastPrice || data.last || data.close || data.ltp || 0);
+        const change = parseFloat(data.change || data.netChange || data.chng || 0);
+        const changePercent = parseFloat(data.pChange || data.changePercent || data.per_chng || 0);
+        
+        // Ensure we have valid numeric data
+        if (price <= 0) {
+          return null;
+        }
+        
+        return {
+          symbol: symbol,
+          name: displayName,
+          price: parseFloat(price.toFixed(2)),
+          change: parseFloat(change.toFixed(2)),
+          changePercent: parseFloat(changePercent.toFixed(2)),
+          dayHigh: parseFloat((data.dayHigh || data.high || data.dayhigh || price * 1.01).toFixed(2)),
+          dayLow: parseFloat((data.dayLow || data.low || data.daylow || price * 0.99).toFixed(2)),
+          volume: parseInt(data.totalTradedVolume || data.volume || data.vol || 0),
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error parsing Stock Market India data:', error);
+      return null;
+    }
+  }
+
+  // Cache for reducing API calls with real-time consideration
+  private static cache = new Map<string, { data: IndexData; timestamp: number }>();
+  private static CACHE_DURATION = 15000; // 15 seconds cache for real-time feel
+  private static refreshCallbacks = new Map<string, (() => void)[]>();
+
+  private static isCacheValid(timestamp: number): boolean {
+    return Date.now() - timestamp < this.CACHE_DURATION;
+  }
+
+  static async getIndexDataWithCache(symbol: string): Promise<IndexData | null> {
+    // Check cache first
+    const cached = this.cache.get(symbol);
+    if (cached && this.isCacheValid(cached.timestamp)) {
+      console.log(`Using cached data for ${symbol}`);
+      return cached.data;
+    }
+
+    console.log(`Fetching fresh data for ${symbol}`);
+    // Fetch fresh data
+    const data = await this.getIndexData(symbol);
+    if (data) {
+      this.cache.set(symbol, { data, timestamp: Date.now() });
+      
+      // Trigger any registered refresh callbacks
+      const callbacks = this.refreshCallbacks.get(symbol) || [];
+      callbacks.forEach(callback => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('Error in refresh callback:', error);
+        }
+      });
+    }
+
+    return data;
+  }
+
+  static registerRefreshCallback(symbol: string, callback: () => void): void {
+    if (!this.refreshCallbacks.has(symbol)) {
+      this.refreshCallbacks.set(symbol, []);
+    }
+    this.refreshCallbacks.get(symbol)?.push(callback);
+  }
+
+  static unregisterRefreshCallback(symbol: string, callback: () => void): void {
+    const callbacks = this.refreshCallbacks.get(symbol);
+    if (callbacks) {
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+      }
+    }
+  }
+
+  static clearCache(): void {
+    this.cache.clear();
+    console.log('Stock data cache cleared');
   }
 
   static async getChartData(symbol: string, timeframe: string): Promise<ChartData[]> {
