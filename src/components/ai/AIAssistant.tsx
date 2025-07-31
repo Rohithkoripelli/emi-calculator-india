@@ -30,7 +30,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your AI financial assistant powered by GPT-4o. I can help you with personalized advice about loans, EMIs, investments, and financial planning in India. I have access to your current loan details and can provide specific recommendations. How can I assist you today?",
+      text: "Hello! I'm your AI financial assistant. I can help you with personalized advice about loans, EMIs, investments, and financial planning in India. I have access to your current loan details and can provide specific recommendations. How can I assist you today?",
       isUser: false,
       timestamp: new Date()
     }
@@ -96,7 +96,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
 
   // Simple fallback for when OpenAI API fails
   const generateFallbackResponse = (userMessage: string): string => {
-    return `I'm your AI financial assistant powered by GPT-4o. I can help you with:
+    return `I'm your AI financial assistant. I can help you with:
 
 • Loan analysis and prepayment strategies
 • EMI calculations and optimization
@@ -478,7 +478,6 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-semibold text-gray-900 dark:text-dark-text-primary text-sm lg:text-base truncate">AI Financial Assistant</h3>
-              <p className="text-xs lg:text-sm text-gray-500 dark:text-dark-text-muted truncate">Powered by GPT-4o • India-specific advice</p>
             </div>
           </div>
           <button

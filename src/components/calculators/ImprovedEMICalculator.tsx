@@ -174,7 +174,7 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
             </div>
             <div>
               <h3 className="font-bold text-lg">🤖 Ask Our AI Financial Assistant</h3>
-              <p className="text-sm text-green-100 dark:text-green-200">Get personalized advice, compare scenarios, and optimize your loans with GPT-4 powered insights!</p>
+              <p className="text-sm text-green-100 dark:text-green-200">Get personalized advice, compare scenarios, and optimize your loans</p>
             </div>
           </div>
           <button 
