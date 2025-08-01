@@ -13,7 +13,16 @@ interface CapitalGainsData {
   quantity: number;
   purchaseDate: string;
   sellDate: string;
-  expenses: number;
+  // Detailed Transfer Expenses
+  brokerageBuy: number;
+  brokerageSell: number;
+  sttBuy: number;
+  sttSell: number;
+  stampDuty: number;
+  exchangeCharges: number;
+  sebiCharges: number;
+  gst: number;
+  otherExpenses: number;
   previousYearLTCGUsed: number;
 }
 
@@ -27,6 +36,12 @@ interface CapitalGainsResult {
   isLongTerm: boolean;
   exemptionUsed: number;
   exemptionRemaining: number;
+  totalTransferExpenses: number;
+  sttDetails: {
+    buySTT: number;
+    sellSTT: number;
+    totalSTT: number;
+  };
 }
 
 export const CapitalGainsCalculator: React.FC = () => {
@@ -38,7 +53,16 @@ export const CapitalGainsCalculator: React.FC = () => {
     quantity: 100,
     purchaseDate: '',
     sellDate: '',
-    expenses: 0,
+    // Initialize all transfer expenses to 0
+    brokerageBuy: 0,
+    brokerageSell: 0,
+    sttBuy: 0,
+    sttSell: 0,
+    stampDuty: 0,
+    exchangeCharges: 0,
+    sebiCharges: 0,
+    gst: 0,
+    otherExpenses: 0,
     previousYearLTCGUsed: 0
   });
 
@@ -84,7 +108,7 @@ export const CapitalGainsCalculator: React.FC = () => {
 
   const getTaxRate = (investmentType: string, taxType: 'stcg' | 'ltcg'): number => {
     if (investmentType === 'equity') {
-      return taxType === 'stcg' ? 20 : 12.5; // Updated July 2024 rates
+      return taxType === 'stcg' ? 20 : 12.5; // Updated July 23, 2024 rates
     } else if (investmentType === 'debt') {
       return 30; // Taxed at slab rate (assuming highest bracket)
     } else if (investmentType === 'gold') {
@@ -95,12 +119,63 @@ export const CapitalGainsCalculator: React.FC = () => {
     return 30;
   };
 
+  // Accurate STT calculation based on 2024 rates
+  const calculateSTT = (investmentType: string, purchaseValue: number, sellValue: number) => {
+    let buySTT = 0;
+    let sellSTT = 0;
+
+    if (investmentType === 'equity') {
+      // Equity STT rates (delivery-based): 0.1% on both buy and sell
+      buySTT = purchaseValue * 0.001; // 0.1%
+      sellSTT = sellValue * 0.001; // 0.1%
+    } else if (investmentType === 'debt') {
+      // No STT on debt funds
+      buySTT = 0;
+      sellSTT = 0;
+    } else if (investmentType === 'gold') {
+      // Gold ETF STT: 0.1% on sell side only
+      buySTT = 0;
+      sellSTT = sellValue * 0.001; // 0.1%
+    }
+
+    // Round off STT as per rules: >= 50 paise rounds up, < 50 paise rounds down
+    const roundSTT = (amount: number) => {
+      const paise = (amount * 100) % 100;
+      return paise >= 50 ? Math.ceil(amount) : Math.floor(amount);
+    };
+
+    return {
+      buySTT: roundSTT(buySTT),
+      sellSTT: roundSTT(sellSTT),
+      totalSTT: roundSTT(buySTT + sellSTT)
+    };
+  };
+
+  // Auto-calculate STT when investment type or values change
+  const autoCalculateSTT = (investmentType: string, purchasePrice: number, sellPrice: number, quantity: number) => {
+    const purchaseValue = purchasePrice * quantity;
+    const sellValue = sellPrice * quantity;
+    return calculateSTT(investmentType, purchaseValue, sellValue);
+  };
+
   const calculateCapitalGains = useCallback((): CapitalGainsResult => {
-    const { purchasePrice, sellPrice, quantity, purchaseDate, sellDate, expenses, previousYearLTCGUsed, investmentType } = formData;
+    const { 
+      purchasePrice, sellPrice, quantity, purchaseDate, sellDate, previousYearLTCGUsed, investmentType,
+      brokerageBuy, brokerageSell, sttBuy, sttSell, stampDuty, exchangeCharges, sebiCharges, gst, otherExpenses
+    } = formData;
     
     const totalPurchaseValue = purchasePrice * quantity;
     const totalSellValue = sellPrice * quantity;
-    const capitalGain = totalSellValue - totalPurchaseValue - expenses;
+    
+    // Calculate total transfer expenses
+    const totalTransferExpenses = brokerageBuy + brokerageSell + sttBuy + sttSell + 
+                                  stampDuty + exchangeCharges + sebiCharges + gst + otherExpenses;
+    
+    // Auto-calculate STT for reference (user can override)
+    const sttDetails = autoCalculateSTT(investmentType, purchasePrice, sellPrice, quantity);
+    
+    // Capital gain = Sale Value - Purchase Value - All Transfer Expenses
+    const capitalGain = totalSellValue - totalPurchaseValue - totalTransferExpenses;
     
     const holdingDays = calculateHoldingPeriod(purchaseDate, sellDate);
     const actualTaxType = getClassification(investmentType, holdingDays);
@@ -132,9 +207,11 @@ export const CapitalGainsCalculator: React.FC = () => {
       holdingPeriod: holdingDays,
       isLongTerm,
       exemptionUsed,
-      exemptionRemaining
+      exemptionRemaining,
+      totalTransferExpenses,
+      sttDetails
     };
-  }, [formData]);
+  }, [formData, autoCalculateSTT]);
 
   useEffect(() => {
     if (formData.purchaseDate && formData.sellDate) {
@@ -154,6 +231,16 @@ export const CapitalGainsCalculator: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  // Auto-populate STT fields when investment type or values change
+  const autoPopulateSTT = () => {
+    const sttCalc = autoCalculateSTT(formData.investmentType, formData.purchasePrice, formData.sellPrice, formData.quantity);
+    setFormData(prev => ({
+      ...prev,
+      sttBuy: sttCalc.buySTT,
+      sttSell: sttCalc.sellSTT
     }));
   };
 
@@ -262,16 +349,119 @@ export const CapitalGainsCalculator: React.FC = () => {
               />
             </div>
 
-            {/* Additional Expenses */}
-            <Input
-              label="Additional Expenses (₹)"
-              type="number"
-              value={formData.expenses}
-              onChange={(e) => handleInputChange('expenses', parseFloat(e.target.value) || 0)}
-              min="0"
-              step="0.01"
-              placeholder="Brokerage, STT, etc."
-            />
+            {/* Transfer Expenses Section */}
+            <div className="space-y-4 p-4 bg-gray-50 dark:bg-dark-surface rounded-lg border">
+              <div className="flex justify-between items-center">
+                <h4 className="font-medium text-gray-900 dark:text-dark-text text-sm sm:text-base">
+                  Transfer Expenses
+                </h4>
+                <button
+                  type="button"
+                  onClick={autoPopulateSTT}
+                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Auto-calculate STT
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <Input
+                  label="Brokerage (Buy) ₹"
+                  type="number"
+                  value={formData.brokerageBuy}
+                  onChange={(e) => handleInputChange('brokerageBuy', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+                <Input
+                  label="Brokerage (Sell) ₹"
+                  type="number"
+                  value={formData.brokerageSell}
+                  onChange={(e) => handleInputChange('brokerageSell', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+                <Input
+                  label="STT (Buy) ₹"
+                  type="number"
+                  value={formData.sttBuy}
+                  onChange={(e) => handleInputChange('sttBuy', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Auto-calculated"
+                />
+                <Input
+                  label="STT (Sell) ₹"
+                  type="number"
+                  value={formData.sttSell}
+                  onChange={(e) => handleInputChange('sttSell', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Auto-calculated"
+                />
+                <Input
+                  label="Stamp Duty ₹"
+                  type="number"
+                  value={formData.stampDuty}
+                  onChange={(e) => handleInputChange('stampDuty', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.003% of buy value"
+                />
+                <Input
+                  label="Exchange Charges ₹"
+                  type="number"
+                  value={formData.exchangeCharges}
+                  onChange={(e) => handleInputChange('exchangeCharges', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="NSE/BSE charges"
+                />
+                <Input
+                  label="SEBI Charges ₹"
+                  type="number"
+                  value={formData.sebiCharges}
+                  onChange={(e) => handleInputChange('sebiCharges', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="₹10 per crore"
+                />
+                <Input
+                  label="GST ₹"
+                  type="number"
+                  value={formData.gst}
+                  onChange={(e) => handleInputChange('gst', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  placeholder="18% on brokerage + charges"
+                />
+              </div>
+              
+              <Input
+                label="Other Expenses ₹"
+                type="number"
+                value={formData.otherExpenses}
+                onChange={(e) => handleInputChange('otherExpenses', parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                placeholder="Any other transaction costs"
+              />
+              
+              {result && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                    Total Transfer Expenses: {formatCurrency(result.totalTransferExpenses)}
+                  </div>
+                  {result.sttDetails.totalSTT > 0 && (
+                    <div className="text-xs text-gray-600 dark:text-dark-text-secondary mt-1">
+                      STT Reference: Buy ₹{result.sttDetails.buySTT.toFixed(0)}, Sell ₹{result.sttDetails.sellSTT.toFixed(0)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* LTCG Exemption Used */}
             {formData.investmentType === 'equity' && result?.isLongTerm && (
@@ -334,9 +524,9 @@ export const CapitalGainsCalculator: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-surface rounded-lg">
-                  <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Expenses:</span>
+                  <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Transfer Expenses:</span>
                   <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">
-                    {formatCurrency(formData.expenses)}
+                    {formatCurrency(result.totalTransferExpenses)}
                   </span>
                 </div>
 
@@ -412,10 +602,11 @@ export const CapitalGainsCalculator: React.FC = () => {
             <div>
               <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Equity Investments</h4>
               <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
-                <li><strong>STCG:</strong> Holding ≤ 12 months → 20% tax</li>
-                <li><strong>LTCG:</strong> Holding &gt; 12 months → 12.5% tax</li>
+                <li><strong>STCG:</strong> Holding ≤ 12 months → 20% tax (effective July 23, 2024)</li>
+                <li><strong>LTCG:</strong> Holding &gt; 12 months → 12.5% tax (effective July 23, 2024)</li>
                 <li><strong>Exemption:</strong> First ₹1.25 lakh LTCG is tax-free annually</li>
-                <li><strong>STT Required:</strong> Securities Transaction Tax must be paid</li>
+                <li><strong>STT:</strong> 0.1% on both buy and sell for delivery trades</li>
+                <li><strong>Stamp Duty:</strong> 0.003% on purchase value</li>
               </ul>
             </div>
             
@@ -440,12 +631,24 @@ export const CapitalGainsCalculator: React.FC = () => {
             </div>
 
             <div>
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Transfer Expenses (Accurate Rates)</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+                <li><strong>STT Equity:</strong> 0.1% on buy + 0.1% on sell (delivery)</li>
+                <li><strong>STT Intraday:</strong> 0.025% on sell side only</li>
+                <li><strong>Stamp Duty:</strong> 0.003% on purchase value (all states)</li>
+                <li><strong>Exchange Charges:</strong> NSE ~0.0035%, BSE ~0.003%</li>
+                <li><strong>SEBI Charges:</strong> ₹10 per crore of turnover</li>
+                <li><strong>GST:</strong> 18% on (brokerage + exchange + SEBI charges)</li>
+              </ul>
+            </div>
+
+            <div>
               <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Important Notes</h4>
               <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
                 <li><strong>Rate Changes:</strong> New rates effective July 23, 2024</li>
-                <li><strong>Grandfathering:</strong> Some assets may have grandfathering provisions</li>
+                <li><strong>STT Rounding:</strong> ≥50 paise rounds up, &lt;50 paise rounds down</li>
+                <li><strong>All Expenses:</strong> Include all transfer costs for accurate calculation</li>
                 <li><strong>Set-off:</strong> Capital losses can be set off against gains</li>
-                <li><strong>Carry Forward:</strong> Long-term losses can be carried forward for 8 years</li>
               </ul>
             </div>
           </div>
