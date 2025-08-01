@@ -4,14 +4,6 @@
   "env": {
     "CI": "false"
   },
-  "functions": {
-    "api/groww-totp.js": {
-      "runtime": "nodejs18.x"
-    },
-    "api/groww-proxy.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api).*)",
