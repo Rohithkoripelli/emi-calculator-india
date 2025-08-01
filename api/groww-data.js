@@ -45,15 +45,21 @@ function base32Decode(encoded) {
   return Buffer.from(bytes);
 }
 
-// Symbol mapping for Indian indices - Official Groww API format
+// Symbol mapping for the 4 main indices only
 const SYMBOL_MAPPING = {
-  // Main Indices (Working - 3/12)
   '^NSEI': { 
     tradingSymbol: 'NIFTY',
     exchangeSymbol: 'NSE_NIFTY',
     exchange: 'NSE', 
     segment: 'CASH', 
     name: 'NIFTY 50'
+  },
+  '^CNX100': { 
+    tradingSymbol: 'NIFTY_100',
+    exchangeSymbol: 'NSE_NIFTY_100',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'NIFTY 100'
   },
   '^BSESN': { 
     tradingSymbol: 'SENSEX',
@@ -62,77 +68,12 @@ const SYMBOL_MAPPING = {
     segment: 'CASH', 
     name: 'BSE SENSEX'
   },
-  '^CNXBANK': { 
-    tradingSymbol: 'BANKNIFTY',
-    exchangeSymbol: 'NSE_BANKNIFTY',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY Bank'
-  },
-
-  // Additional Indices (Adding 9 more to reach 12/12)
-  '^CNX100': { 
-    tradingSymbol: 'NIFTY_100',
-    exchangeSymbol: 'NSE_NIFTY_100',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY 100'
-  },
-  '^CNX500': { 
-    tradingSymbol: 'NIFTY_500',
-    exchangeSymbol: 'NSE_NIFTY_500',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY 500'
-  },
-  '^CNXTM': { 
-    tradingSymbol: 'NIFTY_TOTAL_MARKET',
-    exchangeSymbol: 'NSE_NIFTY_TOTAL_MARKET',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'Nifty Total Market'
-  },
   '^BSE100': { 
     tradingSymbol: 'BSE_100',
     exchangeSymbol: 'BSE_BSE_100',
     exchange: 'BSE', 
     segment: 'CASH', 
     name: 'BSE 100'
-  },
-  '^CNXN50': { 
-    tradingSymbol: 'NIFTY_NEXT_50',
-    exchangeSymbol: 'NSE_NIFTY_NEXT_50',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'Nifty Next 50'
-  },
-  '^CNXMIDCAP': { 
-    tradingSymbol: 'NIFTY_MIDCAP_100',
-    exchangeSymbol: 'NSE_NIFTY_MIDCAP_100',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY Midcap 100'
-  },
-  '^CNXMIDCAP150': { 
-    tradingSymbol: 'NIFTY_MIDCAP_150',
-    exchangeSymbol: 'NSE_NIFTY_MIDCAP_150',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY Midcap 150'
-  },
-  '^CNXSMALLCAP': { 
-    tradingSymbol: 'NIFTY_SMALLCAP_100',
-    exchangeSymbol: 'NSE_NIFTY_SMALLCAP_100',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY Smallcap 100'
-  },
-  '^CNXIT': { 
-    tradingSymbol: 'NIFTY_IT',
-    exchangeSymbol: 'NSE_NIFTY_IT',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY IT'
   }
 };
 
@@ -277,7 +218,6 @@ module.exports = async function handler(req, res) {
               dayHigh: parseFloat((data.ohlc?.high || 0).toFixed(2)),
               dayLow: parseFloat((data.ohlc?.low || 0).toFixed(2)),
               volume: data.volume || 0,
-              marketCap: data.market_cap || 0,
               lastUpdated: new Date().toISOString()
             };
             console.log(`✅ Successfully processed stock ${symbol} with price: ${results[symbol].price}`);

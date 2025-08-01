@@ -1,21 +1,13 @@
 import { StockIndex, IndexFAQ } from '../types/stock';
 
 export const INDIAN_INDICES: StockIndex[] = [
-  // Broad Market Indices
+  // NSE Broad Market Indices
   {
     id: 'nifty50',
     name: 'NIFTY 50',
     symbol: '^NSEI',
     description: 'India\'s benchmark stock market index representing top 50 companies',
     exchange: 'NSE',
-    category: 'broad'
-  },
-  {
-    id: 'sensex',
-    name: 'BSE Sensex',
-    symbol: '^BSESN',
-    description: 'Bombay Stock Exchange benchmark index of 30 companies',
-    exchange: 'BSE',
     category: 'broad'
   },
   {
@@ -26,21 +18,15 @@ export const INDIAN_INDICES: StockIndex[] = [
     exchange: 'NSE',
     category: 'broad'
   },
+
+  // BSE Indices
   {
-    id: 'nifty500',
-    name: 'NIFTY 500',
-    symbol: '^CNX500',
-    description: 'Broad market index covering 500 companies',
-    exchange: 'NSE',
-    category: 'broad'
-  },
-  {
-    id: 'niftytotal',
-    name: 'Nifty Total Market',
-    symbol: '^CNXTM',
-    description: 'Comprehensive market index covering entire equity universe',
-    exchange: 'NSE',
-    category: 'broad'
+    id: 'sensex',
+    name: 'BSE Sensex',
+    symbol: '^BSESN',
+    description: 'Bombay Stock Exchange benchmark index of 30 companies',
+    exchange: 'BSE',
+    category: 'bse'
   },
   {
     id: 'bse100',
@@ -48,175 +34,7 @@ export const INDIAN_INDICES: StockIndex[] = [
     symbol: '^BSE100',
     description: 'Top 100 companies on Bombay Stock Exchange',
     exchange: 'BSE',
-    category: 'broad'
-  },
-
-  // Size-based Indices
-  {
-    id: 'niftynext50',
-    name: 'Nifty Next 50',
-    symbol: '^CNXN50',
-    description: 'Next 50 largest companies after Nifty 50',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'niftymidcap100',
-    name: 'NIFTY Midcap 100',
-    symbol: '^CNXMIDCAP',
-    description: 'Top 100 midcap companies',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'niftymidcap150',
-    name: 'NIFTY Midcap 150',
-    symbol: '^CNXMIDCAP150',
-    description: 'Extended midcap index with 150 companies',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'niftymidcapselect',
-    name: 'Nifty Midcap Select',
-    symbol: '^CNXMIDSEL',
-    description: 'Selected midcap companies',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'niftysmallcap100',
-    name: 'NIFTY Smallcap 100',
-    symbol: '^CNXSMALLCAP',
-    description: 'Top 100 smallcap companies',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'niftysmallcap250',
-    name: 'NIFTY Smallcap 250',
-    symbol: '^CNXSC250',
-    description: 'Extended smallcap index with 250 companies',
-    exchange: 'NSE',
-    category: 'size'
-  },
-  {
-    id: 'bsesmallcap',
-    name: 'BSE Smallcap',
-    symbol: '^BSESC',
-    description: 'Smallcap stocks on BSE',
-    exchange: 'BSE',
-    category: 'size'
-  },
-
-  // Sectoral Indices
-  {
-    id: 'niftybank',
-    name: 'NIFTY Bank',
-    symbol: '^CNXBANK',
-    description: 'Banking sector index',
-    sector: 'Banking',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftyfinancial',
-    name: 'Nifty Financial Services',
-    symbol: '^CNXFIN',
-    description: 'Financial services sector index',
-    sector: 'Financial Services',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'bsebankex',
-    name: 'BSE Bankex',
-    symbol: '^BSEBANK',
-    description: 'Banking sector index on BSE',
-    sector: 'Banking',
-    exchange: 'BSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftyit',
-    name: 'NIFTY IT',
-    symbol: '^CNXIT',
-    description: 'Information Technology sector index',
-    sector: 'Information Technology',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftypharma',
-    name: 'NIFTY Pharma',
-    symbol: '^CNXPHARMA',
-    description: 'Pharmaceutical sector index',
-    sector: 'Pharmaceuticals',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftyauto',
-    name: 'NIFTY Auto',
-    symbol: '^CNXAUTO',
-    description: 'Automotive sector index',
-    sector: 'Automotive',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftyfmcg',
-    name: 'Nifty FMCG',
-    symbol: '^CNXFMCG',
-    description: 'Fast-moving consumer goods sector',
-    sector: 'FMCG',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftymetal',
-    name: 'NIFTY Metal',
-    symbol: '^CNXMETAL',
-    description: 'Metal sector index',
-    sector: 'Metals',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftypsubank',
-    name: 'NIFTY PSU Bank',
-    symbol: '^CNXPSUBANK',
-    description: 'Public sector bank index',
-    sector: 'Public Sector Banks',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-  {
-    id: 'niftycommodities',
-    name: 'NIFTY Commodities',
-    symbol: '^CNXCOMMODITY',
-    description: 'Commodities sector index',
-    sector: 'Commodities',
-    exchange: 'NSE',
-    category: 'sectoral'
-  },
-
-  // Special Indices
-  {
-    id: 'indiavix',
-    name: 'India VIX',
-    symbol: '^INDIAVIX',
-    description: 'Volatility index measuring market uncertainty',
-    exchange: 'NSE',
-    category: 'volatility'
-  },
-  {
-    id: 'bseipo',
-    name: 'BSE IPO',
-    symbol: '^BSEIPO',
-    description: 'IPO-related index',
-    exchange: 'BSE',
-    category: 'broad'
+    category: 'bse'
   }
 ];
 

@@ -89,19 +89,64 @@ export class HybridStockApiService {
   // Get index constituents with real stock data from Groww API
   static async getIndexConstituents(symbol: string): Promise<any[]> {
     try {
-      // Major constituents for different indices (top companies)
+      // Complete constituent lists for the 4 main indices
       const constituentMappings: Record<string, string[]> = {
-        '^NSEI': ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN'],
-        '^BSESN': ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN'],
-        '^CNXBANK': ['HDFCBANK', 'ICICIBANK', 'KOTAKBANK', 'SBIN', 'AXISBANK', 'INDUSINDBK', 'BANDHANBNK', 'FEDERALBNK', 'PNB', 'BANKBARODA'],
-        '^CNXIT': ['TCS', 'INFY', 'HCLTECH', 'WIPRO', 'TECHM', 'LTIM', 'MPHASIS', 'PERSISTENT', 'COFORGE', 'MINDTREE']
+        // NIFTY 50 - All 50 companies
+        '^NSEI': [
+          'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN',
+          'BHARTIARTL', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'BAJFINANCE', 'HCLTECH', 'M&M', 'SUNPHARMA', 'TITAN', 'NESTLEIND',
+          'BAJAJFINSV', 'ULTRACEMCO', 'WIPRO', 'ONGC', 'TECHM', 'POWERGRID', 'LTIM', 'NTPC', 'JSWSTEEL', 'TATAMOTORS',
+          'COALINDIA', 'GRASIM', 'HINDALCO', 'ADANIENT', 'INDUSINDBK', 'HDFCLIFE', 'SBILIFE', 'CIPLA', 'BPCL', 'TATACONSUM',
+          'EICHERMOT', 'APOLLOHOSP', 'BRITANNIA', 'DIVISLAB', 'ADANIPORTS', 'HEROMOTOCO', 'DRREDDY', 'UPL', 'BAJAJ-AUTO', 'SHRIRAMFIN'
+        ],
+        
+        // NIFTY 100 - All 100 companies (includes NIFTY 50 + Next 50)
+        '^CNX100': [
+          // NIFTY 50 companies
+          'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN',
+          'BHARTIARTL', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'BAJFINANCE', 'HCLTECH', 'M&M', 'SUNPHARMA', 'TITAN', 'NESTLEIND',
+          'BAJAJFINSV', 'ULTRACEMCO', 'WIPRO', 'ONGC', 'TECHM', 'POWERGRID', 'LTIM', 'NTPC', 'JSWSTEEL', 'TATAMOTORS',
+          'COALINDIA', 'GRASIM', 'HINDALCO', 'ADANIENT', 'INDUSINDBK', 'HDFCLIFE', 'SBILIFE', 'CIPLA', 'BPCL', 'TATACONSUM',
+          'EICHERMOT', 'APOLLOHOSP', 'BRITANNIA', 'DIVISLAB', 'ADANIPORTS', 'HEROMOTOCO', 'DRREDDY', 'UPL', 'BAJAJ-AUTO', 'SHRIRAMFIN',
+          
+          // Next 50 companies
+          'GODREJCP', 'PIDILITIND', 'DABUR', 'MARICO', 'MCDOWELL-N', 'COLPAL', 'BERGEPAINT', 'TRENT', 'PAGEIND', 'HAVELLS',
+          'VOLTAS', 'CUMMINSIND', 'MPHASIS', 'PERSISTENT', 'COFORGE', 'MINDTREE', 'FEDERALBNK', 'BANDHANBNK', 'IDFCFIRSTB', 'INDIGO',
+          'GAIL', 'IOC', 'HINDPETRO', 'SAIL', 'NMDC', 'VEDL', 'TATAPOWER', 'ADANIGREEN', 'TORNTPHARM', 'LUPIN',
+          'BIOCON', 'CADILAHC', 'ALKEM', 'LALPATHLAB', 'METROPOLIS', 'FORTIS', 'MAXHEALTH', 'NAUKRI', 'ZOMATO', 'POLICYBZR',
+          'PAYTM', 'DMART', 'JUBLFOOD', 'MUTHOOTFIN', 'CHOLAFIN', 'LICHSGFIN', 'PEL', 'WHIRLPOOL', 'CROMPTON', 'RELAXO'
+        ],
+        
+        // BSE SENSEX - All 30 companies
+        '^BSESN': [
+          'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN',
+          'BHARTIARTL', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'BAJFINANCE', 'HCLTECH', 'M&M', 'SUNPHARMA', 'TITAN', 'NESTLEIND',
+          'BAJAJFINSV', 'ULTRACEMCO', 'WIPRO', 'ONGC', 'TECHM', 'POWERGRID', 'NTPC', 'JSWSTEEL', 'TATAMOTORS', 'INDUSINDBK'
+        ],
+        
+        // BSE 100 - All 100 companies
+        '^BSE100': [
+          // BSE SENSEX companies
+          'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 'LT', 'ITC', 'SBIN',
+          'BHARTIARTL', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'BAJFINANCE', 'HCLTECH', 'M&M', 'SUNPHARMA', 'TITAN', 'NESTLEIND',
+          'BAJAJFINSV', 'ULTRACEMCO', 'WIPRO', 'ONGC', 'TECHM', 'POWERGRID', 'NTPC', 'JSWSTEEL', 'TATAMOTORS', 'INDUSINDBK',
+          
+          // Additional BSE 100 companies
+          'COALINDIA', 'GRASIM', 'HINDALCO', 'ADANIENT', 'HDFCLIFE', 'SBILIFE', 'CIPLA', 'BPCL', 'TATACONSUM', 'EICHERMOT',
+          'APOLLOHOSP', 'BRITANNIA', 'DIVISLAB', 'ADANIPORTS', 'HEROMOTOCO', 'DRREDDY', 'UPL', 'BAJAJ-AUTO', 'SHRIRAMFIN', 'GODREJCP',
+          'PIDILITIND', 'DABUR', 'MARICO', 'MCDOWELL-N', 'COLPAL', 'BERGEPAINT', 'TRENT', 'PAGEIND', 'HAVELLS', 'VOLTAS',
+          'CUMMINSIND', 'MPHASIS', 'PERSISTENT', 'COFORGE', 'MINDTREE', 'FEDERALBNK', 'BANDHANBNK', 'IDFCFIRSTB', 'INDIGO', 'GAIL',
+          'IOC', 'HINDPETRO', 'SAIL', 'NMDC', 'VEDL', 'TATAPOWER', 'ADANIGREEN', 'TORNTPHARM', 'LUPIN', 'BIOCON',
+          'CADILAHC', 'ALKEM', 'LALPATHLAB', 'METROPOLIS', 'FORTIS', 'MAXHEALTH', 'NAUKRI', 'ZOMATO', 'POLICYBZR', 'PAYTM',
+          'DMART', 'JUBLFOOD', 'MUTHOOTFIN', 'CHOLAFIN', 'LICHSGFIN', 'PEL', 'WHIRLPOOL', 'CROMPTON', 'RELAXO', 'DIXON'
+        ]
       };
 
       const companies = constituentMappings[symbol] || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR'];
       const results = [];
 
-      // Fetch real stock data for each company
-      for (let i = 0; i < Math.min(companies.length, 10); i++) { // Limit to 10 companies
+      // Fetch real stock data for ALL companies in the index
+      for (let i = 0; i < companies.length; i++) {
         try {
           const response = await fetch('/api/groww-data', {
             method: 'POST',
@@ -120,7 +165,6 @@ export class HybridStockApiService {
               results.push({
                 symbol: `${companies[i]}.NS`,
                 name: stockData.name || companies[i],
-                marketCap: stockData.marketCap || 0,
                 price: stockData.price || 0,
                 change: stockData.change || 0,
                 changePercent: stockData.changePercent || 0,
@@ -140,7 +184,6 @@ export class HybridStockApiService {
           {
             symbol: 'SAMPLE.NS',
             name: 'Sample Company Ltd',
-            marketCap: 1000000000000,
             price: 2500,
             change: 25,
             changePercent: 1.0,
