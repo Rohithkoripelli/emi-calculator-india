@@ -161,7 +161,7 @@ async function fetchGrowwData(endpoint, params, token) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Successfully fetched data from Groww API');
+        console.log('✅ Successfully fetched data from Groww API:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
         return data;
       } else {
         const errorText = await response.text();
@@ -229,11 +229,15 @@ module.exports = async function handler(req, res) {
     // Fetch data for each symbol
     for (const symbol of symbolList) {
       try {
+        console.log(`Processing symbol: ${symbol}`);
         const mapping = SYMBOL_MAPPING[symbol];
         if (!mapping) {
+          console.log(`No mapping found for symbol: ${symbol}`);
           results[symbol] = null;
           continue;
         }
+
+        console.log(`Found mapping for ${symbol}:`, mapping);
 
         let params;
         let endpoint;
@@ -253,10 +257,13 @@ module.exports = async function handler(req, res) {
           });
         }
 
+        console.log(`Calling ${endpoint} with params:`, params.toString());
         const response = await fetchGrowwData(endpoint, params, token);
+        console.log(`Response for ${symbol}:`, response ? 'received' : 'null', response?.status);
         
         if (response && response.status === 'SUCCESS' && response.data) {
           const data = type === 'ltp' ? response.data[`${mapping.exchange}_${mapping.tradingSymbol}`] : response.data;
+          console.log(`Data for ${symbol}:`, data ? 'found' : 'null', data?.ltp || data?.lastPrice);
           
           if (data) {
             results[symbol] = {
@@ -270,19 +277,25 @@ module.exports = async function handler(req, res) {
               volume: data.totalTradedVolume || data.volume || 0,
               lastUpdated: new Date().toISOString()
             };
+            console.log(`✅ Successfully processed ${symbol} with price: ${results[symbol].price}`);
           } else {
+            console.log(`❌ No data found in response for ${symbol}`);
             results[symbol] = null;
           }
         } else {
+          console.log(`❌ Invalid response for ${symbol}:`, response?.status || 'no response');
           results[symbol] = null;
         }
       } catch (error) {
-        console.error(`Error fetching ${symbol}:`, error.message);
+        console.error(`❌ Error fetching ${symbol}:`, error.message);
         results[symbol] = null;
       }
     }
 
-    console.log(`✅ Successfully fetched data for ${Object.keys(results).length} symbols`);
+    const successCount = Object.values(results).filter(Boolean).length;
+    console.log(`✅ Successfully fetched data for ${Object.keys(results).length} symbols, ${successCount} with actual data`);
+    console.log('Results summary:', Object.entries(results).map(([symbol, data]) => ({ symbol, hasData: !!data })));
+    
     return res.status(200).json({ success: true, data: results });
 
   } catch (error) {
