@@ -94,71 +94,25 @@ const SYMBOL_MAPPING = {
 // Token cache
 let tokenCache = null;
 
-// Get access token - Always use TOTP generation for live data access
-async function getAccessToken(apiKey, apiSecret) {
-  console.log('🔄 Generating access token using TOTP method for live data access...');
-  
-  if (tokenCache && Date.now() < tokenCache.expiresAt) {
-    return tokenCache.token;
-  }
-
-  console.log('Generating TOTP for authentication...');
-  const totp = generateTOTP(apiSecret);
-  console.log('Generated TOTP:', totp);
-  
-  // Try different possible Groww API endpoints
-  const authEndpoints = [
-    'https://api.groww.in/v1/auth/token',
-    'https://groww.in/v1/api/auth/token',
-    'https://groww.in/api/v1/auth/token',
-    'https://backend.groww.in/v1/auth/token'
-  ];
-  
-  let lastError;
-  
-  for (const endpoint of authEndpoints) {
-    try {
-      console.log(`Trying auth endpoint: ${endpoint}`);
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'User-Agent': 'GrowwAPI/1.0'
-        },
-        body: JSON.stringify({
-          apiKey: apiKey,
-          totp: totp
-        })
-      });
-
-      console.log(`Auth response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Auth response received:', !!data.access_token);
-        
-        if (data.access_token) {
-          tokenCache = {
-            token: data.access_token,
-            expiresAt: Date.now() + 43200000 // 12 hours
-          };
-          console.log('✅ Successfully authenticated with Groww API');
-          return data.access_token;
-        }
-      } else {
-        const errorText = await response.text();
-        console.log(`Auth failed for ${endpoint}: ${response.status} - ${errorText}`);
-        lastError = new Error(`Auth failed: ${response.status} - ${errorText}`);
-      }
-    } catch (error) {
-      console.log(`Network error for ${endpoint}:`, error.message);
-      lastError = error;
-    }
+// Get access token - Use direct access token for live data
+async function getAccessToken() {
+  // Check for direct access token first (recommended approach)  
+  const accessToken = process.env.GROWW_ACCESS_TOKEN;
+  if (accessToken) {
+    console.log('✅ Using direct access token for live data');
+    return accessToken;
   }
   
-  throw lastError || new Error('All auth endpoints failed');
+  // Fallback: If user is still using JWT approach, explain the issue
+  const apiKey = process.env.GROWW_API_KEY;
+  if (apiKey && apiKey.startsWith('eyJ')) {
+    console.log('⚠️ JWT token detected but not suitable for live data access');
+    console.log('💡 Please generate a proper Access Token from https://groww.in/user/profile/trading-apis');
+    console.log('💡 Set GROWW_ACCESS_TOKEN environment variable instead of GROWW_API_KEY');
+    throw new Error('Please use GROWW_ACCESS_TOKEN for live data access instead of JWT token');
+  }
+  
+  throw new Error('No valid access token found. Set GROWW_ACCESS_TOKEN environment variable.');
 }
 
 // Fetch data from Groww API
@@ -221,29 +175,15 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Get credentials from environment with detailed debugging
+    // Check environment variables
+    const accessToken = process.env.GROWW_ACCESS_TOKEN;
     const apiKey = process.env.GROWW_API_KEY;
-    const apiSecret = process.env.GROWW_API_SECRET;
     
     console.log('Environment variables check:');
+    console.log('GROWW_ACCESS_TOKEN exists:', !!accessToken);
     console.log('GROWW_API_KEY exists:', !!apiKey);
-    console.log('GROWW_API_SECRET exists:', !!apiSecret);
-    console.log('GROWW_API_KEY length:', apiKey ? apiKey.length : 0);
-    console.log('GROWW_API_SECRET length:', apiSecret ? apiSecret.length : 0);
-    console.log('All env keys:', Object.keys(process.env).filter(key => key.includes('GROWW')));
+    console.log('Available GROWW env keys:', Object.keys(process.env).filter(key => key.includes('GROWW')));
     
-    if (!apiKey || !apiSecret) {
-      return res.status(400).json({
-        error: 'Missing Groww API credentials',
-        message: 'Set GROWW_API_KEY and GROWW_API_SECRET environment variables',
-        debug: {
-          hasApiKey: !!apiKey,
-          hasApiSecret: !!apiSecret,
-          availableEnvKeys: Object.keys(process.env).filter(key => key.includes('GROWW'))
-        }
-      });
-    }
-
     // Get request parameters
     const { symbols, type = 'quote' } = req.method === 'GET' ? req.query : req.body;
     
@@ -251,8 +191,8 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Missing symbols parameter' });
     }
 
-    // Get access token
-    const token = await getAccessToken(apiKey, apiSecret);
+    // Get access token (will provide helpful error messages)
+    const token = await getAccessToken();
     
     // Parse symbols
     const symbolList = Array.isArray(symbols) ? symbols : symbols.split(',');
