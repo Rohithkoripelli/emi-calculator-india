@@ -58,62 +58,123 @@ const SYMBOL_MAPPING = {
 // Token cache
 let tokenCache = null;
 
-// Get access token
+// Get access token - check if API key is already a token
 async function getAccessToken(apiKey, apiSecret) {
+  // Check if the API key is already a JWT token (starts with eyJ)
+  if (apiKey && apiKey.startsWith('eyJ')) {
+    console.log('✅ Using provided JWT token directly as access token');
+    return apiKey;
+  }
+  
   if (tokenCache && Date.now() < tokenCache.expiresAt) {
     return tokenCache.token;
   }
 
+  console.log('Generating TOTP for authentication...');
   const totp = generateTOTP(apiSecret);
+  console.log('Generated TOTP:', totp);
   
-  const response = await fetch('https://api.groww.in/v1/auth/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-      api_key: apiKey,
-      totp: totp
-    })
-  });
+  // Try different possible Groww API endpoints
+  const authEndpoints = [
+    'https://api.groww.in/v1/auth/token',
+    'https://groww.in/v1/api/auth/token',
+    'https://groww.in/api/v1/auth/token',
+    'https://backend.groww.in/v1/auth/token'
+  ];
+  
+  let lastError;
+  
+  for (const endpoint of authEndpoints) {
+    try {
+      console.log(`Trying auth endpoint: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'GrowwAPI/1.0'
+        },
+        body: JSON.stringify({
+          apiKey: apiKey,
+          totp: totp
+        })
+      });
 
-  if (!response.ok) {
-    throw new Error(`Auth failed: ${response.status}`);
+      console.log(`Auth response status: ${response.status}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Auth response received:', !!data.access_token);
+        
+        if (data.access_token) {
+          tokenCache = {
+            token: data.access_token,
+            expiresAt: Date.now() + 43200000 // 12 hours
+          };
+          console.log('✅ Successfully authenticated with Groww API');
+          return data.access_token;
+        }
+      } else {
+        const errorText = await response.text();
+        console.log(`Auth failed for ${endpoint}: ${response.status} - ${errorText}`);
+        lastError = new Error(`Auth failed: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.log(`Network error for ${endpoint}:`, error.message);
+      lastError = error;
+    }
   }
-
-  const data = await response.json();
   
-  if (data.access_token) {
-    tokenCache = {
-      token: data.access_token,
-      expiresAt: Date.now() + 43200000 // 12 hours
-    };
-    return data.access_token;
-  }
-  
-  throw new Error('No access token received');
+  throw lastError || new Error('All auth endpoints failed');
 }
 
 // Fetch data from Groww API
 async function fetchGrowwData(endpoint, params, token) {
-  const url = `https://api.groww.in/v1/live-data/${endpoint}?${params.toString()}`;
+  // Try different possible data endpoints
+  const baseUrls = [
+    'https://api.groww.in/v1/live-data',
+    'https://groww.in/v1/api/live-data',
+    'https://backend.groww.in/v1/live-data',
+    'https://groww.in/api/v1/live-data'
+  ];
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'X-API-VERSION': '1.0',
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
+  let lastError;
+  
+  for (const baseUrl of baseUrls) {
+    try {
+      const url = `${baseUrl}/${endpoint}?${params.toString()}`;
+      console.log(`Trying data endpoint: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-API-VERSION': '1.0',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'GrowwAPI/1.0'
+        }
+      });
+
+      console.log(`Data response status: ${response.status}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Successfully fetched data from Groww API');
+        return data;
+      } else {
+        const errorText = await response.text();
+        console.log(`Data fetch failed for ${url}: ${response.status} - ${errorText}`);
+        lastError = new Error(`Groww API error: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.log(`Network error for ${baseUrl}:`, error.message);
+      lastError = error;
     }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Groww API error: ${response.status}`);
   }
-
-  return await response.json();
+  
+  throw lastError || new Error('All data endpoints failed');
 }
 
 // Main handler
