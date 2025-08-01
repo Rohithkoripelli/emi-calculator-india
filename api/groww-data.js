@@ -45,14 +45,56 @@ function base32Decode(encoded) {
   return Buffer.from(bytes);
 }
 
-// Symbol mapping for Indian indices
+// Symbol mapping for Indian indices - Updated for Groww API format
 const SYMBOL_MAPPING = {
-  '^NSEI': { tradingSymbol: 'NIFTY', exchange: 'NSE', segment: 'CASH', name: 'NIFTY 50' },
-  '^BSESN': { tradingSymbol: 'SENSEX', exchange: 'BSE', segment: 'CASH', name: 'BSE SENSEX' },
-  '^CNXBANK': { tradingSymbol: 'BANKNIFTY', exchange: 'NSE', segment: 'CASH', name: 'NIFTY Bank' },
-  '^CNXIT': { tradingSymbol: 'NIFTYIT', exchange: 'NSE', segment: 'CASH', name: 'NIFTY IT' },
-  '^CNX100': { tradingSymbol: 'NIFTY100', exchange: 'NSE', segment: 'CASH', name: 'NIFTY 100' },
-  '^CNX500': { tradingSymbol: 'NIFTY500', exchange: 'NSE', segment: 'CASH', name: 'NIFTY 500' }
+  '^NSEI': { 
+    tradingSymbol: 'NIFTY 50', 
+    growwSymbol: 'NIFTY50',
+    exchange: 'NSE', 
+    segment: 'INDEX', 
+    name: 'NIFTY 50',
+    instrumentToken: 'NSE:NIFTY 50'
+  },
+  '^BSESN': { 
+    tradingSymbol: 'SENSEX', 
+    growwSymbol: 'SENSEX',
+    exchange: 'BSE', 
+    segment: 'INDEX', 
+    name: 'BSE SENSEX',
+    instrumentToken: 'BSE:SENSEX'
+  },
+  '^CNXBANK': { 
+    tradingSymbol: 'NIFTY BANK', 
+    growwSymbol: 'BANKNIFTY',
+    exchange: 'NSE', 
+    segment: 'INDEX', 
+    name: 'NIFTY Bank',
+    instrumentToken: 'NSE:NIFTY BANK'
+  },
+  '^CNXIT': { 
+    tradingSymbol: 'NIFTY IT', 
+    growwSymbol: 'NIFTYIT',
+    exchange: 'NSE', 
+    segment: 'INDEX', 
+    name: 'NIFTY IT',
+    instrumentToken: 'NSE:NIFTY IT'
+  },
+  '^CNX100': { 
+    tradingSymbol: 'NIFTY 100', 
+    growwSymbol: 'NIFTY100',
+    exchange: 'NSE', 
+    segment: 'INDEX', 
+    name: 'NIFTY 100',
+    instrumentToken: 'NSE:NIFTY 100'
+  },
+  '^CNX500': { 
+    tradingSymbol: 'NIFTY 500', 
+    growwSymbol: 'NIFTY500',
+    exchange: 'NSE', 
+    segment: 'INDEX', 
+    name: 'NIFTY 500',
+    instrumentToken: 'NSE:NIFTY 500'
+  }
 };
 
 // Token cache
@@ -242,24 +284,62 @@ module.exports = async function handler(req, res) {
         let params;
         let endpoint;
         
+        // Try different parameter formats that Groww API might expect
         if (type === 'ltp') {
           endpoint = 'ltp';
+          // Try multiple formats for LTP
           params = new URLSearchParams({
-            segment: mapping.segment,
-            exchange_symbols: `${mapping.exchange}_${mapping.tradingSymbol}`
+            instruments: mapping.instrumentToken
           });
         } else {
           endpoint = 'quote';
+          // Try multiple formats for quote
           params = new URLSearchParams({
-            exchange: mapping.exchange,
-            segment: mapping.segment,
-            trading_symbol: mapping.tradingSymbol
+            instruments: mapping.instrumentToken
           });
         }
+        
+        // Also try alternative parameter formats
+        const alternativeParams = [
+          new URLSearchParams({
+            symbol: mapping.growwSymbol,
+            exchange: mapping.exchange
+          }),
+          new URLSearchParams({
+            tradingsymbol: mapping.tradingSymbol,
+            exchange: mapping.exchange
+          }),
+          new URLSearchParams({
+            instrument_token: mapping.instrumentToken
+          }),
+          new URLSearchParams({
+            q: mapping.instrumentToken
+          })
+        ];
 
         console.log(`Calling ${endpoint} with params:`, params.toString());
-        const response = await fetchGrowwData(endpoint, params, token);
+        let response = await fetchGrowwData(endpoint, params, token);
         console.log(`Response for ${symbol}:`, response ? 'received' : 'null', response?.status);
+        
+        // If first attempt failed, try alternative parameter formats
+        if (!response || response.status !== 'SUCCESS' || !response.data) {
+          console.log(`First attempt failed for ${symbol}, trying alternative parameter formats...`);
+          
+          for (let i = 0; i < alternativeParams.length; i++) {
+            try {
+              console.log(`Trying alternative params ${i + 1}:`, alternativeParams[i].toString());
+              response = await fetchGrowwData(endpoint, alternativeParams[i], token);
+              console.log(`Alternative ${i + 1} response:`, response ? 'received' : 'null', response?.status);
+              
+              if (response && response.status === 'SUCCESS' && response.data) {
+                console.log(`✅ Alternative params ${i + 1} worked for ${symbol}!`);
+                break;
+              }
+            } catch (error) {
+              console.log(`Alternative params ${i + 1} failed:`, error.message);
+            }
+          }
+        }
         
         if (response && response.status === 'SUCCESS' && response.data) {
           const data = type === 'ltp' ? response.data[`${mapping.exchange}_${mapping.tradingSymbol}`] : response.data;

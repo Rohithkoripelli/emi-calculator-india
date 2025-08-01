@@ -85,17 +85,45 @@ module.exports = async function handler(req, res) {
       // Would generate TOTP here but let's keep it simple for debugging
     }
 
-    // Test a simple Groww API call
+    // Test multiple Groww API endpoints and parameter formats
     debug.step = 4;
-    debug.testingEndpoint = 'https://api.groww.in/v1/live-data/quote';
+    debug.tests = [];
     
-    const testParams = new URLSearchParams({
-      exchange: 'NSE',
-      segment: 'CASH',
-      trading_symbol: 'NIFTY'
-    });
+    const testCases = [
+      {
+        endpoint: 'https://api.groww.in/v1/live-data/quote',
+        params: { instruments: 'NSE:NIFTY 50' }
+      },
+      {
+        endpoint: 'https://api.groww.in/v1/live-data/ltp',
+        params: { instruments: 'NSE:NIFTY 50' }
+      },
+      {
+        endpoint: 'https://api.groww.in/v1/live-data/quote',
+        params: { symbol: 'NIFTY50', exchange: 'NSE' }
+      },
+      {
+        endpoint: 'https://api.groww.in/v1/live-data/quote',
+        params: { q: 'NIFTY' }
+      }
+    ];
 
-    const testUrl = `${debug.testingEndpoint}?${testParams.toString()}`;
+    for (let i = 0; i < testCases.length; i++) {
+      const testCase = testCases[i];
+      const testParams = new URLSearchParams(testCase.params);
+      const testUrl = `${testCase.endpoint}?${testParams.toString()}`;
+      
+      debug.tests.push({
+        test: i + 1,
+        url: testUrl,
+        params: testCase.params
+      });
+    }
+
+    // Test the first case for now
+    const firstTest = testCases[0];
+    const testParams = new URLSearchParams(firstTest.params);
+    const testUrl = `${firstTest.endpoint}?${testParams.toString()}`;
     debug.finalUrl = testUrl;
 
     const response = await fetch(testUrl, {
