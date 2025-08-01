@@ -63,8 +63,9 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
   const loadChartData = async () => {
     setChartLoading(true);
     try {
-      const data = await StockApiService.getChartData(index.symbol, activeTimeFrame);
-      setChartData(data);
+      // Disable chart data for now (Yahoo Finance API is failing)
+      console.log('Chart data temporarily disabled - Yahoo Finance API not accessible');
+      setChartData([]);
     } catch (error) {
       console.error('Error loading chart data:', error);
     } finally {

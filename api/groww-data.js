@@ -55,8 +55,8 @@ const SYMBOL_MAPPING = {
     name: 'NIFTY 50'
   },
   '^CNX100': { 
-    tradingSymbol: 'NIFTY_100',
-    exchangeSymbol: 'NSE_NIFTY_100',
+    tradingSymbol: 'NIFTY100',
+    exchangeSymbol: 'NSE_NIFTY100',
     exchange: 'NSE', 
     segment: 'CASH', 
     name: 'NIFTY 100'
@@ -69,8 +69,8 @@ const SYMBOL_MAPPING = {
     name: 'BSE SENSEX'
   },
   '^BSE100': { 
-    tradingSymbol: 'BSE_100',
-    exchangeSymbol: 'BSE_BSE_100',
+    tradingSymbol: 'BSE100',
+    exchangeSymbol: 'BSE_BSE100',
     exchange: 'BSE', 
     segment: 'CASH', 
     name: 'BSE 100'

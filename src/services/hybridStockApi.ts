@@ -145,17 +145,25 @@ export class HybridStockApiService {
       const companies = constituentMappings[symbol] || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR'];
       const results = [];
 
-      // Fetch real stock data for ALL companies in the index
-      for (let i = 0; i < companies.length; i++) {
+      // Fetch real stock data for first 20 companies only (to prevent timeout)
+      const maxCompanies = Math.min(companies.length, 20);
+      for (let i = 0; i < maxCompanies; i++) {
         try {
+          // Add timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
           const response = await fetch('/api/groww-data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               symbols: [companies[i]], 
               type: 'stock' // Different type for individual stocks
-            })
+            }),
+            signal: controller.signal
           });
+
+          clearTimeout(timeoutId);
 
           if (response.ok) {
             const data = await response.json();
