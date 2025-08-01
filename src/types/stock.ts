@@ -24,7 +24,6 @@ export interface IndexData {
 export interface CompanyData {
   symbol: string;
   name: string;
-  marketCap: number;
   price: number;
   change: number;
   changePercent: number;

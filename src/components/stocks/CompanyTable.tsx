@@ -8,7 +8,7 @@ interface CompanyTableProps {
 }
 
 export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }) => {
-  const [sortField, setSortField] = useState<keyof CompanyData>('marketCap');
+  const [sortField, setSortField] = useState<keyof CompanyData>('price');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const handleSort = (field: keyof CompanyData) => {
@@ -113,15 +113,6 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
               </th>
               <th 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                onClick={() => handleSort('marketCap')}
-              >
-                <div className="flex items-center gap-2">
-                  Market Cap
-                  <SortIcon field="marketCap" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleSort('price')}
               >
                 <div className="flex items-center gap-2">
@@ -162,11 +153,6 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                       <div className="text-sm text-gray-500 dark:text-dark-text-muted font-mono">
                         {company.symbol}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-dark-text">
-                      {StockApiService.formatIndianNumber(company.marketCap)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
