@@ -128,14 +128,26 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Get credentials from environment
+    // Get credentials from environment with detailed debugging
     const apiKey = process.env.GROWW_API_KEY;
     const apiSecret = process.env.GROWW_API_SECRET;
+    
+    console.log('Environment variables check:');
+    console.log('GROWW_API_KEY exists:', !!apiKey);
+    console.log('GROWW_API_SECRET exists:', !!apiSecret);
+    console.log('GROWW_API_KEY length:', apiKey ? apiKey.length : 0);
+    console.log('GROWW_API_SECRET length:', apiSecret ? apiSecret.length : 0);
+    console.log('All env keys:', Object.keys(process.env).filter(key => key.includes('GROWW')));
     
     if (!apiKey || !apiSecret) {
       return res.status(400).json({
         error: 'Missing Groww API credentials',
-        message: 'Set GROWW_API_KEY and GROWW_API_SECRET environment variables'
+        message: 'Set GROWW_API_KEY and GROWW_API_SECRET environment variables',
+        debug: {
+          hasApiKey: !!apiKey,
+          hasApiSecret: !!apiSecret,
+          availableEnvKeys: Object.keys(process.env).filter(key => key.includes('GROWW'))
+        }
       });
     }
 
