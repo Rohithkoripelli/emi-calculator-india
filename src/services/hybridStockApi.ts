@@ -86,8 +86,14 @@ export class HybridStockApiService {
     }).format(num);
   }
 
-  // Get index constituents with real stock data from Groww API
-  static async getIndexConstituents(symbol: string): Promise<any[]> {
+  // Get index constituents with pagination support
+  static async getIndexConstituents(symbol: string, page: number = 1, pageSize: number = 10): Promise<{
+    companies: any[],
+    totalCompanies: number,
+    currentPage: number,
+    totalPages: number,
+    hasMore: boolean
+  }> {
     try {
       // Complete constituent lists for the 4 main indices
       const constituentMappings: Record<string, string[]> = {
@@ -142,23 +148,32 @@ export class HybridStockApiService {
         ]
       };
 
-      const companies = constituentMappings[symbol] || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR'];
+      const allCompanies = constituentMappings[symbol] || ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR'];
+      
+      // Calculate pagination
+      const totalCompanies = allCompanies.length;
+      const totalPages = Math.ceil(totalCompanies / pageSize);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const companiesForPage = allCompanies.slice(startIndex, endIndex);
+
+      console.log(`Loading page ${page}/${totalPages} with ${companiesForPage.length} companies for ${symbol}`);
+
       const results = [];
 
-      // Fetch real stock data for first 20 companies only (to prevent timeout)
-      const maxCompanies = Math.min(companies.length, 20);
-      for (let i = 0; i < maxCompanies; i++) {
+      // Fetch real stock data for companies in this page only
+      for (let i = 0; i < companiesForPage.length; i++) {
         try {
           // Add timeout to prevent hanging
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced to 3 seconds
 
           const response = await fetch('/api/groww-data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-              symbols: [companies[i]], 
-              type: 'stock' // Different type for individual stocks
+              symbols: [companiesForPage[i]], 
+              type: 'stock'
             }),
             signal: controller.signal
           });
@@ -167,44 +182,51 @@ export class HybridStockApiService {
 
           if (response.ok) {
             const data = await response.json();
-            const stockData = data.data?.[companies[i]];
+            const stockData = data.data?.[companiesForPage[i]];
             
             if (stockData) {
               results.push({
-                symbol: `${companies[i]}.NS`,
-                name: stockData.name || companies[i],
+                symbol: `${companiesForPage[i]}.NS`,
+                name: stockData.name || companiesForPage[i],
                 price: stockData.price || 0,
                 change: stockData.change || 0,
                 changePercent: stockData.changePercent || 0,
-                sector: this.getSectorForStock(companies[i]),
-                industry: this.getIndustryForStock(companies[i])
+                sector: this.getSectorForStock(companiesForPage[i]),
+                industry: this.getIndustryForStock(companiesForPage[i])
               });
             }
           }
         } catch (error) {
-          console.warn(`Failed to fetch data for ${companies[i]}:`, error);
+          console.warn(`Failed to fetch data for ${companiesForPage[i]}:`, error);
+          // Add placeholder for failed companies
+          results.push({
+            symbol: `${companiesForPage[i]}.NS`,
+            name: companiesForPage[i],
+            price: 0,
+            change: 0,
+            changePercent: 0,
+            sector: this.getSectorForStock(companiesForPage[i]),
+            industry: 'Loading...'
+          });
         }
       }
 
-      // If no real data, return realistic mock data with disclaimer
-      if (results.length === 0) {
-        return [
-          {
-            symbol: 'SAMPLE.NS',
-            name: 'Sample Company Ltd',
-            price: 2500,
-            change: 25,
-            changePercent: 1.0,
-            sector: 'Note',
-            industry: 'Real company data requires separate API subscription'
-          }
-        ];
-      }
-
-      return results;
+      return {
+        companies: results,
+        totalCompanies,
+        currentPage: page,
+        totalPages,
+        hasMore: page < totalPages
+      };
     } catch (error) {
       console.error('Error fetching constituents:', error);
-      return [];
+      return {
+        companies: [],
+        totalCompanies: 0,
+        currentPage: 1,
+        totalPages: 1,
+        hasMore: false
+      };
     }
   }
 

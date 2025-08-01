@@ -29,6 +29,10 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
   const [indexData, setIndexData] = useState<IndexData | null>(null);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [companies, setCompanies] = useState<CompanyData[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMoreCompanies, setHasMoreCompanies] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'faq'>('overview');
@@ -46,17 +50,49 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
   const loadIndexData = async () => {
     setLoading(true);
     try {
-      const [indexResult, companiesResult] = await Promise.all([
-        HybridStockApiService.getIndexData(index.symbol),
-        HybridStockApiService.getIndexConstituents(index.symbol)
-      ]);
-
+      // Load index data only (companies will be loaded separately with pagination)
+      const indexResult = await HybridStockApiService.getIndexData(index.symbol);
       setIndexData(indexResult);
-      setCompanies(companiesResult);
+      
+      // Reset companies state
+      setCompanies([]);
+      setCurrentPage(1);
+      
+      // Load first page of companies
+      await loadCompaniesPage(1, true);
     } catch (error) {
       console.error('Error loading index data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCompaniesPage = async (page: number, reset: boolean = false) => {
+    setCompaniesLoading(true);
+    try {
+      const result = await HybridStockApiService.getIndexConstituents(index.symbol, page, 10);
+      
+      if (reset) {
+        setCompanies(result.companies);
+      } else {
+        setCompanies(prev => [...prev, ...result.companies]);
+      }
+      
+      setCurrentPage(result.currentPage);
+      setTotalPages(result.totalPages);
+      setHasMoreCompanies(result.hasMore);
+      
+      console.log(`Loaded page ${page}/${result.totalPages} with ${result.companies.length} companies`);
+    } catch (error) {
+      console.error('Error loading companies page:', error);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
+  const loadMoreCompanies = () => {
+    if (hasMoreCompanies && !companiesLoading) {
+      loadCompaniesPage(currentPage + 1, false);
     }
   };
 
@@ -283,7 +319,34 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
       )}
 
       {activeTab === 'companies' && (
-        <CompanyTable companies={companies} loading={loading} />
+        <div className="space-y-4">
+          <CompanyTable companies={companies} loading={companiesLoading && companies.length === 0} />
+          
+          {/* Pagination Info and Load More Button */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {companies.length} of {totalPages * 10} companies
+              {hasMoreCompanies && ` • Page ${currentPage} of ${totalPages}`}
+            </div>
+            
+            {hasMoreCompanies && (
+              <button
+                onClick={loadMoreCompanies}
+                disabled={companiesLoading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {companiesLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Loading...
+                  </div>
+                ) : (
+                  `Load More (${(totalPages - currentPage) * 10} remaining)`
+                )}
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {activeTab === 'faq' && (
