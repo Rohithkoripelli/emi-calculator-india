@@ -373,7 +373,6 @@ export class StockApiService {
         {
           symbol: 'RELIANCE.NS',
           name: 'Reliance Industries Ltd',
-          marketCap: 1500000000000,
           price: 2500,
           change: 25,
           changePercent: 1.0,
@@ -383,7 +382,6 @@ export class StockApiService {
         {
           symbol: 'TCS.NS',
           name: 'Tata Consultancy Services Ltd',
-          marketCap: 1200000000000,
           price: 3200,
           change: -15,
           changePercent: -0.47,
@@ -393,7 +391,6 @@ export class StockApiService {
         {
           symbol: 'HDFCBANK.NS',
           name: 'HDFC Bank Ltd',
-          marketCap: 800000000000,
           price: 1450,
           change: 10,
           changePercent: 0.69,
@@ -403,7 +400,6 @@ export class StockApiService {
         {
           symbol: 'INFY.NS',
           name: 'Infosys Ltd',
-          marketCap: 700000000000,
           price: 1650,
           change: 8,
           changePercent: 0.49,
@@ -413,7 +409,6 @@ export class StockApiService {
         {
           symbol: 'ICICIBANK.NS',
           name: 'ICICI Bank Ltd',
-          marketCap: 650000000000,
           price: 950,
           change: -5,
           changePercent: -0.52,
