@@ -26,7 +26,7 @@ export const INDIAN_INDICES: StockIndex[] = [
     symbol: '^BSESN',
     description: 'Bombay Stock Exchange benchmark index of 30 companies',
     exchange: 'BSE',
-    category: 'bse'
+    category: 'broad'
   },
   {
     id: 'bse100',
@@ -34,7 +34,7 @@ export const INDIAN_INDICES: StockIndex[] = [
     symbol: '^BSE100',
     description: 'Top 100 companies on Bombay Stock Exchange',
     exchange: 'BSE',
-    category: 'bse'
+    category: 'broad'
   }
 ];
 
