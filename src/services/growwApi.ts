@@ -233,67 +233,58 @@ export class GrowwApiService {
     // Get auth headers (this may involve TOTP generation)
     const authHeaders = await this.getAuthHeaders();
 
-    // Use CORS proxy for browser compatibility
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      // Make request through CORS proxy with custom headers
-      const response = await fetch(proxyUrl, {
-        method: 'POST',
+      // Direct request to Groww API
+      const response = await fetch(targetUrl, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          ...authHeaders,
+          'Origin': window.location.origin,
+          'Referer': window.location.origin
         },
-        body: JSON.stringify({
-          method: 'GET',
-          headers: authHeaders
-        }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Proxy Error ${response.status}: ${response.statusText}`);
+        throw new Error(`Groww API Error ${response.status}: ${response.statusText}`);
       }
 
-      const proxyData = await response.json();
-      
-      if (!proxyData.contents) {
-        throw new Error('No data received from proxy');
-      }
-
-      let apiData;
-      try {
-        apiData = JSON.parse(proxyData.contents);
-      } catch {
-        // If contents is already an object
-        apiData = proxyData.contents;
-      }
-
-      console.log('Groww API response received successfully through proxy');
+      const apiData = await response.json();
+      console.log('Groww API response received successfully');
       return apiData;
+      
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Groww API request failed:', error);
       
-      // Fallback: Try direct request (might fail due to CORS)
-      try {
-        console.log('Attempting direct request as fallback...');
-        const directResponse = await fetch(targetUrl, {
-          method: 'GET',
-          headers: authHeaders,
-        });
-        
-        if (directResponse.ok) {
-          const directData = await directResponse.json();
-          console.log('Direct Groww API request succeeded');
-          return directData;
+      // If CORS error, try using our backend proxy
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('CORS error detected, trying backend proxy...');
+        try {
+          const proxyResponse = await fetch('/api/groww-proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: targetUrl,
+              headers: authHeaders
+            })
+          });
+          
+          if (proxyResponse.ok) {
+            const proxyData = await proxyResponse.json();
+            console.log('Backend proxy request succeeded');
+            return proxyData;
+          }
+        } catch (proxyError) {
+          console.warn('Backend proxy also failed:', proxyError);
         }
-      } catch (directError) {
-        console.warn('Direct request also failed:', directError);
       }
       
       throw error;

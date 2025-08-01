@@ -53,7 +53,7 @@ function base32Decode(encoded) {
 }
 
 // Main API handler
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS headers for browser requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
