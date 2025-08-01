@@ -27,16 +27,17 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
             </p>
           </div>
 
-          {/* Calculator Navigation */}
+          {/* Calculator Navigation - 4 Cards in Single Line */}
           <div className="pb-4">
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 max-w-4xl">
+              <div className="flex flex-wrap justify-center gap-3 lg:gap-4 max-w-6xl">
                 {calculators.map((calculator) => (
                 <button
                   key={calculator.id}
                   onClick={() => onCalculatorChange(calculator.id)}
                   className={`
-                    group relative p-4 rounded-xl transition-all duration-200 transform hover:scale-105 w-full min-w-[200px]
+                    group relative p-3 lg:p-4 rounded-xl transition-all duration-200 transform hover:scale-105 
+                    flex-shrink-0 w-[220px] lg:w-[240px]
                     ${activeCalculator === calculator.id
                       ? 'bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 shadow-lg'
                       : 'bg-blue-700 dark:bg-blue-800 hover:bg-blue-600 dark:hover:bg-blue-700 text-white border border-blue-500 dark:border-blue-600'
@@ -44,8 +45,8 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                   `}
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-1">{calculator.icon}</div>
-                    <h3 className="font-semibold text-sm mb-2">
+                    <div className="text-xl lg:text-2xl mb-1">{calculator.icon}</div>
+                    <h3 className="font-semibold text-xs lg:text-sm mb-1 lg:mb-2 leading-tight">
                       {calculator.name}
                     </h3>
                     <p className={`text-xs leading-relaxed ${
@@ -58,7 +59,7 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                   {/* Active indicator */}
                   {activeCalculator === calculator.id && (
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                      <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-white"></div>
+                      <div className="w-0 h-0 border-l-6 border-r-6 border-t-6 lg:border-l-8 lg:border-r-8 lg:border-t-8 border-l-transparent border-r-transparent border-t-white"></div>
                     </div>
                   )}
                 </button>
