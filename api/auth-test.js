@@ -56,12 +56,33 @@ module.exports = async function handler(req, res) {
     const apiKey = process.env.GROWW_API_KEY;
     const apiSecret = process.env.GROWW_API_SECRET;
     
+    // Decode JWT token to check expiration
+    let jwtInfo = null;
+    if (apiKey && apiKey.startsWith('eyJ')) {
+      try {
+        const parts = apiKey.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+          jwtInfo = {
+            exp: payload.exp,
+            iat: payload.iat,
+            isExpired: payload.exp ? (Date.now() / 1000) > payload.exp : false,
+            expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : null,
+            subject: payload.sub ? payload.sub.substring(0, 100) + '...' : payload.sub
+          };
+        }
+      } catch (e) {
+        jwtInfo = { decodeError: e.message };
+      }
+    }
+
     const results = {
       step1_credentials: {
         hasApiKey: !!apiKey,
         hasApiSecret: !!apiSecret,
         apiKeyType: apiKey ? (apiKey.startsWith('eyJ') ? 'JWT' : 'Other') : 'None',
-        apiKeyLength: apiKey ? apiKey.length : 0
+        apiKeyLength: apiKey ? apiKey.length : 0,
+        jwtInfo: jwtInfo
       }
     };
 
@@ -111,32 +132,61 @@ module.exports = async function handler(req, res) {
       const totp = generateTOTP(apiSecret);
       console.log('Generated TOTP:', totp);
       
-      // Try to get access token using TOTP
-      const authResponse = await fetch('https://api.groww.in/v1/auth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          api_key: apiKey,
-          totp: totp
-        })
-      });
+      // Try multiple possible authentication endpoints
+      const authEndpoints = [
+        'https://api.groww.in/v1/auth/token',
+        'https://groww.in/v1/api/auth/token',
+        'https://api.groww.in/v1/trading/auth/token',
+        'https://trade-api.groww.in/v1/auth/token',
+        'https://api.groww.in/v1/auth/access-token',
+        'https://groww.in/api/v1/auth/token'
+      ];
       
-      const authText = await authResponse.text();
-      let authData;
-      try {
-        authData = JSON.parse(authText);
-      } catch (e) {
-        authData = { rawText: authText };
+      let authResponse = null;
+      let authData = null;
+      let workingEndpoint = null;
+      
+      for (const endpoint of authEndpoints) {
+        try {
+          console.log(`Trying auth endpoint: ${endpoint}`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-API-VERSION': '1.0'
+            },
+            body: JSON.stringify({
+              api_key: apiKey,
+              totp: totp
+            })
+          });
+          
+          const text = await response.text();
+          console.log(`${endpoint} - Status: ${response.status}, Response: ${text.substring(0, 200)}`);
+          
+          if (response.status !== 404) {
+            authResponse = response;
+            try {
+              authData = JSON.parse(text);
+            } catch (e) {
+              authData = { rawText: text };
+            }
+            workingEndpoint = endpoint;
+            break;
+          }
+        } catch (error) {
+          console.log(`${endpoint} failed: ${error.message}`);
+        }
       }
       
       results.test2_totp_auth = {
         totp: totp,
-        authStatus: authResponse.status,
-        authSuccess: authResponse.ok,
-        authData: authData
+        workingEndpoint: workingEndpoint,
+        authStatus: authResponse ? authResponse.status : 'All 404',
+        authSuccess: authResponse ? authResponse.ok : false,
+        authData: authData || 'All endpoints returned 404'
       };
       
       // If we got a new access token, test it
