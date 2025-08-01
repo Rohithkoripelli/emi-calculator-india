@@ -109,7 +109,7 @@ export const ImprovedMainLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
       {/* Theme Toggle - Fixed Position */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-4 right-16 lg:right-4 z-50">
         <ThemeToggle />
       </div>
 
