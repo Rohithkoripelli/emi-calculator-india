@@ -47,6 +47,7 @@ function base32Decode(encoded) {
 
 // Symbol mapping for Indian indices - Official Groww API format
 const SYMBOL_MAPPING = {
+  // Main Indices (Working - 3/12)
   '^NSEI': { 
     tradingSymbol: 'NIFTY',
     exchangeSymbol: 'NSE_NIFTY',
@@ -68,26 +69,70 @@ const SYMBOL_MAPPING = {
     segment: 'CASH', 
     name: 'NIFTY Bank'
   },
-  '^CNXIT': { 
-    tradingSymbol: 'NIFTYIT',
-    exchangeSymbol: 'NSE_NIFTYIT',
-    exchange: 'NSE', 
-    segment: 'CASH', 
-    name: 'NIFTY IT'
-  },
+
+  // Additional Indices (Adding 9 more to reach 12/12)
   '^CNX100': { 
-    tradingSymbol: 'NIFTY100',
-    exchangeSymbol: 'NSE_NIFTY100',
+    tradingSymbol: 'NIFTY_100',
+    exchangeSymbol: 'NSE_NIFTY_100',
     exchange: 'NSE', 
     segment: 'CASH', 
     name: 'NIFTY 100'
   },
   '^CNX500': { 
-    tradingSymbol: 'NIFTY500',
-    exchangeSymbol: 'NSE_NIFTY500',
+    tradingSymbol: 'NIFTY_500',
+    exchangeSymbol: 'NSE_NIFTY_500',
     exchange: 'NSE', 
     segment: 'CASH', 
     name: 'NIFTY 500'
+  },
+  '^CNXTM': { 
+    tradingSymbol: 'NIFTY_TOTAL_MARKET',
+    exchangeSymbol: 'NSE_NIFTY_TOTAL_MARKET',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'Nifty Total Market'
+  },
+  '^BSE100': { 
+    tradingSymbol: 'BSE_100',
+    exchangeSymbol: 'BSE_BSE_100',
+    exchange: 'BSE', 
+    segment: 'CASH', 
+    name: 'BSE 100'
+  },
+  '^CNXN50': { 
+    tradingSymbol: 'NIFTY_NEXT_50',
+    exchangeSymbol: 'NSE_NIFTY_NEXT_50',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'Nifty Next 50'
+  },
+  '^CNXMIDCAP': { 
+    tradingSymbol: 'NIFTY_MIDCAP_100',
+    exchangeSymbol: 'NSE_NIFTY_MIDCAP_100',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'NIFTY Midcap 100'
+  },
+  '^CNXMIDCAP150': { 
+    tradingSymbol: 'NIFTY_MIDCAP_150',
+    exchangeSymbol: 'NSE_NIFTY_MIDCAP_150',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'NIFTY Midcap 150'
+  },
+  '^CNXSMALLCAP': { 
+    tradingSymbol: 'NIFTY_SMALLCAP_100',
+    exchangeSymbol: 'NSE_NIFTY_SMALLCAP_100',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'NIFTY Smallcap 100'
+  },
+  '^CNXIT': { 
+    tradingSymbol: 'NIFTY_IT',
+    exchangeSymbol: 'NSE_NIFTY_IT',
+    exchange: 'NSE', 
+    segment: 'CASH', 
+    name: 'NIFTY IT'
   }
 };
 
@@ -202,6 +247,48 @@ module.exports = async function handler(req, res) {
     for (const symbol of symbolList) {
       try {
         console.log(`Processing symbol: ${symbol}`);
+        
+        // Handle individual stocks (for company constituents)
+        if (type === 'stock') {
+          const stockMapping = {
+            tradingSymbol: symbol,
+            exchange: 'NSE',
+            segment: 'CASH',
+            name: symbol
+          };
+          
+          let params = new URLSearchParams({
+            exchange: stockMapping.exchange,
+            segment: stockMapping.segment,
+            trading_symbol: stockMapping.tradingSymbol
+          });
+
+          console.log(`Calling quote for stock ${symbol} with params:`, params.toString());
+          const response = await fetchGrowwData('quote', params, token);
+          
+          if (response && response.status === 'SUCCESS' && response.payload && response.payload.last_price) {
+            const data = response.payload;
+            results[symbol] = {
+              symbol: symbol,
+              name: symbol,
+              price: parseFloat((data.last_price || 0).toFixed(2)),
+              change: parseFloat((data.day_change || 0).toFixed(2)),
+              changePercent: parseFloat((data.day_change_perc || 0).toFixed(2)),
+              dayHigh: parseFloat((data.ohlc?.high || 0).toFixed(2)),
+              dayLow: parseFloat((data.ohlc?.low || 0).toFixed(2)),
+              volume: data.volume || 0,
+              marketCap: data.market_cap || 0,
+              lastUpdated: new Date().toISOString()
+            };
+            console.log(`✅ Successfully processed stock ${symbol} with price: ${results[symbol].price}`);
+          } else {
+            console.log(`❌ No stock data found for ${symbol}`);
+            results[symbol] = null;
+          }
+          continue;
+        }
+        
+        // Handle indices (existing logic)
         const mapping = SYMBOL_MAPPING[symbol];
         if (!mapping) {
           console.log(`No mapping found for symbol: ${symbol}`);
