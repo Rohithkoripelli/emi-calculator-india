@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { StockIndex, IndexData, ChartData, CompanyData, TimeFrame } from '../../types/stock';
+import { HybridStockApiService } from '../../services/hybridStockApi';
 import { StockApiService } from '../../services/stockApi';
 import { INDEX_FAQS } from '../../data/indices';
 import { CompanyTable } from './CompanyTable';
@@ -46,8 +47,8 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
     setLoading(true);
     try {
       const [indexResult, companiesResult] = await Promise.all([
-        StockApiService.getIndexData(index.symbol),
-        StockApiService.getIndexConstituents(index.symbol)
+        HybridStockApiService.getIndexData(index.symbol),
+        HybridStockApiService.getIndexConstituents(index.symbol)
       ]);
 
       setIndexData(indexResult);

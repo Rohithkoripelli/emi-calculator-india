@@ -85,4 +85,33 @@ export class HybridStockApiService {
       maximumFractionDigits: 2,
     }).format(num);
   }
+
+  // Mock index constituents (since Groww API doesn't provide this directly)
+  static async getIndexConstituents(symbol: string): Promise<any[]> {
+    // Return mock data for now - real implementation would need different API
+    const mockConstituents = [
+      {
+        symbol: 'RELIANCE.NS',
+        name: 'Reliance Industries Ltd',
+        marketCap: 1500000000000,
+        price: 2500,
+        change: 25,
+        changePercent: 1.0,
+        sector: 'Oil & Gas',
+        industry: 'Refining'
+      },
+      {
+        symbol: 'TCS.NS',
+        name: 'Tata Consultancy Services Ltd',
+        marketCap: 1200000000000,
+        price: 3200,
+        change: -15,
+        changePercent: -0.47,
+        sector: 'Information Technology',
+        industry: 'IT Services'
+      }
+    ];
+    
+    return mockConstituents;
+  }
 }
