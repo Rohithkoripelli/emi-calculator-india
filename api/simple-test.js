@@ -25,7 +25,10 @@ module.exports = async function handler(req, res) {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json'
+        'X-API-VERSION': '1.0',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'GrowwAPI/1.0'
       }
     });
 

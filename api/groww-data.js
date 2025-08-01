@@ -94,13 +94,9 @@ const SYMBOL_MAPPING = {
 // Token cache
 let tokenCache = null;
 
-// Get access token - check if API key is already a token
+// Get access token - Always use TOTP generation for live data access
 async function getAccessToken(apiKey, apiSecret) {
-  // Check if the API key is already a JWT token (starts with eyJ)
-  if (apiKey && apiKey.startsWith('eyJ')) {
-    console.log('✅ Using provided JWT token directly as access token');
-    return apiKey;
-  }
+  console.log('🔄 Generating access token using TOTP method for live data access...');
   
   if (tokenCache && Date.now() < tokenCache.expiresAt) {
     return tokenCache.token;
