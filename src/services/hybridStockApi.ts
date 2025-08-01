@@ -198,15 +198,15 @@ export class HybridStockApiService {
           }
         } catch (error) {
           console.warn(`Failed to fetch data for ${companiesForPage[i]}:`, error);
-          // Add placeholder for failed companies
+          // Add placeholder for failed companies with safe default values
           results.push({
             symbol: `${companiesForPage[i]}.NS`,
-            name: companiesForPage[i],
+            name: companiesForPage[i] || 'Unknown Company',
             price: 0,
             change: 0,
             changePercent: 0,
-            sector: this.getSectorForStock(companiesForPage[i]),
-            industry: 'Loading...'
+            sector: this.getSectorForStock(companiesForPage[i]) || 'Other',
+            industry: 'Data unavailable'
           });
         }
       }
@@ -232,6 +232,8 @@ export class HybridStockApiService {
 
   // Helper functions for sector/industry mapping
   private static getSectorForStock(symbol: string): string {
+    if (!symbol) return 'Other';
+    
     const sectorMap: Record<string, string> = {
       'RELIANCE': 'Oil & Gas', 'TCS': 'Information Technology', 'HDFCBANK': 'Financial Services',
       'INFY': 'Information Technology', 'HINDUNILVR': 'Consumer Goods', 'ICICIBANK': 'Financial Services',
@@ -241,6 +243,8 @@ export class HybridStockApiService {
   }
 
   private static getIndustryForStock(symbol: string): string {
+    if (!symbol) return 'Other';
+    
     const industryMap: Record<string, string> = {
       'RELIANCE': 'Petrochemicals', 'TCS': 'IT Services', 'HDFCBANK': 'Private Bank',
       'INFY': 'IT Services', 'HINDUNILVR': 'FMCG', 'ICICIBANK': 'Private Bank',

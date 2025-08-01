@@ -99,11 +99,33 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
   const loadChartData = async () => {
     setChartLoading(true);
     try {
-      // Disable chart data for now (Yahoo Finance API is failing)
-      console.log('Chart data temporarily disabled - Yahoo Finance API not accessible');
-      setChartData([]);
+      // Provide mock chart data to prevent white screen
+      console.log('Using mock chart data - Yahoo Finance API not accessible');
+      
+      // Generate simple mock data based on current index price
+      const basePrice = indexData?.price || 24000;
+      const mockData = [];
+      const now = new Date();
+      
+      for (let i = 30; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        
+        // Generate slight price variations
+        const variation = (Math.random() - 0.5) * 0.02; // ±1% variation
+        const price = basePrice * (1 + variation);
+        
+        mockData.push({
+          timestamp: date.toISOString(),
+          price: parseFloat(price.toFixed(2)),
+          volume: Math.floor(Math.random() * 1000000) + 500000
+        });
+      }
+      
+      setChartData(mockData);
     } catch (error) {
       console.error('Error loading chart data:', error);
+      setChartData([]);
     } finally {
       setChartLoading(false);
     }

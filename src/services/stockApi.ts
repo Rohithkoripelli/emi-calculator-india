@@ -430,17 +430,30 @@ export class StockApiService {
   }
 
   static formatIndianNumber(num: number): string {
-    if (num >= 10000000) { // 1 crore
-      return `₹${(num / 10000000).toFixed(2)} Cr`;
-    } else if (num >= 100000) { // 1 lakh
-      return `₹${(num / 100000).toFixed(2)} L`;
-    } else if (num >= 1000) { // 1 thousand
-      return `₹${(num / 1000).toFixed(2)} K`;
+    // Handle null/undefined/NaN values
+    if (num == null || isNaN(num)) {
+      return '₹0.00';
     }
-    return `₹${num.toFixed(2)}`;
+    
+    const numValue = Number(num);
+    if (numValue >= 10000000) { // 1 crore
+      return `₹${(numValue / 10000000).toFixed(2)} Cr`;
+    } else if (numValue >= 100000) { // 1 lakh
+      return `₹${(numValue / 100000).toFixed(2)} L`;
+    } else if (numValue >= 1000) { // 1 thousand
+      return `₹${(numValue / 1000).toFixed(2)} K`;
+    }
+    return `₹${numValue.toFixed(2)}`;
   }
 
   static formatNumber(num: number): string {
-    return new Intl.NumberFormat('en-IN').format(num);
+    // Handle null/undefined/NaN values
+    if (num == null || isNaN(num)) {
+      return '0.00';
+    }
+    return new Intl.NumberFormat('en-IN', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(Number(num));
   }
 }
