@@ -15,8 +15,8 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'No API key' });
     }
 
-    // Test the simplest possible Groww API call
-    const testUrl = 'https://api.groww.in/v1/live-data/quote?instruments=NSE:NIFTY%2050';
+    // Test the official Groww API format
+    const testUrl = 'https://api.groww.in/v1/live-data/quote?exchange=NSE&segment=CASH&trading_symbol=NIFTY';
     
     console.log('Testing URL:', testUrl);
     console.log('Using token:', apiKey.substring(0, 20) + '...');
