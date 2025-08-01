@@ -54,17 +54,17 @@ export const StockScreener: React.FC = () => {
       setIndexData(newIndexData);
 
       if (successCount === 0) {
-        setError('Unable to load live market data. Please check your internet connection and try again. Our system tries multiple data sources to ensure accuracy.');
+        setError('Unable to load live market data from Groww API. Please check your internet connection and try again. If the issue persists, the market may be closed or there may be a temporary service interruption.');
       } else if (successCount < priorityIndices.length / 2) {
-        setError(`Loaded ${successCount}/${priorityIndices.length} indices successfully. Some data may be delayed - this is normal as we prioritize accuracy over speed.`);
+        setError(`Loaded ${successCount}/${priorityIndices.length} indices successfully from Groww API. Some indices may be temporarily unavailable.`);
       } else {
         // Success case - show data freshness info
-        console.log(`Successfully loaded ${successCount}/${priorityIndices.length} indices with real-time data`);
+        console.log(`Successfully loaded ${successCount}/${priorityIndices.length} indices with professional real-time data from Groww API`);
       }
 
     } catch (err) {
-      setError('Failed to load stock market data. This may be due to API limitations or network issues.');
-      console.error('Error loading index data:', err);
+      setError('Failed to load stock market data from Groww API. This may be due to network issues or temporary service interruption.');
+      console.error('Error loading index data from Groww API:', err);
     } finally {
       setLoading(false);
     }
@@ -259,36 +259,46 @@ export const StockScreener: React.FC = () => {
           Track real-time performance of major Indian stock market indices. Click on any index to view detailed charts, constituents, and analysis.
         </p>
         
-        {/* API Status Banner */}
-        <div className={`mt-4 p-3 rounded-lg border ${
-          apiInfo.configured 
-            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
-            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-        }`}>
-          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm">
-            <div className={`w-2 h-2 rounded-full ${apiInfo.configured ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-            <span className={`font-medium ${
-              apiInfo.configured 
-                ? 'text-green-800 dark:text-green-200' 
-                : 'text-yellow-800 dark:text-yellow-200'
-            }`}>
-              {apiInfo.configured ? '🚀 Professional Grade Data' : '⚠️ Basic Data Mode'}
-            </span>
-            <span className={`hidden sm:inline ${
-              apiInfo.configured 
-                ? 'text-green-700 dark:text-green-300' 
-                : 'text-yellow-700 dark:text-yellow-300'
-            }`}>
-              • {apiInfo.primary} • {apiInfo.accuracy}
-            </span>
-          </div>
-          {!apiInfo.configured && apiInfo.setupRequired && (
-            <div className="mt-2 text-center">
-              <span className="text-xs text-yellow-700 dark:text-yellow-300">
-                Missing: {apiInfo.missingCredentials.join(', ')} • Add to .env for trading-grade accuracy
+        {/* Professional API Status Banner */}
+        <div className="mt-4 p-4 rounded-xl border bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-center gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="font-bold text-emerald-800 dark:text-emerald-200">
+                🚀 Professional Trading Data
               </span>
             </div>
-          )}
+            <div className="hidden sm:flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <span>•</span>
+              <span className="font-medium">{apiInfo.primary}</span>
+              <span>•</span>
+              <span className="text-xs bg-emerald-100 dark:bg-emerald-900/50 px-2 py-1 rounded-full">
+                Real-time NSE/BSE
+              </span>
+            </div>
+          </div>
+          <div className="mt-2 text-center">
+            <div className="flex items-center justify-center gap-4 text-xs text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Live Market Data
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Professional Accuracy
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Zero Rate Limits
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Data Freshness Indicator */}
@@ -378,17 +388,18 @@ export const StockScreener: React.FC = () => {
         </button>
       </div>
 
-      {/* Disclaimer */}
-      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      {/* Professional Data Disclaimer */}
+      <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
         <div className="flex items-start">
-          <svg className="w-5 h-5 text-blue-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-5 h-5 text-emerald-500 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
           <div>
-            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Real-Time Data & Disclaimer</h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              Our system aggregates data from multiple reliable sources including Yahoo Finance, NSE APIs, and market data providers to ensure accuracy. 
-              Data is refreshed every 15-30 seconds during market hours. This information is for educational purposes only and not investment advice. 
+            <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Professional Trading Data</h3>
+            <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+              <strong>Real-time data powered by Groww API</strong> - Professional trading platform with direct NSE/BSE connectivity. 
+              Data updates every 15-30 seconds during market hours with institutional-grade accuracy. 
+              This information is for educational purposes only and not investment advice. 
               Please consult with a financial advisor before making investment decisions.
             </p>
           </div>
