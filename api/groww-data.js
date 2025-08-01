@@ -234,27 +234,26 @@ module.exports = async function handler(req, res) {
         const response = await fetchGrowwData(endpoint, params, token);
         console.log(`Response for ${symbol}:`, response ? 'received' : 'null', response?.status);
         
-        if (response && response.status === 'SUCCESS' && response.data) {
-          // For LTP endpoint, data is keyed by exchange_symbol
-          // For quote endpoint, data is directly in response.data
-          const data = type === 'ltp' ? response.data[mapping.exchangeSymbol] : response.data;
-          console.log(`Data for ${symbol}:`, data ? 'found' : 'null', data?.ltp || data?.lastPrice);
+        if (response && response.status === 'SUCCESS' && response.payload) {
+          // Groww API returns data in "payload" field, not "data"
+          const data = response.payload;
+          console.log(`Data for ${symbol}:`, data ? 'found' : 'null', data?.last_price);
           
-          if (data) {
+          if (data && data.last_price) {
             results[symbol] = {
               symbol: symbol,
               name: mapping.name,
-              price: parseFloat((data.ltp || data.lastPrice || 0).toFixed(2)),
-              change: parseFloat((data.dayChange || data.change || 0).toFixed(2)),
-              changePercent: parseFloat((data.dayChangePerc || data.changePercent || 0).toFixed(2)),
-              dayHigh: parseFloat((data.dayHigh || data.high || 0).toFixed(2)),
-              dayLow: parseFloat((data.dayLow || data.low || 0).toFixed(2)),
-              volume: data.totalTradedVolume || data.volume || 0,
+              price: parseFloat((data.last_price || 0).toFixed(2)),
+              change: parseFloat((data.day_change || 0).toFixed(2)),
+              changePercent: parseFloat((data.day_change_perc || 0).toFixed(2)),
+              dayHigh: parseFloat((data.ohlc?.high || 0).toFixed(2)),
+              dayLow: parseFloat((data.ohlc?.low || 0).toFixed(2)),
+              volume: data.volume || 0,
               lastUpdated: new Date().toISOString()
             };
             console.log(`✅ Successfully processed ${symbol} with price: ${results[symbol].price}`);
           } else {
-            console.log(`❌ No data found in response for ${symbol}`);
+            console.log(`❌ No price data found in response for ${symbol}`, data);
             results[symbol] = null;
           }
         } else {
