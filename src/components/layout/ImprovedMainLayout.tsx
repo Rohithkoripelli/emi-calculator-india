@@ -8,6 +8,7 @@ import { CreditCardCalculator } from '../calculators/CreditCardCalculator';
 import { GratuityCalculator } from '../calculators/GratuityCalculator';
 import { StockScreener } from '../stocks/StockScreener';
 import { AdditionalCalculators } from '../calculators/AdditionalCalculators';
+import { CapitalGainsCalculator } from '../calculators/CapitalGainsCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -20,6 +21,12 @@ const calculators: NavigationItem[] = [
     name: 'EMI Calculator',
     icon: '🏠',
     description: 'Home, Car & Personal Loans'
+  },
+  {
+    id: 'capital-gains',
+    name: 'Capital Gains Tax',
+    icon: '💰',
+    description: 'STCG & LTCG Tax Calculator'
   },
   {
     id: 'additional',
@@ -91,6 +98,8 @@ export const ImprovedMainLayout: React.FC = () => {
         return <StockScreener />;
       case 'emi':
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
+      case 'capital-gains':
+        return <CapitalGainsCalculator />;
       case 'additional':
         return <AdditionalCalculators calculators={additionalCalculators} onCalculatorSelect={setActiveCalculator} />;
       case 'sukanya':
