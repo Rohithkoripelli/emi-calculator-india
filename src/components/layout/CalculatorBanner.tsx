@@ -15,67 +15,60 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
 }) => {
   return (
     <>
-      {/* Desktop Banner - Hidden on mobile */}
-      <div className="hidden lg:block bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-900 text-white transition-colors">
+      {/* Desktop Header - Minimalistic Design */}
+      <div className="hidden lg:block bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Logo and Header */}
-          <div className="py-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Logo 
-                  onClick={() => onCalculatorChange('emi')}
-                  className="mr-4"
-                />
-                <div>
-                  <h1 className="text-xl font-bold text-white">Fincalcpro</h1>
-                  <p className="text-sm text-blue-100">Professional Financial Tools</p>
-                </div>
+          {/* Top Header with Logo */}
+          <div className="py-4 border-b border-gray-100 dark:border-dark-border">
+            <div className="flex items-center">
+              <Logo 
+                onClick={() => onCalculatorChange('emi')}
+                className="mr-3"
+              />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">FinCalcPro</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Indian Financial Tools</p>
               </div>
-            </div>
-            <div className="text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-                Financial Calculators for India
-              </h2>
-              <p className="text-base text-blue-100 dark:text-blue-200 max-w-2xl mx-auto">
-                AI-powered financial planning tools designed for Indian market
-              </p>
             </div>
           </div>
 
-          {/* Calculator Navigation - 4 Cards in Single Line */}
-          <div className="pb-4">
+          {/* Navigation Cards - Clean Grid */}
+          <div className="py-6">
             <div className="flex justify-center">
-              <div className="flex flex-wrap justify-center gap-3 lg:gap-4 max-w-6xl">
+              <div className="grid grid-cols-4 gap-4 max-w-4xl w-full">
                 {calculators.map((calculator) => (
                 <button
                   key={calculator.id}
                   onClick={() => onCalculatorChange(calculator.id)}
                   className={`
-                    group relative p-3 lg:p-4 rounded-xl transition-all duration-200 transform hover:scale-105 
-                    flex-shrink-0 w-[220px] lg:w-[240px]
+                    group relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md
                     ${activeCalculator === calculator.id
-                      ? 'bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 shadow-lg'
-                      : 'bg-blue-700 dark:bg-blue-800 hover:bg-blue-600 dark:hover:bg-blue-700 text-white border border-blue-500 dark:border-blue-600'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
+                      : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-gray-600'
                     }
                   `}
                 >
                   <div className="text-center">
-                    <div className="text-xl lg:text-2xl mb-1">{calculator.icon}</div>
-                    <h3 className="font-semibold text-xs lg:text-sm mb-1 lg:mb-2 leading-tight">
+                    <div className="text-2xl mb-3">{calculator.icon}</div>
+                    <h3 className={`font-semibold text-sm mb-1 ${
+                      activeCalculator === calculator.id
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-gray-900 dark:text-white'
+                    }`}>
                       {calculator.name}
                     </h3>
-                    <p className={`text-xs leading-relaxed ${
-                      activeCalculator === calculator.id ? 'text-blue-500 dark:text-blue-600' : 'text-blue-200 dark:text-blue-300'
+                    <p className={`text-xs ${
+                      activeCalculator === calculator.id
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500 dark:text-gray-400'
                     }`}>
                       {calculator.description}
                     </p>
                   </div>
                   
-                  {/* Active indicator */}
+                  {/* Active indicator - subtle border */}
                   {activeCalculator === calculator.id && (
-                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                      <div className="w-0 h-0 border-l-6 border-r-6 border-t-6 lg:border-l-8 lg:border-r-8 lg:border-t-8 border-l-transparent border-r-transparent border-t-white"></div>
-                    </div>
+                    <div className="absolute inset-0 rounded-lg border-2 border-blue-500 dark:border-blue-400 pointer-events-none"></div>
                   )}
                 </button>
                 ))}

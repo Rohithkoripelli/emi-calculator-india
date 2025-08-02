@@ -20,13 +20,13 @@ export const Logo: React.FC<LogoProps> = ({ className = '', onClick }) => {
     <div 
       className={`flex items-center cursor-pointer transition-transform hover:scale-105 ${className}`}
       onClick={handleClick}
-      title="Fincalcpro - Go to Home"
+      title="FinCalcPro - Go to Home"
     >
       {/* Logo Image - will use Fincalc.img when available, placeholder for now */}
       <div className="flex items-center">
         <img
           src="/Fincalc.png"
-          alt="Fincalcpro"
+          alt="FinCalcPro"
           className="h-8 w-auto sm:h-10 object-contain logo-primary"
           onError={(e) => {
             // Fallback to placeholder logo if Fincalc.img not found
@@ -45,10 +45,10 @@ export const Logo: React.FC<LogoProps> = ({ className = '', onClick }) => {
         {/* Fallback text logo */}
         <div className="hidden items-center text-logo">
           <span className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
-            Fincalc
+            FinCalc
           </span>
           <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-            pro
+            Pro
           </span>
         </div>
       </div>
