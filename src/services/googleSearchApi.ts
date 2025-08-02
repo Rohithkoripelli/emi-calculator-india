@@ -24,11 +24,9 @@ export class GoogleSearchApiService {
         return this.getFallbackInsights(symbol, companyName);
       }
 
-      // Optimized search queries - fewer but more targeted for speed
+      // SPEED OPTIMIZED: Single most effective query only
       const searchQueries = [
-        `${companyName} ${symbol} stock price live NSE BSE current rate`,
-        `${symbol} analyst recommendation target price buy sell ${new Date().getFullYear()}`,
-        `${companyName} quarterly results earnings news latest ${new Date().getFullYear()}`
+        `${companyName} ${symbol} stock price live NSE BSE current rate news ${new Date().getFullYear()}`
       ];
 
       const allResults: WebSearchResult[] = [];
@@ -42,7 +40,7 @@ export class GoogleSearchApiService {
             key: apiKey,
             cx: searchEngineId,
             q: query,
-            num: '5', // 5 results per query
+            num: '8', // More results in single query
             sort: 'date', // Sort by date for recent results
             safe: 'medium',
             lr: 'lang_en', // English language results
@@ -66,8 +64,7 @@ export class GoogleSearchApiService {
             console.log(`✅ Found ${searchResults.length} results for: ${query}`);
           }
 
-          // Minimal delay between requests for speed
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // No delay needed for single query
           
         } catch (error) {
           console.warn(`⚠️ Search failed for query: ${query}`, error);

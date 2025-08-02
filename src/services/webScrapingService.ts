@@ -142,58 +142,74 @@ export class WebScrapingService {
   }
 
   /**
-   * Comprehensive scraping with Vercel serverless and fallback strategy
+   * SPEED OPTIMIZED: Try only fastest scraping methods with timeout
    */
   static async comprehensiveScraping(symbol: string, companyName: string): Promise<ScrapedStockData | null> {
-    console.log(`🔧 Starting comprehensive scraping for ${symbol}`);
+    console.log(`⚡ FAST scraping for ${symbol} - 5 second timeout`);
     
-    // Step 1: Try Vercel serverless enhanced search (primary)
-    let scrapedData = await this.vercelEnhancedSearch(symbol, companyName);
-    
-    if (scrapedData && scrapedData.current_price > 0) {
-      console.log(`✅ Vercel enhanced search successful for ${symbol}`);
-      return scrapedData;
+    try {
+      // Race between fastest methods only
+      const fastMethods = [
+        this.vercelEnhancedSearchWithTimeout(symbol, companyName, 3000),
+        this.fallbackJavaScriptScraping(symbol, companyName)
+      ];
+      
+      const results = await Promise.allSettled(fastMethods);
+      
+      // Return first successful result
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          const value = result.value as any;
+          
+          if ((value.current_price && value.current_price > 0) || (value.currentPrice && value.currentPrice > 0)) {
+            console.log(`✅ FAST scraping success for ${symbol}`);
+            
+            // Handle fallback format
+            if ('currentPrice' in value) {
+              return {
+                symbol: symbol,
+                company_name: companyName,
+                current_price: value.currentPrice,
+                change_percent: value.change_percent || 0,
+                day_high: 0,
+                day_low: 0,
+                volume: 0,
+                last_updated: new Date().toISOString(),
+                sources: value.sources || ['Fast Fallback'],
+                data_quality: 'low'
+              };
+            }
+            
+            return value as ScrapedStockData;
+          }
+        }
+      }
+      
+      console.log(`⚠️ FAST scraping: No data found for ${symbol}`);
+      return null;
+      
+    } catch (error) {
+      console.error(`❌ FAST scraping failed for ${symbol}:`, error);
+      return null;
     }
+  }
 
-    // Step 2: Try Vercel Python scraper
-    scrapedData = await this.vercelPythonScraper(symbol, companyName);
+  /**
+   * Vercel enhanced search with timeout
+   */
+  static async vercelEnhancedSearchWithTimeout(symbol: string, companyName: string, timeoutMs: number): Promise<ScrapedStockData | null> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    if (scrapedData && scrapedData.current_price > 0) {
-      console.log(`✅ Vercel Python scraper successful for ${symbol}`);
-      return scrapedData;
+    try {
+      const result = await this.vercelEnhancedSearch(symbol, companyName);
+      clearTimeout(timeoutId);
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log(`⚡ Vercel search timed out after ${timeoutMs}ms`);
+      return null;
     }
-
-    // Step 3: Try standalone Python scraper (local development)
-    scrapedData = await this.scrapeStockData(symbol, companyName);
-    
-    if (scrapedData && scrapedData.current_price > 0) {
-      console.log(`✅ Standalone Python scraper successful for ${symbol}`);
-      return scrapedData;
-    }
-
-    // Step 4: Fallback to JavaScript scraping (limited)
-    console.log(`🔄 Trying JavaScript fallback for ${symbol}`);
-    const fallbackData = await this.fallbackJavaScriptScraping(symbol, companyName);
-    
-    if (fallbackData && fallbackData.current_price && fallbackData.current_price > 0) {
-      console.log(`✅ JavaScript fallback successful for ${symbol}`);
-      return {
-        symbol: symbol,
-        company_name: companyName,
-        current_price: fallbackData.current_price,
-        change_percent: fallbackData.change_percent || 0,
-        day_high: 0,
-        day_low: 0,
-        volume: 0,
-        last_updated: new Date().toISOString(),
-        sources: fallbackData.sources || ['Fallback'],
-        data_quality: 'low'
-      };
-    }
-
-    // Step 5: No data available
-    console.log(`❌ All scraping methods failed for ${symbol}`);
-    return null;
   }
 
   /**

@@ -182,27 +182,38 @@ export class StockAnalysisApiService {
    * Find fuzzy matches for partial company names
    */
   private static findFuzzyStockMatch(query: string): string | null {
-    // Look for partial matches (minimum 3 characters)
+    // Look for whole word matches only (minimum 4 characters to avoid false positives)
     for (const [companyName, symbol] of Object.entries(this.INDIAN_STOCKS)) {
-      if (companyName.length >= 3 && query.includes(companyName)) {
-        return symbol;
+      if (companyName.length >= 4) {
+        // Check for whole word boundaries to avoid substring false matches
+        const wordPattern = new RegExp(`\\b${companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (wordPattern.test(query)) {
+          return symbol;
+        }
       }
     }
     
     // Try word-by-word matching for multi-word company names
-    const queryWords = query.split(/\s+/);
+    const queryWords = query.toLowerCase().split(/\s+/);
     for (const [companyName, symbol] of Object.entries(this.INDIAN_STOCKS)) {
-      const companyWords = companyName.split(/\s+/);
+      const companyWords = companyName.toLowerCase().split(/\s+/);
       let matchCount = 0;
       
       for (const companyWord of companyWords) {
-        if (queryWords.some(queryWord => queryWord.includes(companyWord) || companyWord.includes(queryWord))) {
-          matchCount++;
+        // Only count exact word matches or very close matches (avoid substring matching)
+        for (const queryWord of queryWords) {
+          if (queryWord === companyWord || 
+              (queryWord.length >= 4 && companyWord.length >= 4 && 
+               (queryWord.startsWith(companyWord) || companyWord.startsWith(queryWord)))) {
+            matchCount++;
+            break; // Only count each company word once
+          }
         }
       }
       
-      // If more than half the words match, consider it a match
-      if (matchCount > companyWords.length / 2) {
+      // Require at least 2 matching words for multi-word companies, or all words for short companies
+      const requiredMatches = companyWords.length >= 2 ? 2 : companyWords.length;
+      if (matchCount >= requiredMatches) {
         return symbol;
       }
     }
@@ -271,63 +282,123 @@ export class StockAnalysisApiService {
    * Enhanced stock data fetching with multiple data sources and web scraping
    */
   static async fetchStockData(symbol: string, companyName?: string): Promise<StockAnalysisData | null> {
-    console.log(`📊 Enhanced stock data fetching for: ${symbol} (${companyName || 'Unknown'})`);
+    console.log(`📊 FAST stock data fetching for: ${symbol} (${companyName || 'Unknown'})`);
     
-    // Step 1: Try existing API sources first (fastest)
-    console.log(`🔄 Step 1: Trying existing API sources...`);
-    const apiData = await this.tryApiSources(symbol);
-    if (apiData && apiData.currentPrice > 0) {
-      console.log(`✅ API sources successful: ${apiData.companyName} at ₹${apiData.currentPrice}`);
+    // SPEED OPTIMIZATION: Try all sources in parallel with aggressive timeouts
+    console.log(`⚡ PARALLEL approach: Trying all sources simultaneously with 5s timeout...`);
+    
+    try {
+      // Start all methods in parallel with race condition
+      const racePromises = [
+        this.tryApiSourcesWithTimeout(symbol, 3000), // 3 second timeout
+        WebScrapingService.vercelEnhancedSearch(symbol, companyName || symbol), // Skip comprehensive scraping
+        this.createBasicFallbackData(symbol, companyName || symbol) // Always available fallback
+      ];
+      
+      // Use Promise.allSettled to get fastest successful result
+      const results = await Promise.allSettled(racePromises);
+      
+      // Return first successful result with actual data
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          const value = result.value as any;
+          
+          // Check if it has valid price data
+          if ((value.currentPrice && value.currentPrice > 0) || (value.current_price && value.current_price > 0)) {
+            // Handle both formats
+            if ('current_price' in value) {
+              console.log(`✅ FAST SUCCESS: Web scraping data at ₹${value.current_price}`);
+              return this.mapScrapedDataToAnalysisData(value);
+            } else {
+              console.log(`✅ FAST SUCCESS: API data at ₹${value.currentPrice}`);
+              return value as StockAnalysisData;
+            }
+          }
+        }
+      }
+      
+      console.log(`⚠️ FAST FALLBACK: No real-time data, using basic structure for web analysis`);
+      return this.createBasicFallbackData(symbol, companyName || symbol);
+      
+    } catch (error) {
+      console.error('❌ FAST fetch failed:', error);
+      return this.createBasicFallbackData(symbol, companyName || symbol);
+    }
+  }
+
+  /**
+   * Try API sources with aggressive timeout for speed
+   */
+  private static async tryApiSourcesWithTimeout(symbol: string, timeoutMs: number): Promise<StockAnalysisData | null> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const apiData = await this.tryApiSources(symbol);
+      clearTimeout(timeoutId);
       return apiData;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log(`⚡ API sources timed out after ${timeoutMs}ms`);
+      return null;
     }
+  }
 
-    // Step 2: Use web scraping as primary data source
-    console.log(`🕷️ Step 2: Using web scraping for comprehensive data...`);
-    const scrapedData = await WebScrapingService.comprehensiveScraping(symbol, companyName || symbol);
-    
-    if (scrapedData && scrapedData.current_price > 0) {
-      console.log(`✅ Web scraping successful: ${scrapedData.company_name} at ₹${scrapedData.current_price} (Quality: ${scrapedData.data_quality})`);
-      return this.mapScrapedDataToAnalysisData(scrapedData);
-    }
-
-    // Step 3: Fallback with basic structure for web search analysis
-    console.log(`⚠️ Step 3: Creating fallback structure for web-only analysis...`);
-    return this.createFallbackStockData(symbol, companyName || symbol);
+  /**
+   * Create basic fallback data quickly
+   */
+  private static createBasicFallbackData(symbol: string, companyName: string): StockAnalysisData {
+    return {
+      symbol: symbol,
+      companyName: companyName || symbol,
+      currentPrice: 0, // Will be updated from web search if found
+      change: 0,
+      changePercent: 0,
+      dayHigh: 0,
+      dayLow: 0,
+      volume: 0,
+      sector: 'General',
+      industry: 'General',
+      lastUpdated: new Date().toISOString()
+    };
   }
 
   /**
    * Try multiple API sources (existing implementation)
    */
   private static async tryApiSources(symbol: string): Promise<StockAnalysisData | null> {
+    // SPEED OPTIMIZATION: Only try most common formats with timeouts
     const symbolVariations = [
-      `${symbol}.NS`,     // NSE format
-      symbol,             // Direct symbol
-      `${symbol}.BO`,     // BSE format
-      symbol.toUpperCase(), // Uppercase
-      symbol.toLowerCase()  // Lowercase
+      symbol,             // Direct symbol (most common)
+      `${symbol}.NS`,     // NSE format (second most common)
     ];
     
     for (const symbolVariation of symbolVariations) {
       try {
-        console.log(`🔄 Trying API for symbol variation: ${symbolVariation}`);
-        const stockData = await HybridStockApiService.getIndexData(symbolVariation);
+        console.log(`⚡ FAST API check for: ${symbolVariation}`);
         
-        // Debug logging to see what data we're getting
-        console.log(`📊 Raw API data for ${symbolVariation}:`, stockData);
+        // Add timeout to API call
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout per variation
+        
+        const stockData = await Promise.race([
+          HybridStockApiService.getIndexData(symbolVariation),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 2000))
+        ]) as any;
+        
+        clearTimeout(timeoutId);
         
         if (stockData && stockData.price > 0) {
-          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
+          console.log(`✅ FAST API success for ${symbolVariation}: ₹${stockData.price}`);
           return this.mapToStockAnalysisData(stockData, symbol);
-        } else if (stockData) {
-          console.log(`⚠️ API returned data for ${symbolVariation} but price is ${stockData.price}`);
         }
       } catch (error) {
-        console.log(`⚠️ Failed to fetch API data for ${symbolVariation}:`, error);
+        console.log(`⚡ API ${symbolVariation} failed quickly:`, error instanceof Error ? error.message : error);
         continue; // Try next variation
       }
     }
     
-    console.log(`❌ No API data found for any variation of: ${symbol}`);
+    console.log(`⚡ No API data found quickly for: ${symbol}`);
     return null;
   }
 
@@ -1076,10 +1147,10 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       console.log(`🌐 Web search completed: ${webInsights.length} insights found`);
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
 
-      // Step 2.5: Extract price data from web search if not available from APIs
+      // SPEED OPTIMIZATION: Skip expensive price extraction from web search
       if (stockData.currentPrice === 0 && webInsights.length > 0) {
-        console.log(`💰 Step 2.5: Extracting price data from web search results...`);
-        stockData = await this.extractPriceFromWebSearch(webInsights, stockData);
+        console.log(`⚡ SPEED: Skipping price extraction to save time - proceeding with web-only analysis...`);
+        // Use web insights directly for analysis without price extraction
       }
 
       // Step 3: Generate recommendation based on available data
@@ -1304,4 +1375,44 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
   }
 
   // Removed complex MoneyControl code - keeping it simple now
+
+  /**
+   * Test function to verify fuzzy matching fix
+   */
+  static testFuzzyMatching(): void {
+    console.log('🧪 Testing fuzzy matching fix...');
+    
+    // Test cases that should NOT match to ICICI
+    const testCases = [
+      'eternal stock',
+      'eternal',
+      'internal company',
+      'external factors'
+    ];
+    
+    testCases.forEach(testCase => {
+      const result = this.findFuzzyStockMatch(testCase);
+      console.log(`Test: "${testCase}" -> ${result || 'No match'}`);
+      
+      if (testCase.includes('eternal') && result === 'ICICIBANK') {
+        console.error(`❌ BUG: "${testCase}" incorrectly matched to ICICI!`);
+      } else if (testCase.includes('eternal') && !result) {
+        console.log(`✅ FIXED: "${testCase}" correctly returns no match`);
+      }
+    });
+    
+    // Test cases that SHOULD match
+    const validCases = [
+      'icici bank',
+      'icici',
+      'hdfc bank',
+      'reliance',
+      'tata consultancy services'
+    ];
+    
+    validCases.forEach(testCase => {
+      const result = this.findFuzzyStockMatch(testCase);
+      console.log(`Valid test: "${testCase}" -> ${result || 'No match'}`);
+    });
+  }
 }

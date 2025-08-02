@@ -149,15 +149,15 @@ export class AlphaVantageApiService {
         
         // Add delay between requests to respect rate limits (5 calls per minute for free tier)
         if (symbols.indexOf(symbol) < symbols.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 12000)); // 12 second delay
+          await new Promise(resolve => setTimeout(resolve, 500)); // Reduced to 0.5 second for speed
         }
       } catch (error) {
         console.error(`Failed to fetch data for ${symbol}:`, error);
         results[symbol] = null;
         
-        // Continue with delay even on error
+        // Continue with minimal delay even on error
         if (symbols.indexOf(symbol) < symbols.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 12000));
+          await new Promise(resolve => setTimeout(resolve, 500)); // Reduced to 0.5 second for speed
         }
       }
     }
