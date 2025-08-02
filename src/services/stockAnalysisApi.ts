@@ -109,8 +109,7 @@ export class StockAnalysisApiService {
     'ultratech': 'ULTRACEMCO', 'ultratech cement': 'ULTRACEMCO',
     'grasim': 'GRASIM',
     'adani': 'ADANIPORTS', 'adani ports': 'ADANIPORTS',
-    'jsw steel': 'JSWSTEEL', 'jswsteel': 'JSWSTEEL',
-    'tata consultancy services': 'TCS'
+    'jsw steel': 'JSWSTEEL', 'jswsteel': 'JSWSTEEL'
   };
 
   /**

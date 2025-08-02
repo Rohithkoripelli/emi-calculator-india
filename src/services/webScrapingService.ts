@@ -34,8 +34,7 @@ export class WebScrapingService {
         body: JSON.stringify({
           symbol: symbol,
           company_name: companyName
-        }),
-        timeout: 30000 // 30 second timeout for scraping
+        })
       });
 
       if (!response.ok) {
@@ -63,8 +62,7 @@ export class WebScrapingService {
   static async checkScraperHealth(): Promise<boolean> {
     try {
       const response = await fetch(`${this.PYTHON_API_BASE}/api/health`, {
-        method: 'GET',
-        timeout: 5000
+        method: 'GET'
       });
       
       return response.ok;
