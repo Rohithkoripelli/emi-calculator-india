@@ -50,158 +50,130 @@ export interface StockAnalysisResult {
 export class StockAnalysisApiService {
   private static readonly CORS_PROXY = 'https://api.allorigins.win/get?url=';
   
-  // Enhanced stock symbol mapping for Indian stocks
-  private static readonly INDIAN_STOCK_SYMBOLS: Record<string, string> = {
-    // Major stocks with common name variations
-    'tata motors': 'TATAMOTORS',
-    'tatamotors': 'TATAMOTORS',
-    'tata motor': 'TATAMOTORS',
-    'reliance': 'RELIANCE',
-    'ril': 'RELIANCE',
-    'reliance industries': 'RELIANCE',
-    'tcs': 'TCS',
-    'tata consultancy services': 'TCS',
-    'tata consultancy': 'TCS',
-    'infosys': 'INFY',
-    'infy': 'INFY',
-    'hdfc bank': 'HDFCBANK',
-    'hdfcbank': 'HDFCBANK',
-    'hdfc': 'HDFCBANK',
-    'icici bank': 'ICICIBANK',
-    'icicibank': 'ICICIBANK',
-    'icici': 'ICICIBANK',
-    'sbi': 'SBIN',
-    'state bank': 'SBIN',
-    'state bank of india': 'SBIN',
-    'bharti airtel': 'BHARTIARTL',
-    'airtel': 'BHARTIARTL',
-    'bharti': 'BHARTIARTL',
-    'wipro': 'WIPRO',
-    'hindustan unilever': 'HINDUNILVR',
-    'hul': 'HINDUNILVR',
-    'itc': 'ITC',
-    'maruti': 'MARUTI',
-    'maruti suzuki': 'MARUTI',
-    'bajaj finance': 'BAJFINANCE',
-    'bajaj auto': 'BAJAJ-AUTO',
-    'asian paints': 'ASIANPAINT',
-    'sun pharma': 'SUNPHARMA',
-    'titan': 'TITAN',
-    'nestle': 'NESTLEIND',
-    'nestlé': 'NESTLEIND',
-    'kotak bank': 'KOTAKBANK',
-    'kotak mahindra': 'KOTAKBANK',
-    'axis bank': 'AXISBANK',
-    'mahindra': 'M&M',
-    'm&m': 'M&M',
-    'larsen toubro': 'LT',
-    'l&t': 'LT',
-    'lt': 'LT',
-    'hcl tech': 'HCLTECH',
-    'hcltech': 'HCLTECH',
-    'tech mahindra': 'TECHM',
-    'ongc': 'ONGC',
-    'ntpc': 'NTPC',
-    'powergrid': 'POWERGRID',
-    'coal india': 'COALINDIA',
-    'jswsteel': 'JSWSTEEL',
-    'jsw steel': 'JSWSTEEL',
-    'ultratech': 'ULTRACEMCO',
-    'ultratech cement': 'ULTRACEMCO',
-    'bajaj finserv': 'BAJAJFINSV',
-    'dr reddy': 'DRREDDY',
-    'drreddy': 'DRREDDY',
-    'cipla': 'CIPLA',
-    'britannia': 'BRITANNIA',
-    'apollo hospital': 'APOLLOHOSP',
-    'apollo': 'APOLLOHOSP',
-    'eicher motors': 'EICHERMOT',
-    'hero motocorp': 'HEROMOTOCO',
-    'hero': 'HEROMOTOCO',
-    'upl': 'UPL',
-    'divislab': 'DIVISLAB',
-    'divis lab': 'DIVISLAB',
-    'grasim': 'GRASIM',
-    'hindalco': 'HINDALCO',
-    'adani enterprises': 'ADANIENT',
-    'adani ports': 'ADANIPORTS',
-    'indusind bank': 'INDUSINDBK',
-    'bpcl': 'BPCL',
-    'bharat petroleum': 'BPCL',
-    'sbilife': 'SBILIFE',
-    'sbi life': 'SBILIFE',
-    'hdfclife': 'HDFCLIFE',
-    'hdfc life': 'HDFCLIFE',
-    'tata consumer': 'TATACONSUM',
-    'shriram finance': 'SHRIRAMFIN',
-    'paradeep phosphates': 'PARADEEPHOSPATES',
-    'paradeep': 'PARADEEPHOSPATES',
-    'phosphates': 'PARADEEPHOSPATES',
-    'delhivery': 'DELHIVERY',
-    'delhivery stock': 'DELHIVERY',
-    'delhivery limited': 'DELHIVERY'
-  };
+  // Common stock keywords for detection
+  private static readonly STOCK_KEYWORDS = [
+    'stock', 'share', 'equity', 'buy', 'sell', 'invest', 'investment', 'price', 'analysis', 
+    'recommendation', 'target', 'trading', 'market', 'nse', 'bse', 'sensex', 'nifty'
+  ];
 
   /**
-   * Parse stock symbol from user query
+   * Intelligently extract stock names from user queries using NLP-like approach
    */
   static parseStockSymbol(query: string): string | null {
     const cleanQuery = query.toLowerCase().trim();
-    console.log(`🔍 Parsing stock query: "${cleanQuery}"`);
+    console.log(`🔍 Intelligent stock detection for: "${cleanQuery}"`);
     
-    // Direct symbol lookup
-    if (this.INDIAN_STOCK_SYMBOLS[cleanQuery]) {
-      console.log(`✅ Direct match found: ${cleanQuery} -> ${this.INDIAN_STOCK_SYMBOLS[cleanQuery]}`);
-      return this.INDIAN_STOCK_SYMBOLS[cleanQuery];
+    // Check if this is a stock-related query
+    const hasStockKeyword = this.STOCK_KEYWORDS.some(keyword => cleanQuery.includes(keyword));
+    
+    if (!hasStockKeyword) {
+      console.log(`❌ No stock keywords detected in: "${cleanQuery}"`);
+      return null;
     }
     
-    // Check if query contains stock-related keywords
-    const stockKeywords = ['stock', 'share', 'equity', 'buy', 'sell', 'invest', 'price', 'analysis'];
-    const hasStockKeyword = stockKeywords.some(keyword => cleanQuery.includes(keyword));
+    console.log(`✅ Stock-related query detected`);
     
-    if (hasStockKeyword) {
-      // Extract potential stock name from query
-      for (const [name, symbol] of Object.entries(this.INDIAN_STOCK_SYMBOLS)) {
-        if (cleanQuery.includes(name)) {
-          console.log(`✅ Keyword match found: "${name}" in "${cleanQuery}" -> ${symbol}`);
-          return symbol;
-        }
-      }
-      
-      // Look for uppercase patterns that might be stock symbols
-      const symbolMatch = query.match(/\b[A-Z]{2,10}\b/);
-      if (symbolMatch) {
-        console.log(`✅ Symbol pattern match found: ${symbolMatch[0]}`);
-        return symbolMatch[0];
-      }
+    // Extract potential company names using intelligent parsing
+    const potentialStockNames = this.extractCompanyNames(cleanQuery);
+    
+    if (potentialStockNames.length > 0) {
+      console.log(`🎯 Extracted potential stock names: ${potentialStockNames.join(', ')}`);
+      return potentialStockNames[0]; // Return the first/most likely match
     }
     
-    console.log(`❌ No stock symbol found in query: "${cleanQuery}"`);
+    console.log(`❌ No stock names extracted from: "${cleanQuery}"`);
     return null;
   }
 
   /**
-   * Fetch comprehensive stock data using existing APIs
+   * Extract company names from query using intelligent patterns
    */
-  static async fetchStockData(symbol: string): Promise<StockAnalysisData | null> {
-    try {
-      // Use the existing hybrid stock API
-      const stockData = await HybridStockApiService.getIndexData(`${symbol}.NS`);
-      
-      if (!stockData) {
-        // Try without .NS suffix
-        const altData = await HybridStockApiService.getIndexData(symbol);
-        if (!altData) {
-          throw new Error(`No data found for symbol: ${symbol}`);
-        }
-        return this.mapToStockAnalysisData(altData, symbol);
+  private static extractCompanyNames(query: string): string[] {
+    const words = query.split(/\s+/);
+    const potentialNames: string[] = [];
+    
+    // Remove common stop words and stock keywords
+    const stopWords = new Set([
+      'i', 'should', 'buy', 'sell', 'invest', 'stock', 'share', 'shares', 'equity', 'now', 'today',
+      'analysis', 'recommendation', 'price', 'target', 'good', 'bad', 'investment', 'the', 'a', 'an',
+      'is', 'are', 'was', 'were', 'what', 'when', 'where', 'why', 'how', 'about', 'for', 'on', 'in'
+    ]);
+    
+    // Extract meaningful words that could be company names
+    const meaningfulWords = words.filter(word => {
+      const cleanWord = word.replace(/[^\w]/g, '').toLowerCase();
+      return cleanWord.length > 2 && !stopWords.has(cleanWord) && !this.STOCK_KEYWORDS.includes(cleanWord);
+    });
+    
+    console.log(`📝 Meaningful words found: ${meaningfulWords.join(', ')}`);
+    
+    // Try different combinations
+    for (let i = 0; i < meaningfulWords.length; i++) {
+      // Single word company names
+      const singleWord = meaningfulWords[i].replace(/[^\w]/g, '').toUpperCase();
+      if (singleWord.length >= 3) {
+        potentialNames.push(singleWord);
       }
       
-      return this.mapToStockAnalysisData(stockData, symbol);
-    } catch (error) {
-      console.error(`Error fetching stock data for ${symbol}:`, error);
-      return null;
+      // Two word combinations
+      if (i < meaningfulWords.length - 1) {
+        const twoWords = (meaningfulWords[i] + meaningfulWords[i + 1]).replace(/[^\w]/g, '').toUpperCase();
+        if (twoWords.length >= 4) {
+          potentialNames.push(twoWords);
+        }
+      }
+      
+      // Three word combinations for companies like "Tata Consultancy Services"
+      if (i < meaningfulWords.length - 2) {
+        const threeWords = (meaningfulWords[i] + meaningfulWords[i + 1] + meaningfulWords[i + 2]).replace(/[^\w]/g, '').toUpperCase();
+        if (threeWords.length >= 6) {
+          potentialNames.push(threeWords);
+        }
+      }
     }
+    
+    // Also look for existing uppercase patterns (NSE symbols)
+    const upperCaseMatches = query.match(/\b[A-Z]{2,15}\b/g);
+    if (upperCaseMatches) {
+      potentialNames.push(...upperCaseMatches);
+    }
+    
+    // Remove duplicates and return
+    return Array.from(new Set(potentialNames));
+  }
+
+  /**
+   * Intelligently fetch stock data trying multiple variations
+   */
+  static async fetchStockData(symbol: string): Promise<StockAnalysisData | null> {
+    console.log(`📊 Attempting to fetch stock data for: ${symbol}`);
+    
+    // Try multiple symbol variations
+    const symbolVariations = [
+      `${symbol}.NS`,     // NSE format
+      symbol,             // Direct symbol
+      `${symbol}.BO`,     // BSE format
+      symbol.toUpperCase(), // Uppercase
+      symbol.toLowerCase()  // Lowercase
+    ];
+    
+    for (const symbolVariation of symbolVariations) {
+      try {
+        console.log(`🔄 Trying symbol variation: ${symbolVariation}`);
+        const stockData = await HybridStockApiService.getIndexData(symbolVariation);
+        
+        if (stockData && stockData.price > 0) {
+          console.log(`✅ Found stock data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
+          return this.mapToStockAnalysisData(stockData, symbol);
+        }
+      } catch (error) {
+        console.log(`⚠️ Failed to fetch data for ${symbolVariation}:`, error);
+        continue; // Try next variation
+      }
+    }
+    
+    console.error(`❌ Could not fetch stock data for any variation of: ${symbol}`);
+    return null;
   }
 
   /**
@@ -218,8 +190,8 @@ export class StockAnalysisApiService {
       dayLow: stockData.dayLow || 0,
       volume: stockData.volume || 0,
       marketCap: stockData.marketCap,
-      sector: this.getSectorForStock(symbol),
-      industry: this.getIndustryForStock(symbol),
+      sector: stockData.sector || 'General', // Use API data if available
+      industry: stockData.industry || 'General', // Use API data if available
       lastUpdated: stockData.lastUpdated || new Date().toISOString()
     };
   }
@@ -228,6 +200,21 @@ export class StockAnalysisApiService {
    * Perform web search for stock insights using Google Custom Search API
    */
   static async searchStockInsights(symbol: string, companyName: string): Promise<WebSearchResult[]> {
+    console.log(`🌐 Starting web search for: ${companyName} (${symbol})`);
+    
+    // First check if Google API credentials are available
+    const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
+    const searchEngineId = process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
+    
+    console.log(`🔑 API Key available: ${!!apiKey}`);
+    console.log(`🔍 Search Engine ID available: ${!!searchEngineId}`);
+    
+    if (!apiKey || !searchEngineId) {
+      console.error('❌ Google Search API credentials missing!');
+      console.error('Missing:', { apiKey: !apiKey, searchEngineId: !searchEngineId });
+      return this.getFallbackInsights(symbol, companyName);
+    }
+    
     try {
       console.log(`🔍 Performing Google search for ${companyName} (${symbol})`);
       
@@ -714,89 +701,7 @@ export class StockAnalysisApiService {
     return undefined; // No stop loss for HOLD
   }
 
-  /**
-   * Get sector information for a stock
-   */
-  private static getSectorForStock(symbol: string): string {
-    const sectorMap: Record<string, string> = {
-      'RELIANCE': 'Oil & Gas',
-      'TCS': 'Information Technology',
-      'HDFCBANK': 'Financial Services',
-      'INFY': 'Information Technology',
-      'HINDUNILVR': 'Consumer Goods',
-      'ICICIBANK': 'Financial Services',
-      'KOTAKBANK': 'Financial Services',
-      'LT': 'Infrastructure',
-      'ITC': 'Consumer Goods',
-      'SBIN': 'Financial Services',
-      'BHARTIARTL': 'Telecommunications',
-      'ASIANPAINT': 'Consumer Discretionary',
-      'AXISBANK': 'Financial Services',
-      'MARUTI': 'Automotive',
-      'BAJFINANCE': 'Financial Services',
-      'HCLTECH': 'Information Technology',
-      'M&M': 'Automotive',
-      'SUNPHARMA': 'Healthcare',
-      'TITAN': 'Consumer Discretionary',
-      'NESTLEIND': 'Consumer Staples',
-      'TATAMOTORS': 'Automotive',
-      'WIPRO': 'Information Technology',
-      'ONGC': 'Oil & Gas',
-      'TECHM': 'Information Technology',
-      'POWERGRID': 'Utilities',
-      'NTPC': 'Utilities',
-      'JSWSTEEL': 'Metals & Mining',
-      'COALINDIA': 'Metals & Mining',
-      'ULTRACEMCO': 'Construction Materials',
-      'BAJAJFINSV': 'Financial Services',
-      'DELHIVERY': 'Transportation & Logistics',
-      'PARADEEPHOSPATES': 'Chemicals'
-    };
-    
-    return sectorMap[symbol] || 'Other';
-  }
-
-  /**
-   * Get industry information for a stock
-   */
-  private static getIndustryForStock(symbol: string): string {
-    const industryMap: Record<string, string> = {
-      'RELIANCE': 'Petrochemicals',
-      'TCS': 'IT Services',
-      'HDFCBANK': 'Private Bank',
-      'INFY': 'IT Services',
-      'HINDUNILVR': 'FMCG',
-      'ICICIBANK': 'Private Bank',
-      'KOTAKBANK': 'Private Bank',
-      'LT': 'Engineering',
-      'ITC': 'Tobacco & FMCG',
-      'SBIN': 'Public Bank',
-      'BHARTIARTL': 'Telecom Services',
-      'ASIANPAINT': 'Paints',
-      'AXISBANK': 'Private Bank',
-      'MARUTI': 'Automobile Manufacturing',
-      'BAJFINANCE': 'Non-Banking Financial Company',
-      'HCLTECH': 'IT Services',
-      'M&M': 'Automobile Manufacturing',
-      'SUNPHARMA': 'Pharmaceuticals',
-      'TITAN': 'Jewelry & Watches',
-      'NESTLEIND': 'Food Products',
-      'TATAMOTORS': 'Automobile Manufacturing',
-      'WIPRO': 'IT Services',
-      'ONGC': 'Oil Exploration',
-      'TECHM': 'IT Services',
-      'POWERGRID': 'Power Transmission',
-      'NTPC': 'Power Generation',
-      'JSWSTEEL': 'Steel Manufacturing',
-      'COALINDIA': 'Coal Mining',
-      'ULTRACEMCO': 'Cement Manufacturing',
-      'BAJAJFINSV': 'Financial Services',
-      'DELHIVERY': 'Logistics & Supply Chain',
-      'PARADEEPHOSPATES': 'Phosphate Chemicals'
-    };
-    
-    return industryMap[symbol] || 'Other';
-  }
+  // Removed hardcoded sector/industry mappings - now using dynamic data from APIs
 
   /**
    * Complete stock analysis pipeline with enhanced web search integration
