@@ -24,12 +24,13 @@ export class GoogleSearchApiService {
         return this.getFallbackInsights(symbol, companyName);
       }
 
-      // Create search queries for comprehensive stock analysis
+      // Create search queries for comprehensive stock analysis including price data
       const searchQueries = [
+        `${companyName} stock price today current share price NSE BSE`,
+        `${symbol} live stock price trading volume market data`,
         `${companyName} stock price target analyst recommendation ${new Date().getFullYear()}`,
         `${symbol} NSE latest news quarterly results earnings`,
-        `${companyName} buy sell recommendation analyst rating`,
-        `${symbol} stock analysis financial performance outlook`
+        `${companyName} buy sell recommendation analyst rating`
       ];
 
       const allResults: WebSearchResult[] = [];

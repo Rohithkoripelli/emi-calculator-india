@@ -741,8 +741,14 @@ export class StockAnalysisApiService {
       const webInsights = await this.searchStockInsights(symbol, stockData.companyName);
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
 
+      // Step 2.5: Extract price data from web search if not available from APIs
+      if (stockData.currentPrice === 0 && webInsights.length > 0) {
+        console.log(`💰 Step 2.5: Extracting price data from web search results...`);
+        stockData = this.extractPriceFromWebSearch(webInsights, stockData);
+      }
+
       // Step 3: Generate recommendation based on available data
-      console.log(`🧠 Step 3: Generating recommendation using available data and web insights...`);
+      console.log(`🧠 Step 3: Generating recommendation using ${stockData.currentPrice > 0 ? 'extracted' : 'web-only'} data and insights...`);
       const recommendation = await this.generateEnhancedRecommendation(
         stockData, 
         webInsights, 
@@ -783,7 +789,7 @@ export class StockAnalysisApiService {
     return {
       symbol: symbol,
       companyName: companyName,
-      currentPrice: 0, // Indicates no real-time data available
+      currentPrice: 0, // Will be updated from web search if found
       change: 0,
       changePercent: 0,
       dayHigh: 0,
@@ -793,5 +799,82 @@ export class StockAnalysisApiService {
       industry: 'General',
       lastUpdated: new Date().toISOString()
     };
+  }
+
+  /**
+   * Extract stock price and metrics from web search results
+   */
+  private static extractPriceFromWebSearch(webInsights: WebSearchResult[], stockData: StockAnalysisData): StockAnalysisData {
+    if (stockData.currentPrice > 0) {
+      return stockData; // Already has real-time data
+    }
+
+    console.log(`💰 Attempting to extract price data from ${webInsights.length} web search results...`);
+
+    for (const insight of webInsights) {
+      const text = (insight.title + ' ' + insight.snippet).toLowerCase();
+      
+      // Look for price patterns in rupees
+      const pricePatterns = [
+        /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /rs\.?\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /price.*?₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /trading.*?₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /share.*?₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/g
+      ];
+
+      for (const pattern of pricePatterns) {
+        const matches = Array.from(text.matchAll(pattern));
+        for (const match of matches) {
+          const priceStr = match[1].replace(/,/g, '');
+          const price = parseFloat(priceStr);
+          
+          if (price > 1 && price < 100000) { // Reasonable price range
+            console.log(`✅ Extracted price ₹${price} from: "${insight.title}"`);
+            
+            // Also try to extract percentage change
+            const changePattern = /([+-]?\d+(?:\.\d+)?)\s*%/g;
+            const changeMatch = text.match(changePattern);
+            let changePercent = 0;
+            
+            if (changeMatch) {
+              const changeStr = changeMatch[0].replace('%', '');
+              changePercent = parseFloat(changeStr);
+              console.log(`✅ Extracted change: ${changePercent}%`);
+            }
+
+            return {
+              ...stockData,
+              currentPrice: price,
+              changePercent: changePercent,
+              change: (price * changePercent) / 100,
+              lastUpdated: new Date().toISOString()
+            };
+          }
+        }
+      }
+
+      // Look for volume information
+      const volumePatterns = [
+        /volume.*?(\d+(?:,\d+)*)\s*(?:shares?|crores?|lakhs?)?/gi,
+        /traded.*?(\d+(?:,\d+)*)\s*(?:shares?|crores?|lakhs?)?/gi
+      ];
+
+      for (const pattern of volumePatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          const volumeStr = match[1].replace(/,/g, '');
+          const volume = parseInt(volumeStr);
+          if (volume > 1000) {
+            stockData.volume = volume;
+            console.log(`✅ Extracted volume: ${volume}`);
+            break;
+          }
+        }
+      }
+    }
+
+    console.log(`⚠️ Could not extract price data from web search results`);
+    return stockData;
   }
 }
