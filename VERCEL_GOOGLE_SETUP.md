@@ -56,6 +56,28 @@ REACT_APP_GOOGLE_SEARCH_API_KEY=AIzaSyBVWisuyvs4SE8XdHjk123456789abcdef
 
 # Your Search Engine ID will look like this:
 REACT_APP_GOOGLE_SEARCH_ENGINE_ID=017576662512468239146:omuauf_lfve
+
+# NOTE: If you only see a partial ID like "a2226a79d28ce4e94"
+# You need to find the complete format with colon and suffix
+```
+
+### **1.4 Search Engine ID Formats**
+
+Google uses two different formats for Search Engine IDs:
+
+**Format 1 (Newer):** `a2226a79d28ce4e94` ✅ **YOUR FORMAT**
+**Format 2 (Older):** `017576662512468239146:omuauf_lfve`
+
+**Your Search Engine ID:** `a2226a79d28ce4e94` ✅ **CORRECT**
+
+**How to verify your ID:**
+- Your search engine URL: `https://cse.google.com/cse?cx=a2226a79d28ce4e94`
+- The `cx=` parameter is your complete Search Engine ID
+- No colon or suffix needed for your format
+
+**Use this in Vercel:**
+```bash
+REACT_APP_GOOGLE_SEARCH_ENGINE_ID=a2226a79d28ce4e94
 ```
 
 ## 🚀 **Step 2: Vercel Environment Variables**

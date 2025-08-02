@@ -136,7 +136,10 @@ export class StockAnalysisApiService {
     'shriram finance': 'SHRIRAMFIN',
     'paradeep phosphates': 'PARADEEPHOSPATES',
     'paradeep': 'PARADEEPHOSPATES',
-    'phosphates': 'PARADEEPHOSPATES'
+    'phosphates': 'PARADEEPHOSPATES',
+    'delhivery': 'DELHIVERY',
+    'delhivery stock': 'DELHIVERY',
+    'delhivery limited': 'DELHIVERY'
   };
 
   /**
@@ -144,9 +147,11 @@ export class StockAnalysisApiService {
    */
   static parseStockSymbol(query: string): string | null {
     const cleanQuery = query.toLowerCase().trim();
+    console.log(`🔍 Parsing stock query: "${cleanQuery}"`);
     
     // Direct symbol lookup
     if (this.INDIAN_STOCK_SYMBOLS[cleanQuery]) {
+      console.log(`✅ Direct match found: ${cleanQuery} -> ${this.INDIAN_STOCK_SYMBOLS[cleanQuery]}`);
       return this.INDIAN_STOCK_SYMBOLS[cleanQuery];
     }
     
@@ -158,6 +163,7 @@ export class StockAnalysisApiService {
       // Extract potential stock name from query
       for (const [name, symbol] of Object.entries(this.INDIAN_STOCK_SYMBOLS)) {
         if (cleanQuery.includes(name)) {
+          console.log(`✅ Keyword match found: "${name}" in "${cleanQuery}" -> ${symbol}`);
           return symbol;
         }
       }
@@ -165,10 +171,12 @@ export class StockAnalysisApiService {
       // Look for uppercase patterns that might be stock symbols
       const symbolMatch = query.match(/\b[A-Z]{2,10}\b/);
       if (symbolMatch) {
+        console.log(`✅ Symbol pattern match found: ${symbolMatch[0]}`);
         return symbolMatch[0];
       }
     }
     
+    console.log(`❌ No stock symbol found in query: "${cleanQuery}"`);
     return null;
   }
 
@@ -740,7 +748,9 @@ export class StockAnalysisApiService {
       'JSWSTEEL': 'Metals & Mining',
       'COALINDIA': 'Metals & Mining',
       'ULTRACEMCO': 'Construction Materials',
-      'BAJAJFINSV': 'Financial Services'
+      'BAJAJFINSV': 'Financial Services',
+      'DELHIVERY': 'Transportation & Logistics',
+      'PARADEEPHOSPATES': 'Chemicals'
     };
     
     return sectorMap[symbol] || 'Other';
@@ -780,7 +790,9 @@ export class StockAnalysisApiService {
       'JSWSTEEL': 'Steel Manufacturing',
       'COALINDIA': 'Coal Mining',
       'ULTRACEMCO': 'Cement Manufacturing',
-      'BAJAJFINSV': 'Financial Services'
+      'BAJAJFINSV': 'Financial Services',
+      'DELHIVERY': 'Logistics & Supply Chain',
+      'PARADEEPHOSPATES': 'Phosphate Chemicals'
     };
     
     return industryMap[symbol] || 'Other';
