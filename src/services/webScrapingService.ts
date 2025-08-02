@@ -20,6 +20,26 @@ export class WebScrapingService {
   private static readonly PYTHON_API_BASE = process.env.REACT_APP_PYTHON_SCRAPER_URL || 'http://localhost:5000';
   
   /**
+   * Add timeout to fetch requests
+   */
+  private static async fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 10000): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+  
+  /**
    * Scrape stock data using Python BeautifulSoup backend
    */
   static async scrapeStockData(symbol: string, companyName: string): Promise<ScrapedStockData | null> {
@@ -187,7 +207,7 @@ export class WebScrapingService {
         `${this.VERCEL_API_BASE}/api/enhanced-stock-search` : 
         '/api/enhanced-stock-search';
       
-      const response = await fetch(apiUrl, {
+      const response = await this.fetchWithTimeout(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +216,7 @@ export class WebScrapingService {
           symbol: symbol,
           companyName: companyName
         }),
-      });
+      }, 15000); // 15 second timeout
 
       if (!response.ok) {
         throw new Error(`Vercel enhanced search error: ${response.status}`);

@@ -312,9 +312,16 @@ export class StockAnalysisApiService {
         console.log(`🔄 Trying API for symbol variation: ${symbolVariation}`);
         const stockData = await HybridStockApiService.getIndexData(symbolVariation);
         
-        if (stockData && stockData.price > 0) {
-          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
+        // Debug logging to see what data we're getting
+        console.log(`📊 Raw API data for ${symbolVariation}:`, stockData);
+        
+        if (stockData && (stockData.price > 0 || stockData.name)) {
+          // Accept data if we have a valid price OR at least a company name
+          const price = stockData.price || 0;
+          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${price}`);
           return this.mapToStockAnalysisData(stockData, symbol);
+        } else if (stockData) {
+          console.log(`⚠️ API returned data for ${symbolVariation} but insufficient data:`, stockData);
         }
       } catch (error) {
         console.log(`⚠️ Failed to fetch API data for ${symbolVariation}:`, error);
@@ -1034,6 +1041,22 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
+    // Add timeout to prevent infinite loading
+    return Promise.race([
+      this.performStockAnalysis(userQuery),
+      new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error('Stock analysis timeout after 30 seconds')), 30000)
+      )
+    ]).catch(error => {
+      console.error('Stock analysis failed or timed out:', error);
+      return null;
+    });
+  }
+
+  /**
+   * Internal method to perform the actual stock analysis
+   */
+  private static async performStockAnalysis(userQuery: string): Promise<StockAnalysisResult | null> {
     try {
       // Parse stock symbol from query
       const symbol = this.parseStockSymbol(userQuery);
