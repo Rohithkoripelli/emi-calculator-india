@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bars3Icon, XMarkIcon, CalculatorIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { NavigationItem } from '../../types';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { Logo } from '../ui/Logo';
 
 interface MobileNavigationProps {
   calculators: NavigationItem[];
@@ -48,10 +49,13 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         <div className="flex items-center justify-between">
           {/* App Logo/Title */}
           <div className="flex items-center space-x-2">
-            <CalculatorIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-dark-text-primary truncate">EMI Calculator</h1>
-              <p className="text-xs text-gray-500 dark:text-dark-text-muted truncate">Financial Planning Tool</p>
+            <Logo 
+              onClick={() => onCalculatorChange('emi')}
+              className="flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0 ml-2">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">fincalcpro</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-300 truncate">Financial Planning Tool</p>
             </div>
           </div>
 

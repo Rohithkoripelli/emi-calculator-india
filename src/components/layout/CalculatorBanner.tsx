@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavigationItem } from '../../types';
+import { Logo } from '../ui/Logo';
 
 interface CalculatorBannerProps {
   calculators: NavigationItem[];
@@ -17,14 +18,28 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
       {/* Desktop Banner - Hidden on mobile */}
       <div className="hidden lg:block bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-800 dark:to-blue-900 text-white transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Main Header */}
-          <div className="py-4 text-center">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-              Financial Calculators for India
-            </h1>
-            <p className="text-base text-blue-100 dark:text-blue-200 max-w-2xl mx-auto">
-              AI-powered financial planning tools designed for Indian market
-            </p>
+          {/* Logo and Header */}
+          <div className="py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Logo 
+                  onClick={() => onCalculatorChange('emi')}
+                  className="mr-4"
+                />
+                <div>
+                  <h1 className="text-xl font-bold text-white">fincalcpro</h1>
+                  <p className="text-sm text-blue-100">Professional Financial Tools</p>
+                </div>
+              </div>
+            </div>
+            <div className="text-center">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+                Financial Calculators for India
+              </h2>
+              <p className="text-base text-blue-100 dark:text-blue-200 max-w-2xl mx-auto">
+                AI-powered financial planning tools designed for Indian market
+              </p>
+            </div>
           </div>
 
           {/* Calculator Navigation - 4 Cards in Single Line */}
