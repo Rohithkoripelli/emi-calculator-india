@@ -304,10 +304,34 @@ Ask me anything about your loan, financial planning, or stock analysis!` : 'Plea
       if (stockAnalysis) {
         console.log('Stock analysis detected, processing...');
         
-        // Create AI response with stock analysis (no streaming needed for structured data)
+        // Generate detailed response based on the analysis
+        const analysisText = `**${stockAnalysis.stockData.companyName} Stock Analysis**
+
+**Current Market Data:**
+- **Price**: ₹${stockAnalysis.stockData.currentPrice} (${stockAnalysis.stockData.changePercent > 0 ? '+' : ''}${stockAnalysis.stockData.changePercent.toFixed(2)}%)
+- **Day Range**: ₹${stockAnalysis.stockData.dayLow} - ₹${stockAnalysis.stockData.dayHigh}
+- **Volume**: ${stockAnalysis.stockData.volume > 0 ? (stockAnalysis.stockData.volume / 1000).toFixed(0) + 'K' : 'N/A'}
+
+**Web Research Summary:**
+Based on ${stockAnalysis.webInsights.length} recent articles from financial sources including ${Array.from(new Set(stockAnalysis.webInsights.map(i => i.source))).slice(0, 3).join(', ')}.
+
+**My Recommendation:**
+After analyzing real-time market data and recent news, I recommend **${stockAnalysis.recommendation.action}** with ${stockAnalysis.recommendation.confidence}% confidence.
+
+**Key Analysis Points:**
+${stockAnalysis.recommendation.reasoning.map(reason => `• ${reason}`).join('\n')}
+
+${stockAnalysis.recommendation.targetPrice ? `**Target Price**: ₹${stockAnalysis.recommendation.targetPrice.toFixed(2)}` : ''}
+${stockAnalysis.recommendation.stopLoss ? `**Stop Loss**: ₹${stockAnalysis.recommendation.stopLoss.toFixed(2)}` : ''}
+
+**Investment Horizon**: ${stockAnalysis.recommendation.timeHorizon.replace('_', ' ').toLowerCase()}
+
+The analysis below shows detailed insights including the latest market sentiment and news analysis.`;
+
+        // Create AI response with stock analysis
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
-          text: `I've analyzed ${stockAnalysis.stockData.companyName} (${stockAnalysis.stockData.symbol}) for you. Here's my comprehensive analysis with real-time data and market insights:`,
+          text: analysisText,
           isUser: false,
           timestamp: new Date(),
           stockAnalysis: stockAnalysis,
