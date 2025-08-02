@@ -84,15 +84,15 @@ export const StockRecommendationCard: React.FC<StockRecommendationCardProps> = (
           </div>
           <div className="text-right">
             <div className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-dark-text-primary">
-              ₹{stockData.currentPrice.toFixed(2)}
+              ₹{stockData.currentPrice ? stockData.currentPrice.toFixed(2) : '0.00'}
             </div>
             <div className={`text-sm font-medium ${
               stockData.changePercent >= 0 
                 ? 'text-green-600 dark:text-green-400' 
                 : 'text-red-600 dark:text-red-400'
             }`}>
-              {stockData.changePercent >= 0 ? '+' : ''}{stockData.changePercent.toFixed(2)}%
-              ({stockData.changePercent >= 0 ? '+' : ''}₹{stockData.change.toFixed(2)})
+              {stockData.changePercent >= 0 ? '+' : ''}{stockData.changePercent ? stockData.changePercent.toFixed(2) : '0.00'}%
+              ({stockData.changePercent >= 0 ? '+' : ''}₹{stockData.change ? stockData.change.toFixed(2) : '0.00'})
             </div>
           </div>
         </div>
@@ -142,10 +142,12 @@ export const StockRecommendationCard: React.FC<StockRecommendationCardProps> = (
                 </span>
               </div>
               <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                ₹{recommendation.targetPrice.toFixed(2)}
+                ₹{recommendation.targetPrice ? recommendation.targetPrice.toFixed(2) : 'N/A'}
               </div>
               <div className="text-xs text-gray-500 dark:text-dark-text-muted">
-                {((recommendation.targetPrice - stockData.currentPrice) / stockData.currentPrice * 100).toFixed(1)}% upside
+                {recommendation.targetPrice && stockData.currentPrice ? 
+                  ((recommendation.targetPrice - stockData.currentPrice) / stockData.currentPrice * 100).toFixed(1) + '% upside' : 
+                  ''}
               </div>
             </div>
           )}
@@ -160,10 +162,12 @@ export const StockRecommendationCard: React.FC<StockRecommendationCardProps> = (
                 </span>
               </div>
               <div className="text-lg font-semibold text-red-600 dark:text-red-400">
-                ₹{recommendation.stopLoss.toFixed(2)}
+                ₹{recommendation.stopLoss ? recommendation.stopLoss.toFixed(2) : 'N/A'}
               </div>
               <div className="text-xs text-gray-500 dark:text-dark-text-muted">
-                {Math.abs((recommendation.stopLoss - stockData.currentPrice) / stockData.currentPrice * 100).toFixed(1)}% risk
+                {recommendation.stopLoss && stockData.currentPrice ? 
+                  Math.abs((recommendation.stopLoss - stockData.currentPrice) / stockData.currentPrice * 100).toFixed(1) + '% risk' : 
+                  ''}
               </div>
             </div>
           )}
@@ -195,11 +199,15 @@ export const StockRecommendationCard: React.FC<StockRecommendationCardProps> = (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-gray-600 dark:text-dark-text-muted block">Day High</span>
-              <span className="font-semibold text-gray-900 dark:text-dark-text-primary">₹{stockData.dayHigh.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900 dark:text-dark-text-primary">
+                {stockData.dayHigh && stockData.dayHigh > 0 ? `₹${stockData.dayHigh.toFixed(2)}` : '₹0.00'}
+              </span>
             </div>
             <div>
               <span className="text-gray-600 dark:text-dark-text-muted block">Day Low</span>
-              <span className="font-semibold text-gray-900 dark:text-dark-text-primary">₹{stockData.dayLow.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900 dark:text-dark-text-primary">
+                {stockData.dayLow && stockData.dayLow > 0 ? `₹${stockData.dayLow.toFixed(2)}` : '₹0.00'}
+              </span>
             </div>
             <div>
               <span className="text-gray-600 dark:text-dark-text-muted block">Volume</span>
