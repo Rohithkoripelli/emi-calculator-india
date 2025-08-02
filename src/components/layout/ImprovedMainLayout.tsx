@@ -11,6 +11,7 @@ import { AdditionalCalculators } from '../calculators/AdditionalCalculators';
 import { CapitalGainsCalculator } from '../calculators/CapitalGainsCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { NavigationItem } from '../../types';
 import { parseURLParams } from '../../utils/exportUtils';
 
@@ -116,6 +117,11 @@ export const ImprovedMainLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
+      {/* Desktop Theme Toggle - Fixed Position */}
+      <div className="hidden lg:block fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Mobile Navigation */}
       <MobileNavigation
         calculators={calculators}
@@ -133,7 +139,7 @@ export const ImprovedMainLayout: React.FC = () => {
       {/* Main Content */}
       <div className="relative">
         {/* Calculator Content */}
-        <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 lg:py-8">
+        <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 lg:py-8 pt-32 lg:pt-8">
           {renderCalculator()}
         </main>
 

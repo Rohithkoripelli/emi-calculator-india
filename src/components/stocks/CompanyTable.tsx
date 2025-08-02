@@ -103,7 +103,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
           <thead className="bg-gray-50 dark:bg-dark-bg">
             <tr>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleSort('name')}
               >
                 <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                 </div>
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleSort('price')}
               >
                 <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                 </div>
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleSort('changePercent')}
               >
                 <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                 </div>
               </th>
               <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-muted uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => handleSort('sector')}
               >
                 <div className="flex items-center gap-2">
@@ -147,24 +147,24 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                 <tr key={company.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
                         {company.name}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-dark-text-muted font-mono">
+                      <div className="text-sm text-gray-500 dark:text-gray-300 font-mono">
                         {company.symbol}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
                       ₹{StockApiService.formatNumber(company.price)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium flex items-center gap-1 ${
+                    <div className={`text-sm font-semibold flex items-center gap-1 ${
                       isPositive 
-                        ? 'text-green-600 dark:text-green-400' 
-                        : 'text-red-600 dark:text-red-400'
+                        ? 'text-green-600 dark:text-green-300' 
+                        : 'text-red-600 dark:text-red-300'
                     }`}>
                       <span>
                         {isPositive ? '+' : ''}{StockApiService.formatNumber(company.change)}
@@ -184,11 +184,11 @@ export const CompanyTable: React.FC<CompanyTableProps> = ({ companies, loading }
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
                       {company.sector}
                     </span>
                     {company.industry && (
-                      <div className="text-xs text-gray-500 dark:text-dark-text-muted mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-300 mt-1">
                         {company.industry}
                       </div>
                     )}

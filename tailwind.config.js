@@ -18,16 +18,16 @@ module.exports = {
           500: '#64748b',
           600: '#475569',
         },
-        // CoinMarketCap-inspired dark mode colors
+        // Improved dark mode colors with better contrast
         dark: {
-          bg: '#171924',        // Main background
-          surface: '#222531',   // Secondary background  
-          card: '#2B2E3D',      // Surface layers/cards
-          border: '#53596A',    // Borders and separators
+          bg: '#0B0E14',        // Main background - darker for better contrast
+          surface: '#1A1D29',   // Secondary background - lighter contrast
+          card: '#252A3A',      // Surface layers/cards - better visibility
+          border: '#3B4259',    // Borders and separators - more visible
           text: {
-            primary: '#FFFFFF',   // Primary text
-            secondary: '#A1A7BB', // Secondary text
-            muted: '#646B80',     // Muted text
+            primary: '#FFFFFF',   // Primary text - high contrast white
+            secondary: '#E2E8F0', // Secondary text - much lighter for visibility
+            muted: '#94A3B8',     // Muted text - lighter but still readable
           }
         }
       },

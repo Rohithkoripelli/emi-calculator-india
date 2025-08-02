@@ -43,8 +43,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
   return (
     <>
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white dark:bg-dark-surface shadow-sm border-b border-gray-200 dark:border-dark-border px-3 sm:px-4 py-3 transition-colors">
+      {/* Mobile Header - Fixed/Sticky */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-dark-surface shadow-sm border-b border-gray-200 dark:border-dark-border px-3 sm:px-4 py-3 transition-colors z-40">
         <div className="flex items-center justify-between">
           {/* App Logo/Title */}
           <div className="flex items-center space-x-2">
