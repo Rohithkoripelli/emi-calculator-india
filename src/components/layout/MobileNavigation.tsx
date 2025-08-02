@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bars3Icon, XMarkIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 import { NavigationItem } from '../../types';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface MobileNavigationProps {
   calculators: NavigationItem[];
@@ -54,18 +55,24 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             </div>
           </div>
 
-          {/* Hamburger Menu Button */}
-          <button
-            onClick={toggleMenu}
-            className="p-2 rounded-lg bg-gray-50 dark:bg-dark-card hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? (
-              <XMarkIcon className="w-6 h-6 text-gray-700 dark:text-dark-text-primary" />
-            ) : (
-              <Bars3Icon className="w-6 h-6 text-gray-700 dark:text-dark-text-primary" />
-            )}
-          </button>
+          {/* Theme Toggle and Hamburger Menu */}
+          <div className="flex items-center space-x-2">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            
+            {/* Hamburger Menu Button */}
+            <button
+              onClick={toggleMenu}
+              className="p-2 rounded-lg bg-gray-50 dark:bg-dark-card hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? (
+                <XMarkIcon className="w-6 h-6 text-gray-700 dark:text-dark-text-primary" />
+              ) : (
+                <Bars3Icon className="w-6 h-6 text-gray-700 dark:text-dark-text-primary" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Active Calculator Display */}
