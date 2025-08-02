@@ -10,6 +10,7 @@ export const StockScreener: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [apiInfo, setApiInfo] = useState<any>(null);
 
   useEffect(() => {
     loadIndexData();

@@ -2,12 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { XMarkIcon, PaperAirplaneIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { AIResponseFormatter } from './AIResponseFormatter';
+import { StockRecommendationCard } from './StockRecommendationCard';
+import { StockInsightsPanel } from './StockInsightsPanel';
+import { StockAnalysisApiService, StockAnalysisResult } from '../../services/stockAnalysisApi';
 
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
+  stockAnalysis?: StockAnalysisResult;
+  isStreaming?: boolean;
+  isComplete?: boolean;
 }
 
 interface AIAssistantProps {
@@ -30,16 +36,19 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your AI financial assistant. I can help you with personalized advice about loans, EMIs, investments, and financial planning in India. I have access to your current loan details and can provide specific recommendations. How can I assist you today?",
+      text: "Hello! I'm your AI financial assistant. I can help you with personalized advice about loans, EMIs, investments, and financial planning in India. I also provide comprehensive stock market analysis with real-time data and buy/sell recommendations for Indian stocks. How can I assist you today?",
       isUser: false,
-      timestamp: new Date()
+      timestamp: new Date(),
+      isComplete: true
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,6 +93,22 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
     };
   }, []);
 
+  // Cleanup function to abort streaming when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const stopStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setStreamingMessageId(null);
+      setIsLoading(false);
+    }
+  };
 
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-IN', {
@@ -103,6 +128,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
 • Investment planning and SIP advice  
 • Tax-saving strategies
 • Financial planning questions
+• **NEW:** Stock market analysis with buy/sell recommendations
+• **NEW:** Real-time Indian stock data and insights
 
 ${loanData ? `I have access to your current loan details:
 • Loan Amount: ${formatCurrency(loanData.principal)}
@@ -110,7 +137,7 @@ ${loanData ? `I have access to your current loan details:
 • Interest Rate: ${loanData.interestRate}% p.a.
 • Tenure: ${loanData.term} ${loanData.termUnit}
 
-Ask me anything about your loan or financial planning!` : 'Please ask me any financial question!'}`;
+Ask me anything about your loan, financial planning, or stock analysis!` : 'Please ask me any financial or stock market question!'}`;
   };
 
   // Simplified validation for API responses
@@ -132,6 +159,127 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
     };
   };
 
+  // Function to handle streaming OpenAI responses
+  const handleStreamingResponse = async (
+    messages: any[], 
+    aiMessageId: string,
+    stockAnalysis?: StockAnalysisResult
+  ) => {
+    try {
+      // Abort any existing streaming request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      abortControllerRef.current = new AbortController();
+      setStreamingMessageId(aiMessageId);
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-2024-11-20',
+          messages: messages,
+          max_tokens: 2000,
+          temperature: 0.0,
+          seed: 42,
+          stream: true, // Enable streaming
+        }),
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              
+              if (data === '[DONE]') {
+                // Mark streaming as complete
+                setMessages(prev => prev.map(msg => 
+                  msg.id === aiMessageId 
+                    ? { ...msg, isStreaming: false, isComplete: true, stockAnalysis }
+                    : msg
+                ));
+                setStreamingMessageId(null);
+                return;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                
+                if (content) {
+                  accumulatedText += content;
+                  
+                  // Update the streaming message
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === aiMessageId 
+                      ? { ...msg, text: accumulatedText, isStreaming: true, isComplete: false }
+                      : msg
+                  ));
+                }
+              } catch (parseError) {
+                // Skip invalid JSON lines
+                continue;
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+    } catch (error: any) {
+      console.error('Streaming error:', error);
+      
+      if (error.name === 'AbortError') {
+        console.log('Streaming aborted by user');
+        return;
+      }
+      
+      // On error, show fallback message
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: generateFallbackResponse(''), 
+              isStreaming: false, 
+              isComplete: true,
+              stockAnalysis 
+            }
+          : msg
+      ));
+    } finally {
+      setStreamingMessageId(null);
+      setIsLoading(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -148,7 +296,30 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
     setIsLoading(true);
     
     try {
-      console.log('Calling OpenAI API with:', currentInput);
+      console.log('Processing query:', currentInput);
+      
+      // Check if this is a stock-related query
+      const stockAnalysis = await StockAnalysisApiService.analyzeStock(currentInput);
+      
+      if (stockAnalysis) {
+        console.log('Stock analysis detected, processing...');
+        
+        // Create AI response with stock analysis (no streaming needed for structured data)
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `I've analyzed ${stockAnalysis.stockData.companyName} (${stockAnalysis.stockData.symbol}) for you. Here's my comprehensive analysis with real-time data and market insights:`,
+          isUser: false,
+          timestamp: new Date(),
+          stockAnalysis: stockAnalysis,
+          isComplete: true
+        };
+
+        setMessages(prev => [...prev, aiResponse]);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('No stock analysis, proceeding with OpenAI API...');
       
       // Check if API key is available
       if (!process.env.REACT_APP_OPENAI_API_KEY) {
@@ -157,7 +328,7 @@ Ask me anything about your loan or financial planning!` : 'Please ask me any fin
       }
       
       // Enhanced system prompt leveraging GPT-4o's mathematical capabilities
-      let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities, specialized in precise loan calculations, tax planning, and investment strategies.
+      let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities, specialized in precise loan calculations, tax planning, investment strategies, and Indian stock market analysis.
 
 **CRITICAL: QUESTION TYPE DETECTION**
 Before responding, determine if the question is:
@@ -177,6 +348,21 @@ Before responding, determine if the question is:
 - "Should I prepay my loan or invest this amount?"
 - "What's my current EMI breakdown?"
 - "If I increase my EMI by ₹5000, when will loan finish?"
+
+**STOCK MARKET QUESTION** - Examples:
+- "Should I buy Tata Motors stock?"
+- "Analysis of Reliance Industries"
+- "Is TCS a good investment?"
+- "What's your view on HDFC Bank shares?"
+- "Stock analysis for Infosys"
+
+**STOCK ANALYSIS CAPABILITIES:**
+- Real-time Indian stock market data analysis
+- Technical and fundamental analysis
+- Buy/sell/hold recommendations with reasoning
+- Risk assessment and target price calculations
+- Market sentiment analysis from recent news
+- Sector and industry comparison
 
 **RESPONSE RULES:**
 
@@ -366,61 +552,33 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
 - Say: "Your loan will finish in...", "You'll save...", "This means..."`;
       }
 
-      // Direct OpenAI API call
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-2024-11-20',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
-            {
-              role: 'user',
-              content: currentInput
-            }
-          ],
-          max_tokens: 2000,
-          temperature: 0.0,  // Maximum consistency
-          seed: 42,          // Deterministic responses
-        }),
-      });
-
-      console.log('📥 OpenAI API Response status:', response.status);
-      console.log('📥 OpenAI API Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenAI API Error response:', errorText);
-        throw new Error(`OpenAI API error! status: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      const aiResponseText = data.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
-      const validation = validateResponse(aiResponseText);
-      
-      // Always use OpenAI response unless it's clearly an error
-      const finalResponseText = aiResponseText.trim() ? aiResponseText : generateFallbackResponse(currentInput);
-      
-      // Log validation issues for debugging but don't reject the response
-      if (!validation.isValid) {
-        console.warn('Response validation issues (but using response anyway):', validation.issues);
-      }
-      
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: finalResponseText,
+      // Create streaming AI response message
+      const aiMessageId = (Date.now() + 1).toString();
+      const streamingMessage: Message = {
+        id: aiMessageId,
+        text: '',
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        isStreaming: true,
+        isComplete: false
       };
 
-      setMessages(prev => [...prev, aiResponse]);
+      // Add the streaming message to the chat
+      setMessages(prev => [...prev, streamingMessage]);
+
+      // Start streaming response
+      const chatMessages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: currentInput
+        }
+      ];
+
+      await handleStreamingResponse(chatMessages, aiMessageId);
       
     } catch (error) {
       console.error('OpenAI API Error:', error);
@@ -449,15 +607,15 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
   const suggestedQuestions = loanData ? [
     "How can I reduce my loan burden?",
     "Should I prepay my loan or invest?",
-    "What's my current interest rate vs market?",
-    "How much can I save with prepayment?",
+    "Should I buy Tata Motors stock?",
+    "Analysis of Reliance Industries",
     "What are the tax benefits for my loan?"
   ] : [
-    "How to reduce my home loan burden?",
+    "Should I buy TCS stock?",
+    "Analysis of HDFC Bank shares",
     "Best investment options for 30-year-old?",
-    "Should I prepay my loan or invest?",
-    "Tax saving strategies for this year?",
-    "How much emergency fund do I need?"
+    "Is Infosys a good investment?",
+    "Tax saving strategies for this year?"
   ];
 
   if (!isOpen) return null;
@@ -514,10 +672,52 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
                     <div className="p-2 sm:p-3 lg:p-4">
                       <AIResponseFormatter text={message.text} />
                     </div>
+                    
+                    {/* Stock Analysis Cards */}
+                    {message.stockAnalysis && (
+                      <div className="p-2 sm:p-3 lg:p-4 pt-0 space-y-4">
+                        <StockRecommendationCard
+                          stockData={message.stockAnalysis.stockData}
+                          recommendation={message.stockAnalysis.recommendation}
+                        />
+                        <StockInsightsPanel
+                          insights={message.stockAnalysis.webInsights}
+                          stockSymbol={message.stockAnalysis.stockData.symbol}
+                        />
+                        
+                        {/* Disclaimers */}
+                        <div className="bg-yellow-50 dark:bg-yellow-600/10 border border-yellow-200 dark:border-yellow-600/30 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                            Important Disclaimers:
+                          </h4>
+                          <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                            {message.stockAnalysis.disclaimers.map((disclaimer, index) => (
+                              <li key={index} className="flex items-start">
+                                <span className="mr-2">•</span>
+                                <span>{disclaimer}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="px-2 sm:px-3 lg:px-4 pb-2">
-                      <p className="text-xs text-gray-500 dark:text-dark-text-muted">
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-500 dark:text-dark-text-muted">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                        {message.isStreaming && (
+                          <div className="flex items-center space-x-2">
+                            <div className="flex space-x-1">
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                            </div>
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Typing...</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -577,13 +777,22 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
                 maxHeight: '120px'
               }}
             />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              className="px-2 sm:px-3 lg:px-3 h-[40px] min-w-[40px] flex-shrink-0"
-            >
-              <PaperAirplaneIcon className="w-4 h-4 lg:w-5 lg:h-5" />
-            </Button>
+            {streamingMessageId ? (
+              <Button
+                onClick={stopStreaming}
+                className="px-2 sm:px-3 lg:px-3 h-[40px] min-w-[40px] flex-shrink-0 bg-red-600 hover:bg-red-700 text-white"
+              >
+                <XMarkIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="px-2 sm:px-3 lg:px-3 h-[40px] min-w-[40px] flex-shrink-0"
+              >
+                <PaperAirplaneIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
