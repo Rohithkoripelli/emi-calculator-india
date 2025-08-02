@@ -207,7 +207,7 @@ export class WebScrapingService {
         `${this.VERCEL_API_BASE}/api/enhanced-stock-search` : 
         '/api/enhanced-stock-search';
       
-      const response = await this.fetchWithTimeout(apiUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -216,7 +216,7 @@ export class WebScrapingService {
           symbol: symbol,
           companyName: companyName
         }),
-      }, 15000); // 15 second timeout
+      });
 
       if (!response.ok) {
         throw new Error(`Vercel enhanced search error: ${response.status}`);

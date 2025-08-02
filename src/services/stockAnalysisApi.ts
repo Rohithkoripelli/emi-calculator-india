@@ -315,13 +315,11 @@ export class StockAnalysisApiService {
         // Debug logging to see what data we're getting
         console.log(`📊 Raw API data for ${symbolVariation}:`, stockData);
         
-        if (stockData && (stockData.price > 0 || stockData.name)) {
-          // Accept data if we have a valid price OR at least a company name
-          const price = stockData.price || 0;
-          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${price}`);
+        if (stockData && stockData.price > 0) {
+          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
           return this.mapToStockAnalysisData(stockData, symbol);
         } else if (stockData) {
-          console.log(`⚠️ API returned data for ${symbolVariation} but insufficient data:`, stockData);
+          console.log(`⚠️ API returned data for ${symbolVariation} but price is ${stockData.price}`);
         }
       } catch (error) {
         console.log(`⚠️ Failed to fetch API data for ${symbolVariation}:`, error);
@@ -1041,22 +1039,6 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
-    // Add timeout to prevent infinite loading
-    return Promise.race([
-      this.performStockAnalysis(userQuery),
-      new Promise<null>((_, reject) => 
-        setTimeout(() => reject(new Error('Stock analysis timeout after 30 seconds')), 30000)
-      )
-    ]).catch(error => {
-      console.error('Stock analysis failed or timed out:', error);
-      return null;
-    });
-  }
-
-  /**
-   * Internal method to perform the actual stock analysis
-   */
-  private static async performStockAnalysis(userQuery: string): Promise<StockAnalysisResult | null> {
     try {
       // Parse stock symbol from query
       const symbol = this.parseStockSymbol(userQuery);
@@ -1067,24 +1049,31 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       console.log(`🔍 Starting comprehensive analysis for: ${symbol}`);
       console.log(`📝 User query: "${userQuery}"`);
 
-      // Step 1: Enhanced stock data fetching with web scraping
-      console.log(`📊 Step 1: Enhanced stock data fetching for ${symbol}...`);
+      // Step 1: Start both stock data fetching and web search in parallel for speed
+      console.log(`📊 Step 1: Starting parallel data fetching for ${symbol}...`);
       
       // Extract company name from user query for better data fetching
       const extractedCompanyName = this.extractCompanyNameFromQuery(userQuery, symbol);
-      let stockData = await this.fetchStockData(symbol, extractedCompanyName);
       
-      // If stock data not found, create a fallback entry and continue with web search
-      if (!stockData) {
+      // Run API data fetching and web search in parallel
+      const [stockDataResult, webInsightsResult] = await Promise.allSettled([
+        this.fetchStockData(symbol, extractedCompanyName),
+        this.searchStockInsights(symbol, extractedCompanyName)
+      ]);
+      
+      // Process stock data result
+      let stockData: StockAnalysisData;
+      if (stockDataResult.status === 'fulfilled' && stockDataResult.value) {
+        stockData = stockDataResult.value;
+        console.log(`✅ Enhanced stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
+      } else {
         console.log(`⚠️ No stock data found for ${symbol}, creating fallback entry for web search`);
         stockData = this.createFallbackStockData(symbol, extractedCompanyName);
-      } else {
-        console.log(`✅ Enhanced stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
       }
-
-      // Step 2: Always perform web search (even if stock data not found)
-      console.log(`🌐 Step 2: Performing web search for latest insights on ${stockData.companyName}...`);
-      const webInsights = await this.searchStockInsights(symbol, stockData.companyName);
+      
+      // Process web insights result
+      const webInsights = webInsightsResult.status === 'fulfilled' ? webInsightsResult.value : [];
+      console.log(`🌐 Web search completed: ${webInsights.length} insights found`);
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
 
       // Step 2.5: Extract price data from web search if not available from APIs

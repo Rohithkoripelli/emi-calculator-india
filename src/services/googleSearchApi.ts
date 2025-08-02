@@ -24,16 +24,11 @@ export class GoogleSearchApiService {
         return this.getFallbackInsights(symbol, companyName);
       }
 
-      // Enhanced search queries for comprehensive stock analysis
+      // Optimized search queries - fewer but more targeted for speed
       const searchQueries = [
-        `${companyName} stock price live NSE BSE current rate`,
-        `${symbol} stock price today real time market data`,
-        `${companyName} share price current trading volume`,
+        `${companyName} ${symbol} stock price live NSE BSE current rate`,
         `${symbol} analyst recommendation target price buy sell ${new Date().getFullYear()}`,
-        `${companyName} quarterly results earnings news latest`,
-        `${symbol} technical analysis chart price movement`,
-        `${companyName} fundamental analysis financial performance`,
-        `${symbol} dividend yield pe ratio market cap data`
+        `${companyName} quarterly results earnings news latest ${new Date().getFullYear()}`
       ];
 
       const allResults: WebSearchResult[] = [];
@@ -71,8 +66,8 @@ export class GoogleSearchApiService {
             console.log(`✅ Found ${searchResults.length} results for: ${query}`);
           }
 
-          // Add delay between requests to respect rate limits
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Minimal delay between requests for speed
+          await new Promise(resolve => setTimeout(resolve, 50));
           
         } catch (error) {
           console.warn(`⚠️ Search failed for query: ${query}`, error);
