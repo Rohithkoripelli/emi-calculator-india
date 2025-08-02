@@ -802,245 +802,155 @@ export class StockAnalysisApiService {
   }
 
   /**
-   * Extract stock price and metrics from web search results using targeted financial website scraping
+   * SIMPLIFIED: Direct web scraping from first Google result
    */
   private static async extractPriceFromWebSearch(webInsights: WebSearchResult[], stockData: StockAnalysisData): Promise<StockAnalysisData> {
     if (stockData.currentPrice > 0) {
       return stockData; // Already has real-time data
     }
 
-    console.log(`💰 Attempting to extract accurate price data from ${webInsights.length} web search results...`);
+    console.log(`💰 SIMPLIFIED APPROACH: Scraping price from first Google result...`);
 
-    // First, try to fetch directly from MoneyControl or other reliable sources
-    const moneyControlResult = await this.fetchFromMoneyControl(stockData.symbol, stockData.companyName);
-    if (moneyControlResult) {
-      console.log(`✅ Extracted data from MoneyControl: ₹${moneyControlResult.currentPrice}`);
-      return { ...stockData, ...moneyControlResult };
+    // Step 1: Do a direct Google search for the stock price
+    const directPriceData = await this.directGoogleStockSearch(stockData.symbol, stockData.companyName);
+    if (directPriceData) {
+      console.log(`✅ DIRECT SCRAPING SUCCESS: ₹${directPriceData.currentPrice}`);
+      return { ...stockData, ...directPriceData };
     }
 
-    // Fallback to parsing search results with more accurate patterns
-    return this.parseSearchResultsForPrice(webInsights, stockData);
+    console.log(`⚠️ Direct scraping failed, using basic fallback`);
+    return stockData;
   }
 
   /**
-   * Fetch stock data directly from MoneyControl using their search
+   * SIMPLE DIRECT APPROACH: Google search → First result → Extract price
    */
-  private static async fetchFromMoneyControl(symbol: string, companyName: string): Promise<Partial<StockAnalysisData> | null> {
+  private static async directGoogleStockSearch(symbol: string, companyName: string): Promise<Partial<StockAnalysisData> | null> {
     try {
-      console.log(`🔍 Searching MoneyControl for ${symbol} / ${companyName}...`);
-      
-      // Search MoneyControl using Google with site-specific search
-      const searchQuery = `site:moneycontrol.com "${companyName}" stock price OR "${symbol}" share price`;
-      
       const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
       const searchEngineId = process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
       
-      if (!apiKey || !searchEngineId) return null;
+      if (!apiKey || !searchEngineId) {
+        console.error('❌ Google API credentials missing');
+        return null;
+      }
 
+      // Simple search query - exactly what user would search
+      const searchQuery = `${companyName} stock price today`;
+      console.log(`🔍 Direct Google search: "${searchQuery}"`);
+      
       const searchUrl = `https://www.googleapis.com/customsearch/v1?` + new URLSearchParams({
         key: apiKey,
         cx: searchEngineId,
         q: searchQuery,
-        num: '3'
+        num: '3' // Get top 3 results
       });
 
       const response = await fetch(searchUrl);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.error(`❌ Google search failed: ${response.status}`);
+        return null;
+      }
 
       const data = await response.json();
       
-      if (data.items && data.items.length > 0) {
-        for (const item of data.items) {
-          const extractedData = this.parseMoneyControlData(item);
-          if (extractedData && extractedData.currentPrice && extractedData.currentPrice > 0) {
-            return extractedData;
-          }
+      if (!data.items || data.items.length === 0) {
+        console.error(`❌ No search results found for: ${searchQuery}`);
+        return null;
+      }
+
+      // Try each result until we find price data
+      for (let i = 0; i < data.items.length; i++) {
+        const result = data.items[i];
+        console.log(`🔍 Trying result ${i + 1}: ${result.title}`);
+        
+        const extractedData = this.extractPriceFromSingleResult(result);
+        if (extractedData && extractedData.currentPrice && extractedData.currentPrice > 0) {
+          console.log(`✅ SUCCESS from result ${i + 1}: ₹${extractedData.currentPrice}`);
+          return extractedData;
         }
       }
-      
+
+      console.log(`❌ No price data found in any of the ${data.items.length} results`);
       return null;
+
     } catch (error) {
-      console.error('Error fetching from MoneyControl:', error);
+      console.error('❌ Direct Google search error:', error);
       return null;
     }
   }
 
   /**
-   * Parse MoneyControl specific data patterns
+   * Extract price data from a single search result (title + snippet)
    */
-  private static parseMoneyControlData(searchResult: any): Partial<StockAnalysisData> | null {
+  private static extractPriceFromSingleResult(result: any): Partial<StockAnalysisData> | null {
     try {
-      const text = (searchResult.title + ' ' + searchResult.snippet).toLowerCase();
+      const text = `${result.title} ${result.snippet}`.toLowerCase();
+      console.log(`📄 Analyzing: "${text.substring(0, 100)}..."`);
       
-      // MoneyControl specific patterns - much more precise
-      const patterns = {
-        // Price patterns specifically for MoneyControl format
-        price: [
-          /price[:\s]*₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-          /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:\([+-][0-9.%]+\))?/gi,
-          /(?:current|live|latest)\s*price[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-        ],
-        
-        // Day range patterns
-        dayHigh: [
-          /(?:day\s*high|high)[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-          /h[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-        ],
-        
-        dayLow: [
-          /(?:day\s*low|low)[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-          /l[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/gi,
-        ],
-        
-        // Change patterns
-        change: [
-          /([+-]?\d+(?:\.\d+)?)\s*%/g,
-          /\(([+-]?\d+(?:\.\d+)?)\s*%\)/g,
-        ],
-        
-        // Volume patterns
-        volume: [
-          /volume[:\s]*([0-9,]+(?:\.[0-9]+)?)\s*(?:crore|lakh|k)?/gi,
-          /traded[:\s]*([0-9,]+(?:\.[0-9]+)?)\s*(?:shares?|crore|lakh)?/gi,
-        ]
-      };
+      // Look for price patterns - be more aggressive in extraction
+      const pricePatterns = [
+        /₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /rs\.?\s*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /price[:\s]*([0-9,]+(?:\.[0-9]{1,2})?)/g,
+        /([0-9,]+(?:\.[0-9]{1,2})?)\s*rupees/g
+      ];
 
-      const result: Partial<StockAnalysisData> = {};
-
-      // Extract price
-      for (const pattern of patterns.price) {
-        const match = text.match(pattern);
-        if (match) {
-          const priceStr = match[1]?.replace(/,/g, '') || match[0].match(/([0-9,]+(?:\.[0-9]{1,2})?)/)?.[1]?.replace(/,/g, '');
-          if (priceStr) {
-            const price = parseFloat(priceStr);
-            if (price > 1 && price < 100000) {
-              result.currentPrice = price;
-              console.log(`✅ MoneyControl price: ₹${price}`);
-              break;
-            }
-          }
-        }
-      }
-
-      // Extract day high
-      for (const pattern of patterns.dayHigh) {
-        const match = text.match(pattern);
-        if (match) {
-          const highStr = match[1]?.replace(/,/g, '');
-          if (highStr) {
-            const high = parseFloat(highStr);
-            if (high > 0) {
-              result.dayHigh = high;
-              console.log(`✅ MoneyControl day high: ₹${high}`);
-              break;
-            }
-          }
-        }
-      }
-
-      // Extract day low
-      for (const pattern of patterns.dayLow) {
-        const match = text.match(pattern);
-        if (match) {
-          const lowStr = match[1]?.replace(/,/g, '');
-          if (lowStr) {
-            const low = parseFloat(lowStr);
-            if (low > 0) {
-              result.dayLow = low;
-              console.log(`✅ MoneyControl day low: ₹${low}`);
-              break;
-            }
-          }
-        }
-      }
-
-      // Extract change percentage
-      for (const pattern of patterns.change) {
-        const match = text.match(pattern);
-        if (match) {
-          const changeStr = match[1] || match[0].replace(/[()%]/g, '');
-          const changePercent = parseFloat(changeStr);
-          if (!isNaN(changePercent)) {
-            result.changePercent = changePercent;
-            if (result.currentPrice) {
-              result.change = (result.currentPrice * changePercent) / 100;
-            }
-            console.log(`✅ MoneyControl change: ${changePercent}%`);
-            break;
-          }
-        }
-      }
-
-      // Extract volume
-      for (const pattern of patterns.volume) {
-        const match = text.match(pattern);
-        if (match) {
-          const volumeStr = match[1]?.replace(/,/g, '');
-          if (volumeStr) {
-            let volume = parseFloat(volumeStr);
-            // Convert units
-            if (text.includes('crore')) volume *= 10000000;
-            else if (text.includes('lakh')) volume *= 100000;
-            else if (text.includes('k')) volume *= 1000;
+      for (const pattern of pricePatterns) {
+        const matches = Array.from(text.matchAll(pattern));
+        for (const match of matches) {
+          const priceStr = match[1].replace(/,/g, '');
+          const price = parseFloat(priceStr);
+          
+          // Be more lenient with price validation for Indian stocks
+          if (price >= 1 && price <= 100000) {
+            console.log(`💰 FOUND PRICE: ₹${price} using pattern: ${pattern.source}`);
             
-            if (volume > 0) {
-              result.volume = Math.round(volume);
-              console.log(`✅ MoneyControl volume: ${result.volume}`);
-              break;
+            // Try to extract percentage change
+            const changePattern = /([+-]?\d+(?:\.\d+)?)\s*%/;
+            const changeMatch = text.match(changePattern);
+            let changePercent = 0;
+            
+            if (changeMatch) {
+              changePercent = parseFloat(changeMatch[1]);
+              console.log(`📈 FOUND CHANGE: ${changePercent}%`);
             }
+
+            // Try to extract day high/low
+            let dayHigh = 0, dayLow = 0;
+            
+            const highMatch = text.match(/high[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
+            if (highMatch) {
+              dayHigh = parseFloat(highMatch[1].replace(/,/g, ''));
+              console.log(`📊 FOUND HIGH: ₹${dayHigh}`);
+            }
+            
+            const lowMatch = text.match(/low[:\s]*₹?\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
+            if (lowMatch) {
+              dayLow = parseFloat(lowMatch[1].replace(/,/g, ''));
+              console.log(`📊 FOUND LOW: ₹${dayLow}`);
+            }
+
+            return {
+              currentPrice: price,
+              changePercent: changePercent,
+              change: (price * changePercent) / 100,
+              dayHigh: dayHigh > 0 ? dayHigh : undefined,
+              dayLow: dayLow > 0 ? dayLow : undefined,
+              lastUpdated: new Date().toISOString()
+            };
           }
         }
       }
 
-      return Object.keys(result).length > 0 ? result : null;
+      console.log(`❌ No valid price found in this result`);
+      return null;
+      
     } catch (error) {
-      console.error('Error parsing MoneyControl data:', error);
+      console.error('❌ Error extracting from single result:', error);
       return null;
     }
   }
 
-  /**
-   * Fallback parsing of search results with improved accuracy
-   */
-  private static parseSearchResultsForPrice(webInsights: WebSearchResult[], stockData: StockAnalysisData): StockAnalysisData {
-    console.log(`📊 Parsing search results as fallback...`);
-    
-    for (const insight of webInsights) {
-      const text = (insight.title + ' ' + insight.snippet);
-      
-      // Only trust results from reliable financial sources
-      const reliableSources = ['moneycontrol', 'economic times', 'livemint', 'business standard', 'yahoo finance'];
-      const isReliableSource = reliableSources.some(source => 
-        insight.url.toLowerCase().includes(source) || insight.source.toLowerCase().includes(source)
-      );
-      
-      if (!isReliableSource) continue;
-      
-      console.log(`🔍 Parsing reliable source: ${insight.source}`);
-      
-      // More conservative price extraction
-      const priceMatch = text.match(/₹\s*([0-9,]+(?:\.[0-9]{1,2})?)/);
-      if (priceMatch) {
-        const price = parseFloat(priceMatch[1].replace(/,/g, ''));
-        if (price > 10 && price < 50000) { // More reasonable range for Indian stocks
-          console.log(`✅ Extracted price ₹${price} from ${insight.source}`);
-          
-          const changeMatch = text.match(/([+-]?\d+(?:\.\d+)?)\s*%/);
-          const changePercent = changeMatch ? parseFloat(changeMatch[1]) : 0;
-          
-          return {
-            ...stockData,
-            currentPrice: price,
-            changePercent: changePercent,
-            change: (price * changePercent) / 100,
-            lastUpdated: new Date().toISOString()
-          };
-        }
-      }
-    }
-
-    console.log(`⚠️ Could not extract reliable price data from search results`);
-    return stockData;
-  }
+  // Removed complex MoneyControl code - keeping it simple now
 }
