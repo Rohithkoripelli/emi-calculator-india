@@ -301,8 +301,8 @@ export class StockAnalysisApiService {
       reasoning = [
         `Strong buy signals from comprehensive analysis (Score: ${overallScore.toFixed(1)}/100)`,
         `Current market sentiment is positive based on recent news and analysis`,
-        `Technical indicators show favorable entry point at ₹${stockData.currentPrice}`,
-        `Web research reveals positive outlook from financial experts`
+        stockData.currentPrice > 0 ? `Technical indicators show favorable entry point at ₹${stockData.currentPrice}` : `Web research indicates favorable market conditions`,
+        `Financial experts show positive outlook based on web research`
       ];
     } else if (overallScore <= 35) {
       action = 'SELL';
@@ -310,8 +310,8 @@ export class StockAnalysisApiService {
       reasoning = [
         `Analysis suggests caution with current weak signals (Score: ${overallScore.toFixed(1)}/100)`,
         `Market sentiment appears negative based on recent developments`,
-        `Technical indicators show potential downside risk`,
-        `Web research indicates concerns from market analysts`
+        stockData.currentPrice > 0 ? `Technical indicators show potential downside risk` : `Web research indicates market concerns`,
+        `Financial analysts express caution based on recent news`
       ];
     } else {
       action = 'HOLD';
@@ -319,8 +319,8 @@ export class StockAnalysisApiService {
       reasoning = [
         `Mixed signals suggest a wait-and-watch approach (Score: ${overallScore.toFixed(1)}/100)`,
         `Market sentiment is neutral with conflicting opinions`,
-        `Current price levels appear fairly valued`,
-        `Recommend monitoring for clearer directional signals`
+        stockData.currentPrice > 0 ? `Current price levels appear fairly valued` : `Insufficient data for clear directional signals`,
+        `Recommend monitoring for clearer market direction`
       ];
     }
     
@@ -451,6 +451,11 @@ export class StockAnalysisApiService {
   private static calculateTechnicalScore(stockData: StockAnalysisData): number {
     let score = 50; // Neutral starting point
     
+    // If no real-time data available, return neutral score
+    if (stockData.currentPrice === 0) {
+      return 50;
+    }
+    
     // Price momentum
     if (stockData.changePercent > 2) score += 20;
     else if (stockData.changePercent > 0) score += 10;
@@ -478,6 +483,8 @@ export class StockAnalysisApiService {
    * Enhanced web sentiment analysis using comprehensive keyword analysis
    */
   private static analyzeWebSentiment(insights: WebSearchResult[]): number {
+    if (insights.length === 0) return 50; // Neutral if no insights
+    
     let score = 50; // Neutral starting point
     
     const strongPositiveKeywords = [
@@ -717,21 +724,25 @@ export class StockAnalysisApiService {
       console.log(`🔍 Starting comprehensive analysis for: ${symbol}`);
       console.log(`📝 User query: "${userQuery}"`);
 
-      // Step 1: Fetch real-time stock data
-      console.log(`📊 Step 1: Fetching real-time stock data for ${symbol}...`);
-      const stockData = await this.fetchStockData(symbol);
+      // Step 1: Try to fetch real-time stock data
+      console.log(`📊 Step 1: Attempting to fetch stock data for ${symbol}...`);
+      let stockData = await this.fetchStockData(symbol);
+      
+      // If stock data not found, create a fallback entry and continue with web search
       if (!stockData) {
-        throw new Error(`Could not fetch stock data for ${symbol}`);
+        console.log(`⚠️ No stock data found for ${symbol}, creating fallback entry for web search`);
+        stockData = this.createFallbackStockData(symbol, userQuery);
+      } else {
+        console.log(`✅ Stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
       }
-      console.log(`✅ Stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
 
-      // Step 2: Perform comprehensive web search
+      // Step 2: Always perform web search (even if stock data not found)
       console.log(`🌐 Step 2: Performing web search for latest insights on ${stockData.companyName}...`);
       const webInsights = await this.searchStockInsights(symbol, stockData.companyName);
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
 
-      // Step 3: Enhanced recommendation based on real data
-      console.log(`🧠 Step 3: Generating AI recommendation using real-time data and web insights...`);
+      // Step 3: Generate recommendation based on available data
+      console.log(`🧠 Step 3: Generating recommendation using available data and web insights...`);
       const recommendation = await this.generateEnhancedRecommendation(
         stockData, 
         webInsights, 
@@ -745,16 +756,42 @@ export class StockAnalysisApiService {
         recommendation,
         analysisDate: new Date().toISOString(),
         disclaimers: [
-          'This analysis is based on real-time data and web research for educational purposes only.',
+          'This analysis is based on web research and available data for educational purposes only.',
           'Not financial advice - consult qualified financial advisors before investing.',
           'Stock markets are volatile and past performance doesn\'t guarantee future results.',
           'Consider your risk tolerance, investment objectives, and financial situation.',
-          'Web search data reflects current market sentiment but may change rapidly.'
+          'Web search data reflects current market sentiment but may change rapidly.',
+          ...(stockData.currentPrice === 0 ? ['Real-time stock price data not available - analysis based on web research only.'] : [])
         ]
       };
     } catch (error) {
       console.error('❌ Error in comprehensive stock analysis:', error);
       return null;
     }
+  }
+
+  /**
+   * Create fallback stock data when real data is not available
+   */
+  private static createFallbackStockData(symbol: string, userQuery: string): StockAnalysisData {
+    // Extract company name from the original query for better web search
+    const words = userQuery.toLowerCase().split(/\s+/);
+    const stopWords = new Set(['should', 'i', 'buy', 'sell', 'stock', 'share', 'analysis', 'of', 'about']);
+    const companyWords = words.filter(word => !stopWords.has(word) && word.length > 2);
+    const companyName = companyWords.length > 0 ? companyWords.join(' ').toUpperCase() : symbol;
+    
+    return {
+      symbol: symbol,
+      companyName: companyName,
+      currentPrice: 0, // Indicates no real-time data available
+      change: 0,
+      changePercent: 0,
+      dayHigh: 0,
+      dayLow: 0,
+      volume: 0,
+      sector: 'General',
+      industry: 'General',
+      lastUpdated: new Date().toISOString()
+    };
   }
 }

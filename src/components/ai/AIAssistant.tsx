@@ -305,28 +305,32 @@ Ask me anything about your loan, financial planning, or stock analysis!` : 'Plea
         console.log('Stock analysis detected, processing...');
         
         // Generate detailed response based on the analysis
+        const hasRealTimeData = stockAnalysis.stockData.currentPrice > 0;
+        
         const analysisText = `**${stockAnalysis.stockData.companyName} Stock Analysis**
 
-**Current Market Data:**
+${hasRealTimeData ? `**Current Market Data:**
 - **Price**: ₹${stockAnalysis.stockData.currentPrice} (${stockAnalysis.stockData.changePercent > 0 ? '+' : ''}${stockAnalysis.stockData.changePercent.toFixed(2)}%)
 - **Day Range**: ₹${stockAnalysis.stockData.dayLow} - ₹${stockAnalysis.stockData.dayHigh}
-- **Volume**: ${stockAnalysis.stockData.volume > 0 ? (stockAnalysis.stockData.volume / 1000).toFixed(0) + 'K' : 'N/A'}
+- **Volume**: ${stockAnalysis.stockData.volume > 0 ? (stockAnalysis.stockData.volume / 1000).toFixed(0) + 'K' : 'N/A'}` : `**Analysis Based on Web Research:**
+- Real-time price data not available for this symbol
+- Analysis focused on market sentiment and news research`}
 
 **Web Research Summary:**
-Based on ${stockAnalysis.webInsights.length} recent articles from financial sources including ${Array.from(new Set(stockAnalysis.webInsights.map(i => i.source))).slice(0, 3).join(', ')}.
+Based on ${stockAnalysis.webInsights.length} recent articles from financial sources${stockAnalysis.webInsights.length > 0 ? ` including ${Array.from(new Set(stockAnalysis.webInsights.map(i => i.source))).slice(0, 3).join(', ')}` : ''}.
 
 **My Recommendation:**
-After analyzing real-time market data and recent news, I recommend **${stockAnalysis.recommendation.action}** with ${stockAnalysis.recommendation.confidence}% confidence.
+After analyzing ${hasRealTimeData ? 'real-time market data and' : ''} recent news and market sentiment, I recommend **${stockAnalysis.recommendation.action}** with ${stockAnalysis.recommendation.confidence}% confidence.
 
 **Key Analysis Points:**
 ${stockAnalysis.recommendation.reasoning.map(reason => `• ${reason}`).join('\n')}
 
-${stockAnalysis.recommendation.targetPrice ? `**Target Price**: ₹${stockAnalysis.recommendation.targetPrice.toFixed(2)}` : ''}
-${stockAnalysis.recommendation.stopLoss ? `**Stop Loss**: ₹${stockAnalysis.recommendation.stopLoss.toFixed(2)}` : ''}
+${stockAnalysis.recommendation.targetPrice && hasRealTimeData ? `**Target Price**: ₹${stockAnalysis.recommendation.targetPrice.toFixed(2)}` : ''}
+${stockAnalysis.recommendation.stopLoss && hasRealTimeData ? `**Stop Loss**: ₹${stockAnalysis.recommendation.stopLoss.toFixed(2)}` : ''}
 
 **Investment Horizon**: ${stockAnalysis.recommendation.timeHorizon.replace('_', ' ').toLowerCase()}
 
-The analysis below shows detailed insights including the latest market sentiment and news analysis.`;
+${hasRealTimeData ? 'The analysis below shows detailed insights including the latest market sentiment and news analysis.' : 'The analysis below is based primarily on web research and market sentiment from financial news sources.'}`;
 
         // Create AI response with stock analysis
         const aiResponse: Message = {
