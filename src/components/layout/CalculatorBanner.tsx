@@ -27,7 +27,7 @@ export const CalculatorBanner: React.FC<CalculatorBannerProps> = ({
                   className="mr-4"
                 />
                 <div>
-                  <h1 className="text-xl font-bold text-white">fincalcpro</h1>
+                  <h1 className="text-xl font-bold text-white">Fincalcpro</h1>
                   <p className="text-sm text-blue-100">Professional Financial Tools</p>
                 </div>
               </div>

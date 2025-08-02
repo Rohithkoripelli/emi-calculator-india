@@ -54,7 +54,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
               className="flex-shrink-0"
             />
             <div className="flex-1 min-w-0 ml-2">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">fincalcpro</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">Fincalcpro</h1>
               <p className="text-xs text-gray-500 dark:text-gray-300 truncate">Financial Planning Tool</p>
             </div>
           </div>
