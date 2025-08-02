@@ -109,7 +109,17 @@ export class StockAnalysisApiService {
     'ultratech': 'ULTRACEMCO', 'ultratech cement': 'ULTRACEMCO',
     'grasim': 'GRASIM',
     'adani': 'ADANIPORTS', 'adani ports': 'ADANIPORTS',
-    'jsw steel': 'JSWSTEEL', 'jswsteel': 'JSWSTEEL'
+    'jsw steel': 'JSWSTEEL', 'jswsteel': 'JSWSTEEL',
+    
+    // Food delivery and new age companies
+    'swiggy': 'SWIGGY', 'swiggy limited': 'SWIGGY',
+    'zomato': 'ZOMATO', 'zomato limited': 'ZOMATO',
+    'nykaa': 'NYKAA', 'nykaa limited': 'NYKAA', 'fsnl': 'NYKAA',
+    'paytm': 'PAYTM', 'one97': 'PAYTM', 'one97 communications': 'PAYTM',
+    'policybazaar': 'POLICYBZR', 'policy bazaar': 'POLICYBZR', 'pb fintech': 'POLICYBZR',
+    'dmart': 'DMART', 'avenue supermarts': 'DMART',
+    'indigo': 'INDIGO', 'interglobe': 'INDIGO', 'interglobe aviation': 'INDIGO',
+    'spicejet': 'SPICEJET', 'spice jet': 'SPICEJET'
   };
 
   /**
@@ -232,7 +242,10 @@ export class StockAnalysisApiService {
     const stopWords = new Set([
       'i', 'should', 'buy', 'sell', 'invest', 'stock', 'share', 'shares', 'equity', 'now', 'today',
       'analysis', 'recommendation', 'price', 'target', 'good', 'bad', 'investment', 'the', 'a', 'an',
-      'is', 'are', 'was', 'were', 'what', 'when', 'where', 'why', 'how', 'about', 'for', 'on', 'in'
+      'is', 'are', 'was', 'were', 'what', 'when', 'where', 'why', 'how', 'about', 'for', 'on', 'in',
+      'can', 'could', 'will', 'would', 'shall', 'may', 'might', 'do', 'does', 'did', 'have', 'has', 'had',
+      'be', 'been', 'being', 'to', 'at', 'by', 'from', 'with', 'into', 'during', 'before', 'after',
+      'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'
     ]);
     
     // Extract meaningful words that could be company names
@@ -1377,42 +1390,50 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
   // Removed complex MoneyControl code - keeping it simple now
 
   /**
-   * Test function to verify fuzzy matching fix
+   * Test function to verify stock symbol extraction fixes
    */
-  static testFuzzyMatching(): void {
-    console.log('🧪 Testing fuzzy matching fix...');
+  static testStockSymbolExtraction(): void {
+    console.log('🧪 Testing stock symbol extraction fixes...');
     
-    // Test cases that should NOT match to ICICI
+    // Test cases for proper symbol extraction
     const testCases = [
+      { query: 'Can I buy swiggy shares now?', expected: 'SWIGGY' },
+      { query: 'Should I invest in swiggy stock?', expected: 'SWIGGY' },
+      { query: 'eternal stock', expected: null },
+      { query: 'Zomato share price today', expected: 'ZOMATO' },
+      { query: 'Can HDFC bank be a good investment?', expected: 'HDFCBANK' },
+      { query: 'Will TCS stock go up?', expected: 'TCS' },
+      { query: 'Should I buy Infosys shares?', expected: 'INFY' }
+    ];
+    
+    testCases.forEach(testCase => {
+      const result = this.parseStockSymbol(testCase.query);
+      const status = result === testCase.expected ? '✅ PASS' : '❌ FAIL';
+      console.log(`${status}: "${testCase.query}" -> Expected: ${testCase.expected || 'null'}, Got: ${result || 'null'}`);
+      
+      if (result !== testCase.expected) {
+        console.error(`❌ EXTRACTION BUG: Query "${testCase.query}" should extract "${testCase.expected}" but got "${result}"`);
+      }
+    });
+
+    // Test fuzzy matching specifically
+    console.log('\n🧪 Testing fuzzy matching...');
+    const fuzzyTests = [
       'eternal stock',
       'eternal',
       'internal company',
       'external factors'
     ];
     
-    testCases.forEach(testCase => {
+    fuzzyTests.forEach(testCase => {
       const result = this.findFuzzyStockMatch(testCase);
-      console.log(`Test: "${testCase}" -> ${result || 'No match'}`);
+      console.log(`Fuzzy test: "${testCase}" -> ${result || 'No match'}`);
       
       if (testCase.includes('eternal') && result === 'ICICIBANK') {
-        console.error(`❌ BUG: "${testCase}" incorrectly matched to ICICI!`);
+        console.error(`❌ FUZZY BUG: "${testCase}" incorrectly matched to ICICI!`);
       } else if (testCase.includes('eternal') && !result) {
-        console.log(`✅ FIXED: "${testCase}" correctly returns no match`);
+        console.log(`✅ FUZZY FIXED: "${testCase}" correctly returns no match`);
       }
-    });
-    
-    // Test cases that SHOULD match
-    const validCases = [
-      'icici bank',
-      'icici',
-      'hdfc bank',
-      'reliance',
-      'tata consultancy services'
-    ];
-    
-    validCases.forEach(testCase => {
-      const result = this.findFuzzyStockMatch(testCase);
-      console.log(`Valid test: "${testCase}" -> ${result || 'No match'}`);
     });
   }
 }
