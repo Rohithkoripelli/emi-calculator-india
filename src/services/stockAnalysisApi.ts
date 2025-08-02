@@ -1,5 +1,6 @@
 import { HybridStockApiService } from './hybridStockApi';
 import { GoogleSearchApiService } from './googleSearchApi';
+import { WebScrapingService, ScrapedStockData } from './webScrapingService';
 
 export interface StockAnalysisData {
   symbol: string;
@@ -50,20 +51,76 @@ export interface StockAnalysisResult {
 export class StockAnalysisApiService {
   private static readonly CORS_PROXY = 'https://api.allorigins.win/get?url=';
   
-  // Common stock keywords for detection
+  // Enhanced stock keywords for better detection
   private static readonly STOCK_KEYWORDS = [
-    'stock', 'share', 'equity', 'buy', 'sell', 'invest', 'investment', 'price', 'analysis', 
-    'recommendation', 'target', 'trading', 'market', 'nse', 'bse', 'sensex', 'nifty'
+    'stock', 'share', 'shares', 'equity', 'buy', 'sell', 'invest', 'investment', 'price', 'analysis', 
+    'recommendation', 'target', 'trading', 'market', 'nse', 'bse', 'sensex', 'nifty',
+    'portfolio', 'holding', 'dividend', 'returns', 'profit', 'loss', 'company', 'sector',
+    'industry', 'listing', 'ipo', 'earnings', 'quarterly', 'results', 'financial'
   ];
 
+  // Enhanced Indian stock symbols database for better recognition
+  private static readonly INDIAN_STOCKS = {
+    // Major banks
+    'hdfc': 'HDFCBANK', 'hdfc bank': 'HDFCBANK', 'hdfcbank': 'HDFCBANK',
+    'icici': 'ICICIBANK', 'icici bank': 'ICICIBANK', 'icicibank': 'ICICIBANK',
+    'sbi': 'SBIN', 'state bank': 'SBIN', 'state bank of india': 'SBIN',
+    'axis': 'AXISBANK', 'axis bank': 'AXISBANK', 'axisbank': 'AXISBANK',
+    'kotak': 'KOTAKBANK', 'kotak bank': 'KOTAKBANK', 'kotak mahindra': 'KOTAKBANK',
+    
+    // Major IT companies
+    'tcs': 'TCS', 'tata consultancy': 'TCS', 'tata consultancy services': 'TCS',
+    'infosys': 'INFY', 'infy': 'INFY',
+    'wipro': 'WIPRO',
+    'hcl': 'HCLTECH', 'hcl tech': 'HCLTECH', 'hcl technologies': 'HCLTECH',
+    'tech mahindra': 'TECHM', 'techm': 'TECHM',
+    
+    // Tata Group companies
+    'tata steel': 'TATASTEEL', 'tatasteel': 'TATASTEEL',
+    'tata motors': 'TATAMOTORS', 'tatamotors': 'TATAMOTORS',
+    'tata power': 'TATAPOWER', 'tatapower': 'TATAPOWER',
+    'tata consumer': 'TATACONSUM', 'tataconsum': 'TATACONSUM',
+    
+    // Reliance group
+    'reliance': 'RELIANCE', 'ril': 'RELIANCE', 'reliance industries': 'RELIANCE',
+    'jio': 'RELIANCE', 'reliance jio': 'RELIANCE',
+    
+    // Other major stocks
+    'bharti airtel': 'BHARTIARTL', 'airtel': 'BHARTIARTL', 'bhartiartl': 'BHARTIARTL',
+    'asian paints': 'ASIANPAINT', 'asianpaint': 'ASIANPAINT',
+    'nestle': 'NESTLEIND', 'nestle india': 'NESTLEIND',
+    'hindustan unilever': 'HINDUNILVR', 'hul': 'HINDUNILVR', 'hindunilvr': 'HINDUNILVR',
+    'itc': 'ITC',
+    'larsen': 'LT', 'larsen toubro': 'LT', 'l&t': 'LT',
+    'bajaj finance': 'BAJFINANCE', 'bajfinance': 'BAJFINANCE',
+    'bajaj auto': 'BAJAJ-AUTO', 'bajajauto': 'BAJAJ-AUTO',
+    'maruti': 'MARUTI', 'maruti suzuki': 'MARUTI',
+    'mahindra': 'M&M', 'mahindra and mahindra': 'M&M',
+    'hero motocorp': 'HEROMOTOCO', 'hero': 'HEROMOTOCO', 'heromotoco': 'HEROMOTOCO',
+    'sun pharma': 'SUNPHARMA', 'sunpharma': 'SUNPHARMA',
+    'dr reddy': 'DRREDDY', 'dr reddys': 'DRREDDY', 'drreddy': 'DRREDDY',
+    'cipla': 'CIPLA',
+    'coal india': 'COALINDIA', 'coalindia': 'COALINDIA',
+    'ntpc': 'NTPC',
+    'power grid': 'POWERGRID', 'powergrid': 'POWERGRID',
+    'ongc': 'ONGC',
+    'bpcl': 'BPCL',
+    'ioc': 'IOC', 'indian oil': 'IOC',
+    'ultratech': 'ULTRACEMCO', 'ultratech cement': 'ULTRACEMCO',
+    'grasim': 'GRASIM',
+    'adani': 'ADANIPORTS', 'adani ports': 'ADANIPORTS',
+    'jsw steel': 'JSWSTEEL', 'jswsteel': 'JSWSTEEL',
+    'tata consultancy services': 'TCS'
+  };
+
   /**
-   * Intelligently extract stock names from user queries using NLP-like approach
+   * Enhanced intelligent stock symbol extraction using NLP patterns and Indian stock database
    */
   static parseStockSymbol(query: string): string | null {
     const cleanQuery = query.toLowerCase().trim();
-    console.log(`🔍 Intelligent stock detection for: "${cleanQuery}"`);
+    console.log(`🔍 Enhanced stock detection for: "${cleanQuery}"`);
     
-    // Check if this is a stock-related query
+    // Step 1: Check if this is a stock-related query
     const hasStockKeyword = this.STOCK_KEYWORDS.some(keyword => cleanQuery.includes(keyword));
     
     if (!hasStockKeyword) {
@@ -73,7 +130,21 @@ export class StockAnalysisApiService {
     
     console.log(`✅ Stock-related query detected`);
     
-    // Extract potential company names using intelligent parsing
+    // Step 2: First try to find exact matches in Indian stocks database
+    const exactMatch = this.findExactStockMatch(cleanQuery);
+    if (exactMatch) {
+      console.log(`🎯 Found exact match in database: ${exactMatch}`);
+      return exactMatch;
+    }
+    
+    // Step 3: Try fuzzy matching for partial company names
+    const fuzzyMatch = this.findFuzzyStockMatch(cleanQuery);
+    if (fuzzyMatch) {
+      console.log(`🎯 Found fuzzy match in database: ${fuzzyMatch}`);
+      return fuzzyMatch;
+    }
+    
+    // Step 4: Extract potential company names using intelligent parsing
     const potentialStockNames = this.extractCompanyNames(cleanQuery);
     
     if (potentialStockNames.length > 0) {
@@ -82,6 +153,61 @@ export class StockAnalysisApiService {
     }
     
     console.log(`❌ No stock names extracted from: "${cleanQuery}"`);
+    return null;
+  }
+
+  /**
+   * Find exact matches in the Indian stocks database
+   */
+  private static findExactStockMatch(query: string): string | null {
+    // Check for exact company name matches
+    for (const [companyName, symbol] of Object.entries(this.INDIAN_STOCKS)) {
+      if (query.includes(companyName)) {
+        return symbol;
+      }
+    }
+    
+    // Check for direct symbol matches (e.g., "TCS", "RELIANCE")
+    const words = query.split(/\s+/);
+    for (const word of words) {
+      const upperWord = word.toUpperCase();
+      if (Object.values(this.INDIAN_STOCKS).includes(upperWord)) {
+        return upperWord;
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Find fuzzy matches for partial company names
+   */
+  private static findFuzzyStockMatch(query: string): string | null {
+    // Look for partial matches (minimum 3 characters)
+    for (const [companyName, symbol] of Object.entries(this.INDIAN_STOCKS)) {
+      if (companyName.length >= 3 && query.includes(companyName)) {
+        return symbol;
+      }
+    }
+    
+    // Try word-by-word matching for multi-word company names
+    const queryWords = query.split(/\s+/);
+    for (const [companyName, symbol] of Object.entries(this.INDIAN_STOCKS)) {
+      const companyWords = companyName.split(/\s+/);
+      let matchCount = 0;
+      
+      for (const companyWord of companyWords) {
+        if (queryWords.some(queryWord => queryWord.includes(companyWord) || companyWord.includes(queryWord))) {
+          matchCount++;
+        }
+      }
+      
+      // If more than half the words match, consider it a match
+      if (matchCount > companyWords.length / 2) {
+        return symbol;
+      }
+    }
+    
     return null;
   }
 
@@ -143,12 +269,37 @@ export class StockAnalysisApiService {
   }
 
   /**
-   * Intelligently fetch stock data trying multiple variations
+   * Enhanced stock data fetching with multiple data sources and web scraping
    */
-  static async fetchStockData(symbol: string): Promise<StockAnalysisData | null> {
-    console.log(`📊 Attempting to fetch stock data for: ${symbol}`);
+  static async fetchStockData(symbol: string, companyName?: string): Promise<StockAnalysisData | null> {
+    console.log(`📊 Enhanced stock data fetching for: ${symbol} (${companyName || 'Unknown'})`);
     
-    // Try multiple symbol variations
+    // Step 1: Try existing API sources first (fastest)
+    console.log(`🔄 Step 1: Trying existing API sources...`);
+    const apiData = await this.tryApiSources(symbol);
+    if (apiData && apiData.currentPrice > 0) {
+      console.log(`✅ API sources successful: ${apiData.companyName} at ₹${apiData.currentPrice}`);
+      return apiData;
+    }
+
+    // Step 2: Use web scraping as primary data source
+    console.log(`🕷️ Step 2: Using web scraping for comprehensive data...`);
+    const scrapedData = await WebScrapingService.comprehensiveScraping(symbol, companyName || symbol);
+    
+    if (scrapedData && scrapedData.current_price > 0) {
+      console.log(`✅ Web scraping successful: ${scrapedData.company_name} at ₹${scrapedData.current_price} (Quality: ${scrapedData.data_quality})`);
+      return this.mapScrapedDataToAnalysisData(scrapedData);
+    }
+
+    // Step 3: Fallback with basic structure for web search analysis
+    console.log(`⚠️ Step 3: Creating fallback structure for web-only analysis...`);
+    return this.createFallbackStockData(symbol, companyName || symbol);
+  }
+
+  /**
+   * Try multiple API sources (existing implementation)
+   */
+  private static async tryApiSources(symbol: string): Promise<StockAnalysisData | null> {
     const symbolVariations = [
       `${symbol}.NS`,     // NSE format
       symbol,             // Direct symbol
@@ -159,21 +310,40 @@ export class StockAnalysisApiService {
     
     for (const symbolVariation of symbolVariations) {
       try {
-        console.log(`🔄 Trying symbol variation: ${symbolVariation}`);
+        console.log(`🔄 Trying API for symbol variation: ${symbolVariation}`);
         const stockData = await HybridStockApiService.getIndexData(symbolVariation);
         
         if (stockData && stockData.price > 0) {
-          console.log(`✅ Found stock data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
+          console.log(`✅ Found API data for ${symbolVariation}: ${stockData.name} at ₹${stockData.price}`);
           return this.mapToStockAnalysisData(stockData, symbol);
         }
       } catch (error) {
-        console.log(`⚠️ Failed to fetch data for ${symbolVariation}:`, error);
+        console.log(`⚠️ Failed to fetch API data for ${symbolVariation}:`, error);
         continue; // Try next variation
       }
     }
     
-    console.error(`❌ Could not fetch stock data for any variation of: ${symbol}`);
+    console.log(`❌ No API data found for any variation of: ${symbol}`);
     return null;
+  }
+
+  /**
+   * Map scraped data to analysis format
+   */
+  private static mapScrapedDataToAnalysisData(scrapedData: ScrapedStockData): StockAnalysisData {
+    return {
+      symbol: scrapedData.symbol,
+      companyName: scrapedData.company_name,
+      currentPrice: scrapedData.current_price,
+      change: (scrapedData.current_price * scrapedData.change_percent) / 100,
+      changePercent: scrapedData.change_percent,
+      dayHigh: scrapedData.day_high || 0,
+      dayLow: scrapedData.day_low || 0,
+      volume: scrapedData.volume || 0,
+      sector: 'General', // Will be enhanced with web search data
+      industry: 'General', // Will be enhanced with web search data
+      lastUpdated: scrapedData.last_updated
+    };
   }
 
   /**
@@ -265,29 +435,180 @@ export class StockAnalysisApiService {
   }
 
   /**
-   * Generate enhanced AI-powered stock recommendation using web insights
+   * Generate AI-powered recommendation using OpenAI with structured prompts
    */
   static async generateEnhancedRecommendation(
     stockData: StockAnalysisData,
     webInsights: WebSearchResult[],
     userQuery: string
   ): Promise<StockRecommendation> {
-    console.log(`🧠 Analyzing ${stockData.companyName} using real-time data and ${webInsights.length} web insights...`);
+    console.log(`🧠 Generating AI-powered analysis for ${stockData.companyName} using ${webInsights.length} web insights...`);
 
-    // Enhanced analysis using web insights
+    // First calculate base scores
     const webSentimentScore = this.analyzeWebSentiment(webInsights);
     const technicalScore = this.calculateTechnicalScore(stockData);
     const fundamentalScore = this.calculateFundamentalScore(stockData);
     const newsImpactScore = this.calculateNewsImpact(webInsights);
     
-    console.log(`📊 Analysis scores - Technical: ${technicalScore}, Sentiment: ${webSentimentScore}, Fundamental: ${fundamentalScore}, News Impact: ${newsImpactScore}`);
-    
+    console.log(`📊 Base scores - Technical: ${technicalScore}, Sentiment: ${webSentimentScore}, Fundamental: ${fundamentalScore}, News: ${newsImpactScore}`);
+
+    // Try AI-powered analysis first
+    const aiRecommendation = await this.generateAIRecommendation(stockData, webInsights, userQuery);
+    if (aiRecommendation) {
+      console.log(`✅ AI-powered recommendation generated for ${stockData.companyName}`);
+      return aiRecommendation;
+    }
+
+    // Fallback to enhanced algorithmic analysis
+    console.log(`🔄 Using enhanced algorithmic fallback for ${stockData.companyName}`);
+    return this.generateAlgorithmicRecommendation(stockData, webInsights, {
+      technicalScore,
+      webSentimentScore,
+      fundamentalScore,
+      newsImpactScore
+    });
+  }
+
+  /**
+   * Generate AI recommendation using OpenAI with structured prompts
+   */
+  private static async generateAIRecommendation(
+    stockData: StockAnalysisData,
+    webInsights: WebSearchResult[],
+    userQuery: string
+  ): Promise<StockRecommendation | null> {
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      if (!apiKey) {
+        console.log('OpenAI API key not available for AI analysis');
+        return null;
+      }
+
+      // Prepare structured data for AI
+      const marketData = {
+        symbol: stockData.symbol,
+        companyName: stockData.companyName,
+        currentPrice: stockData.currentPrice,
+        changePercent: stockData.changePercent,
+        dayHigh: stockData.dayHigh,
+        dayLow: stockData.dayLow,
+        volume: stockData.volume,
+        sector: stockData.sector
+      };
+
+      const newsData = webInsights.slice(0, 5).map(insight => ({
+        title: insight.title,
+        snippet: insight.snippet,
+        source: insight.source,
+        date: insight.publishedDate
+      }));
+
+      const aiPrompt = `You are an expert Indian stock market analyst. Analyze the following stock data and provide a recommendation.
+
+**STOCK DATA:**
+${JSON.stringify(marketData, null, 2)}
+
+**RECENT NEWS & ANALYSIS:**
+${newsData.map(news => `- [${news.source}] ${news.title}: ${news.snippet}`).join('\n')}
+
+**USER QUERY:** "${userQuery}"
+
+**ANALYSIS REQUIREMENTS:**
+1. Provide a clear BUY/SELL/HOLD recommendation
+2. Give confidence level (0-100%)
+3. Provide 4-6 key reasoning points
+4. Suggest time horizon (SHORT_TERM/MEDIUM_TERM/LONG_TERM)
+5. Calculate target price and stop loss if applicable
+
+**RESPONSE FORMAT (JSON only):**
+{
+  "action": "BUY|SELL|HOLD",
+  "confidence": 85,
+  "reasoning": [
+    "Technical analysis shows...",
+    "Market sentiment indicates...",
+    "Fundamental factors suggest...",
+    "Recent news impact..."
+  ],
+  "timeHorizon": "MEDIUM_TERM",
+  "targetPrice": 1250.50,
+  "stopLoss": 1150.25,
+  "analysis": "Brief overall analysis summary"
+}
+
+Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific factors. Base your analysis on actual data provided.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-2024-11-20',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert Indian stock market analyst. Respond only with valid JSON format as requested.'
+            },
+            {
+              role: 'user',
+              content: aiPrompt
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices?.[0]?.message?.content;
+
+      if (aiResponse) {
+        try {
+          const parsedResponse = JSON.parse(aiResponse);
+          console.log(`🤖 AI recommendation parsed successfully for ${stockData.companyName}`);
+          
+          return {
+            action: parsedResponse.action as 'BUY' | 'SELL' | 'HOLD',
+            confidence: Math.min(95, Math.max(50, parsedResponse.confidence)),
+            reasoning: parsedResponse.reasoning || ['AI analysis completed'],
+            timeHorizon: parsedResponse.timeHorizon || 'MEDIUM_TERM',
+            targetPrice: parsedResponse.targetPrice || undefined,
+            stopLoss: parsedResponse.stopLoss || undefined
+          };
+        } catch (parseError) {
+          console.error('Failed to parse AI response:', parseError);
+          return null;
+        }
+      }
+
+      return null;
+
+    } catch (error) {
+      console.error('AI recommendation generation failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Enhanced algorithmic recommendation (fallback)
+   */
+  private static generateAlgorithmicRecommendation(
+    stockData: StockAnalysisData,
+    webInsights: WebSearchResult[],
+    scores: { technicalScore: number; webSentimentScore: number; fundamentalScore: number; newsImpactScore: number }
+  ): StockRecommendation {
     // Weighted scoring with emphasis on web insights
     const overallScore = (
-      technicalScore * 0.25 + 
-      webSentimentScore * 0.35 + 
-      fundamentalScore * 0.25 + 
-      newsImpactScore * 0.15
+      scores.technicalScore * 0.25 + 
+      scores.webSentimentScore * 0.35 + 
+      scores.fundamentalScore * 0.25 + 
+      scores.newsImpactScore * 0.15
     );
     
     let action: 'BUY' | 'SELL' | 'HOLD';
@@ -724,16 +1045,19 @@ export class StockAnalysisApiService {
       console.log(`🔍 Starting comprehensive analysis for: ${symbol}`);
       console.log(`📝 User query: "${userQuery}"`);
 
-      // Step 1: Try to fetch real-time stock data
-      console.log(`📊 Step 1: Attempting to fetch stock data for ${symbol}...`);
-      let stockData = await this.fetchStockData(symbol);
+      // Step 1: Enhanced stock data fetching with web scraping
+      console.log(`📊 Step 1: Enhanced stock data fetching for ${symbol}...`);
+      
+      // Extract company name from user query for better data fetching
+      const extractedCompanyName = this.extractCompanyNameFromQuery(userQuery, symbol);
+      let stockData = await this.fetchStockData(symbol, extractedCompanyName);
       
       // If stock data not found, create a fallback entry and continue with web search
       if (!stockData) {
         console.log(`⚠️ No stock data found for ${symbol}, creating fallback entry for web search`);
-        stockData = this.createFallbackStockData(symbol, userQuery);
+        stockData = this.createFallbackStockData(symbol, extractedCompanyName);
       } else {
-        console.log(`✅ Stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
+        console.log(`✅ Enhanced stock data retrieved: ${stockData.companyName} at ₹${stockData.currentPrice}`);
       }
 
       // Step 2: Always perform web search (even if stock data not found)
@@ -777,18 +1101,34 @@ export class StockAnalysisApiService {
   }
 
   /**
+   * Extract company name from user query
+   */
+  private static extractCompanyNameFromQuery(userQuery: string, symbol: string): string {
+    // First check if symbol matches known companies
+    const knownCompany = Object.entries(this.INDIAN_STOCKS).find(([name, sym]) => sym === symbol);
+    if (knownCompany) {
+      return knownCompany[0].split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+    }
+
+    // Extract from query
+    const words = userQuery.toLowerCase().split(/\s+/);
+    const stopWords = new Set(['should', 'i', 'buy', 'sell', 'stock', 'share', 'shares', 'analysis', 'of', 'about', 'the', 'a', 'an']);
+    const companyWords = words.filter(word => !stopWords.has(word) && word.length > 2 && !this.STOCK_KEYWORDS.includes(word));
+    
+    return companyWords.length > 0 ? 
+      companyWords.map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 
+      symbol;
+  }
+
+  /**
    * Create fallback stock data when real data is not available
    */
-  private static createFallbackStockData(symbol: string, userQuery: string): StockAnalysisData {
-    // Extract company name from the original query for better web search
-    const words = userQuery.toLowerCase().split(/\s+/);
-    const stopWords = new Set(['should', 'i', 'buy', 'sell', 'stock', 'share', 'analysis', 'of', 'about']);
-    const companyWords = words.filter(word => !stopWords.has(word) && word.length > 2);
-    const companyName = companyWords.length > 0 ? companyWords.join(' ').toUpperCase() : symbol;
-    
+  private static createFallbackStockData(symbol: string, companyName: string): StockAnalysisData {
     return {
       symbol: symbol,
-      companyName: companyName,
+      companyName: companyName || symbol,
       currentPrice: 0, // Will be updated from web search if found
       change: 0,
       changePercent: 0,

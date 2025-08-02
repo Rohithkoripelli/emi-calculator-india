@@ -4,7 +4,16 @@
   "env": {
     "CI": "false"
   },
+  "functions": {
+    "api/scrape-stock.py": {
+      "runtime": "python3.9"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/scrape-stock",
+      "destination": "/api/scrape-stock.py"
+    },
     {
       "source": "/((?!api).*)",
       "destination": "/index.html"
