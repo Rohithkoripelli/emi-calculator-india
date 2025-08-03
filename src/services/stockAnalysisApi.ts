@@ -1,6 +1,7 @@
 import { HybridStockApiService } from './hybridStockApi';
 import { GoogleSearchApiService } from './googleSearchApi';
 import { WebScrapingService, ScrapedStockData } from './webScrapingService';
+import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
 
 export interface StockAnalysisData {
   symbol: string;
@@ -241,46 +242,22 @@ export class StockAnalysisApiService {
   };
 
   /**
-   * Enhanced intelligent stock symbol extraction using NLP patterns and Indian stock database
+   * Enhanced intelligent stock symbol extraction using Excel-based comprehensive database
    */
   static parseStockSymbol(query: string): string | null {
-    const cleanQuery = query.toLowerCase().trim();
-    console.log(`🔍 Enhanced stock detection for: "${cleanQuery}"`);
+    console.log(`🔍 Using Excel-based stock detection for: "${query}"`);
     
-    // Step 1: Check if this is a stock-related query
-    const hasStockKeyword = this.STOCK_KEYWORDS.some(keyword => cleanQuery.includes(keyword));
+    // Use the Excel-based service for stock symbol extraction
+    const symbol = ExcelBasedStockAnalysisService.parseStockSymbol(query);
     
-    if (!hasStockKeyword) {
-      console.log(`❌ No stock keywords detected in: "${cleanQuery}"`);
-      return null;
+    if (symbol) {
+      const company = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
+      console.log(`✅ Excel database match: ${company?.name} (${symbol})`);
+    } else {
+      console.log(`❌ No match found in Excel database for: "${query}"`);
     }
     
-    console.log(`✅ Stock-related query detected`);
-    
-    // Step 2: First try to find exact matches in Indian stocks database
-    const exactMatch = this.findExactStockMatch(cleanQuery);
-    if (exactMatch) {
-      console.log(`🎯 Found exact match in database: ${exactMatch}`);
-      return exactMatch;
-    }
-    
-    // Step 3: Try fuzzy matching for partial company names
-    const fuzzyMatch = this.findFuzzyStockMatch(cleanQuery);
-    if (fuzzyMatch) {
-      console.log(`🎯 Found fuzzy match in database: ${fuzzyMatch}`);
-      return fuzzyMatch;
-    }
-    
-    // Step 4: Extract potential company names using intelligent parsing
-    const potentialStockNames = this.extractCompanyNames(cleanQuery);
-    
-    if (potentialStockNames.length > 0) {
-      console.log(`🎯 Extracted potential stock names: ${potentialStockNames.join(', ')}`);
-      return potentialStockNames[0]; // Return the first/most likely match
-    }
-    
-    console.log(`❌ No stock names extracted from: "${cleanQuery}"`);
-    return null;
+    return symbol;
   }
 
   /**
@@ -1317,15 +1294,16 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
    * Extract company name from user query
    */
   private static extractCompanyNameFromQuery(userQuery: string, symbol: string): string {
-    // First check if symbol matches known companies
-    const knownCompany = Object.entries(this.INDIAN_STOCKS).find(([name, sym]) => sym === symbol);
-    if (knownCompany) {
-      return knownCompany[0].split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
+    // First check if symbol matches known companies from Excel database
+    const company = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
+    if (company) {
+      // Return properly formatted company name
+      return company.name.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
       ).join(' ');
     }
 
-    // Extract from query
+    // Fallback: Extract from query
     const words = userQuery.toLowerCase().split(/\s+/);
     const stopWords = new Set(['should', 'i', 'buy', 'sell', 'stock', 'share', 'shares', 'analysis', 'of', 'about', 'the', 'a', 'an']);
     const companyWords = words.filter(word => !stopWords.has(word) && word.length > 2 && !this.STOCK_KEYWORDS.includes(word));
@@ -1544,7 +1522,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       const status = result === testCase.expected ? '✅ PASS' : '❌ FAIL';
       const isPassing = result === testCase.expected;
       
-      console.log(`${index + 1:2}. ${status}: "${testCase.query}"`);
+      console.log(`${(index + 1).toString().padStart(2)}. ${status}: "${testCase.query}"`);
       console.log(`     Expected: ${testCase.expected || 'null'}, Got: ${result || 'null'}`);
       
       if (isPassing) {
