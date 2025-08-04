@@ -1566,19 +1566,22 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         this.searchStockInsights(symbol, extractedCompanyName)
       ]);
       
-      // Add overall timeout for the entire data fetching process
-      const [stockDataResult, webInsightsResult] = await Promise.race([
-        dataPromises,
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Overall data fetch timeout')), 15000) // 15 second max
-        )
-      ]).catch((error) => {
-        console.log(`⚠️ Data fetching timed out, using minimal fallbacks`);
-        return [
-          { status: 'rejected' as const, reason: error },
-          { status: 'rejected' as const, reason: error }
-        ];
-      });
+      // Add overall timeout but preserve successful results
+      let results;
+      try {
+        results = await Promise.race([
+          dataPromises,
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Overall data fetch timeout')), 15000) // 15 second max
+          )
+        ]);
+      } catch (error) {
+        console.log(`⚠️ Data fetching timed out, checking for partial results...`);
+        // Even if timeout occurs, get whatever results are available
+        results = await dataPromises;
+      }
+      
+      const [stockDataResult, webInsightsResult] = results;
       
       // Process stock data result
       let stockData: StockAnalysisData;
