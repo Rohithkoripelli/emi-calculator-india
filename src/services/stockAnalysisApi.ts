@@ -676,8 +676,13 @@ export class StockAnalysisApiService {
     try {
       console.log(`🔍 Performing Google search for ${companyName} (${symbol})`);
       
-      // Use Google Custom Search API exclusively
-      const results = await GoogleSearchApiService.searchStockInsights(symbol, companyName);
+      // Add aggressive timeout to prevent long delays
+      const results = await Promise.race([
+        GoogleSearchApiService.searchStockInsights(symbol, companyName, 5), // Limit to 5 results
+        new Promise<WebSearchResult[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Search timeout')), 3000) // 3 second timeout
+        )
+      ]);
       
       if (results.length > 0) {
         console.log(`✅ Found ${results.length} Google search results for ${symbol}`);
@@ -687,7 +692,7 @@ export class StockAnalysisApiService {
         return this.getFallbackInsights(symbol, companyName);
       }
     } catch (error) {
-      console.error('❌ Google search failed:', error);
+      console.error('❌ Google search failed or timed out:', error);
       return this.getFallbackInsights(symbol, companyName);
     }
   }
@@ -826,6 +831,10 @@ ${newsData.map(news => `- [${news.source}] ${news.title}: ${news.snippet}`).join
 
 Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific factors. Base your analysis on actual data provided.`;
 
+      // Add aggressive timeout for OpenAI API call
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -833,7 +842,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
           'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-2024-11-20',
+          model: 'gpt-4o-mini', // Use faster mini model instead of full gpt-4o
           messages: [
             {
               role: 'system',
@@ -844,10 +853,13 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
               content: aiPrompt
             }
           ],
-          max_tokens: 1000,
+          max_tokens: 500, // Reduced from 1000 for faster response
           temperature: 0.1,
         }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`OpenAI API error: ${response.status}`);
@@ -1466,9 +1478,48 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
   }
 
   /**
+   * Create fast fallback recommendation when AI processing times out
+   */
+  private static createFallbackRecommendation(stockData: StockAnalysisData, webInsights: WebSearchResult[]): StockRecommendation {
+    console.log(`⚡ Creating fast fallback recommendation for ${stockData.symbol}`);
+    
+    // Quick scoring based on available data
+    const hasPrice = stockData.currentPrice > 0;
+    const hasNewsInsights = webInsights.length > 2;
+    const confidence = hasPrice && hasNewsInsights ? 65 : 45;
+    
+    return {
+      action: 'HOLD',
+      confidence: confidence,
+      reasoning: [
+        hasPrice ? `Current price: ₹${stockData.currentPrice}` : 'Limited price data available',
+        hasNewsInsights ? `${webInsights.length} news insights analyzed` : 'Limited news analysis',
+        'Quick analysis completed - consult financial advisor for detailed recommendations'
+      ],
+      timeHorizon: 'MEDIUM_TERM'
+    };
+  }
+
+  /**
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
+    // Add overall timeout for the entire analysis to prevent long waits
+    return Promise.race([
+      this.performStockAnalysis(userQuery),
+      new Promise<StockAnalysisResult | null>((_, reject) => 
+        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 30000) // 30 second max
+      )
+    ]).catch((error) => {
+      console.error('❌ Stock analysis timed out or failed:', error);
+      return null;
+    });
+  }
+
+  /**
+   * Internal method to perform stock analysis without timeout wrapper
+   */
+  private static async performStockAnalysis(userQuery: string): Promise<StockAnalysisResult | null> {
     try {
       // Parse stock symbol from query
       const symbol = this.parseStockSymbol(userQuery);
@@ -1500,11 +1551,25 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       console.log(`📊 Step 1: Starting parallel data fetching for ${symbol}...`);
       
       
-      // Run API data fetching and web search in parallel
-      const [stockDataResult, webInsightsResult] = await Promise.allSettled([
+      // Run API data fetching and web search in parallel with overall timeout
+      const dataPromises = Promise.allSettled([
         this.fetchStockData(symbol, extractedCompanyName),
         this.searchStockInsights(symbol, extractedCompanyName)
       ]);
+      
+      // Add overall timeout for the entire data fetching process
+      const [stockDataResult, webInsightsResult] = await Promise.race([
+        dataPromises,
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Overall data fetch timeout')), 10000) // 10 second max
+        )
+      ]).catch((error) => {
+        console.log(`⚠️ Data fetching timed out, using minimal fallbacks`);
+        return [
+          { status: 'rejected' as const, reason: error },
+          { status: 'rejected' as const, reason: error }
+        ];
+      });
       
       // Process stock data result
       let stockData: StockAnalysisData;
@@ -1532,12 +1597,20 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       
       if (queryIntent === 'buy_sell_recommendation') {
         console.log(`🧠 Step 3: Generating recommendation using ${stockData.currentPrice > 0 ? 'extracted' : 'web-only'} data and insights...`);
-        recommendation = await this.generateEnhancedRecommendation(
-          stockData, 
-          webInsights, 
-          userQuery
-        );
-        console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
+        
+        // Add timeout for recommendation generation
+        try {
+          recommendation = await Promise.race([
+            this.generateEnhancedRecommendation(stockData, webInsights, userQuery),
+            new Promise<StockRecommendation>((_, reject) => 
+              setTimeout(() => reject(new Error('Recommendation timeout')), 15000) // 15 second timeout
+            )
+          ]);
+          console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
+        } catch (error) {
+          console.log(`⚠️ Recommendation generation timed out, using fallback`);
+          recommendation = this.createFallbackRecommendation(stockData, webInsights);
+        }
       } else {
         // For analysis queries, provide neutral HOLD with analysis focus
         console.log(`📊 Step 3: Skipping recommendation for analysis query, providing neutral analysis...`);
