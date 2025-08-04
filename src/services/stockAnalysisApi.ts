@@ -870,7 +870,13 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
 
       if (aiResponse) {
         try {
-          const parsedResponse = JSON.parse(aiResponse);
+          // Clean the AI response to handle markdown code blocks
+          const cleanedResponse = aiResponse
+            .replace(/```json\s*/g, '')
+            .replace(/```\s*/g, '')
+            .trim();
+          
+          const parsedResponse = JSON.parse(cleanedResponse);
           console.log(`🤖 AI recommendation parsed successfully for ${stockData.companyName}`);
           
           return {
