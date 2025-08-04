@@ -1,0 +1,27 @@
+[
+  {
+    "symbol": "INDIGO",
+    "name": "Interglobe Aviat",
+    "cleanName": "interglobe aviat"
+  },
+  {
+    "symbol": "NESTLEIND",
+    "name": "Nestle India",
+    "cleanName": "nestle india"
+  },
+  {
+    "symbol": "SBILIFE",
+    "name": "SBI Life Insuran",
+    "cleanName": "sbi life insuran"
+  },
+  {
+    "symbol": "HYUNDAI",
+    "name": "Hyundai Motor I",
+    "cleanName": "hyundai motor i"
+  },
+  {
+    "symbol": "HINDZINC",
+    "name": "Hindustan Zinc",
+    "cleanName": "hindustan zinc"
+  }
+]
