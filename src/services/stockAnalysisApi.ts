@@ -1509,13 +1509,16 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
-    // Temporarily removed timeout to debug the issue
-    try {
-      return await this.performStockAnalysis(userQuery);
-    } catch (error) {
-      console.error('❌ Stock analysis failed:', error);
+    // Add 7-minute timeout to prevent infinite hanging while allowing analysis to complete
+    return Promise.race([
+      this.performStockAnalysis(userQuery),
+      new Promise<StockAnalysisResult | null>((_, reject) => 
+        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 420000) // 7 minutes
+      )
+    ]).catch((error) => {
+      console.error('❌ Stock analysis timed out or failed:', error);
       return null;
-    }
+    });
   }
 
   /**
