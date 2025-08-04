@@ -1517,7 +1517,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
     return Promise.race([
       this.performStockAnalysis(userQuery),
       new Promise<StockAnalysisResult | null>((_, reject) => 
-        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 75000) // 75 second max (between 60-90s)
+        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 120000) // 120 second max
       )
     ]).catch((error) => {
       console.error('❌ Stock analysis timed out or failed:', error);

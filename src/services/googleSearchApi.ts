@@ -27,7 +27,7 @@ export class GoogleSearchApiService {
 
       // SPEED OPTIMIZED: Single most effective query only
       const searchQueries = [
-        `${companyName} ${symbol} stock price live NSE BSE current rate news ${new Date().getFullYear()}`
+        `"${companyName}" "${symbol}" stock price NSE BSE news analysis ${new Date().getFullYear()}`
       ];
 
       const allResults: WebSearchResult[] = [];
@@ -75,9 +75,17 @@ export class GoogleSearchApiService {
 
       // Remove duplicates and sort by relevance
       const uniqueResults = this.removeDuplicateResults(allResults);
-      const sortedResults = this.sortByRelevance(uniqueResults, symbol, companyName);
+      const relevantResults = this.filterRelevantResults(uniqueResults, symbol, companyName);
+      const sortedResults = this.sortByRelevance(relevantResults, symbol, companyName);
       
-      console.log(`📊 Total unique Google results: ${uniqueResults.length}`);
+      console.log(`📊 Total unique Google results: ${uniqueResults.length}, relevant: ${relevantResults.length}`);
+      
+      // If no relevant results found, return fallback
+      if (relevantResults.length === 0) {
+        console.warn(`⚠️ No relevant results found for ${symbol}, using fallback insights`);
+        return this.getFallbackInsights(symbol, companyName);
+      }
+      
       return sortedResults.slice(0, 15); // Return top 15 results
       
     } catch (error) {
@@ -187,6 +195,33 @@ export class GoogleSearchApiService {
       }
       seen.add(key);
       return true;
+    });
+  }
+
+  /**
+   * Filter results to only include those relevant to the specific company
+   */
+  private static filterRelevantResults(
+    results: WebSearchResult[], 
+    symbol: string, 
+    companyName: string
+  ): WebSearchResult[] {
+    const companyKeywords = companyName.toLowerCase().split(' ').filter(word => word.length > 2);
+    const symbolLower = symbol.toLowerCase();
+    
+    return results.filter(result => {
+      const titleLower = result.title.toLowerCase();
+      const snippetLower = result.snippet.toLowerCase();
+      const text = `${titleLower} ${snippetLower}`;
+      
+      // Must contain the symbol OR significant parts of company name
+      const hasSymbol = text.includes(symbolLower);
+      const hasCompanyWords = companyKeywords.some(keyword => text.includes(keyword));
+      
+      // Additional relevance checks
+      const hasStockKeywords = text.includes('stock') || text.includes('share') || text.includes('price');
+      
+      return (hasSymbol || hasCompanyWords) && hasStockKeywords;
     });
   }
 
