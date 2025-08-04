@@ -680,7 +680,7 @@ export class StockAnalysisApiService {
       const results = await Promise.race([
         GoogleSearchApiService.searchStockInsights(symbol, companyName, 5), // Limit to 5 results
         new Promise<WebSearchResult[]>((_, reject) => 
-          setTimeout(() => reject(new Error('Search timeout')), 3000) // 3 second timeout
+          setTimeout(() => reject(new Error('Search timeout')), 30000) // 30 second timeout
         )
       ]);
       
@@ -1572,16 +1572,18 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         results = await Promise.race([
           dataPromises,
           new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Overall data fetch timeout')), 15000) // 15 second max
+            setTimeout(() => reject(new Error('Overall data fetch timeout')), 90000) // 90 second max
           )
         ]);
       } catch (error) {
         console.log(`⚠️ Data fetching timed out, checking for partial results...`);
         // Even if timeout occurs, get whatever results are available
         results = await dataPromises;
+        console.log(`📝 DEBUG: After timeout, got results:`, results.map(r => r.status));
       }
       
       const [stockDataResult, webInsightsResult] = results;
+      console.log(`📝 DEBUG: Final results status - stock: ${stockDataResult.status}, web: ${webInsightsResult.status}`);
       
       // Process stock data result
       let stockData: StockAnalysisData;
@@ -1599,8 +1601,13 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       console.log(`📝 DEBUG: webInsightsResult status:`, webInsightsResult.status);
       if (webInsightsResult.status === 'rejected') {
         console.log(`📝 DEBUG: webInsightsResult error:`, webInsightsResult.reason);
+      } else {
+        console.log(`📝 DEBUG: webInsightsResult value:`, webInsightsResult.value?.length, 'insights');
       }
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
+      
+      // Continue with the analysis flow
+      console.log(`📝 DEBUG: Continuing to step 3 - recommendation generation...`);
 
       // SPEED OPTIMIZATION: Skip expensive price extraction from web search
       if (stockData.currentPrice === 0 && webInsights.length > 0) {
@@ -1619,7 +1626,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
           recommendation = await Promise.race([
             this.generateEnhancedRecommendation(stockData, webInsights, userQuery),
             new Promise<StockRecommendation>((_, reject) => 
-              setTimeout(() => reject(new Error('Recommendation timeout')), 25000) // 25 second timeout
+              setTimeout(() => reject(new Error('Recommendation timeout')), 60000) // 60 second timeout
             )
           ]);
           console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
@@ -1638,7 +1645,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         };
       }
 
-      return {
+      const analysisResult = {
         stockData,
         webInsights,
         recommendation,
@@ -1652,6 +1659,9 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
           ...(stockData.currentPrice === 0 ? ['Real-time stock price data not available - analysis based on web research only.'] : [])
         ]
       };
+      
+      console.log(`📝 DEBUG: Returning analysis result with ${webInsights.length} insights, recommendation: ${recommendation.action}`);
+      return analysisResult;
     } catch (error) {
       console.error('❌ Error in comprehensive stock analysis:', error);
       return null;
