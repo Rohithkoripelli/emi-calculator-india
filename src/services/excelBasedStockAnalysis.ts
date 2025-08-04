@@ -203,6 +203,18 @@ export class ExcelBasedStockAnalysisService {
       return 25; // High boost for Infosys
     }
     
+    // Fix for Indian Bank vs South Indian Bank confusion
+    if (words.includes('indian') && words.includes('bank')) {
+      // Exact match for "Indian Bank" should get highest priority
+      if (company.symbol === 'INDIANB' && !words.includes('south') && !words.includes('overseas')) {
+        return 60; // Very high boost for exact Indian Bank match
+      }
+      // Penalize South Indian Bank when user just says "indian bank"
+      if (company.symbol === 'SOUTHBANK' && !words.includes('south')) {
+        return -30; // Heavy penalty for South Indian Bank when "south" not mentioned
+      }
+    }
+    
     return 0;
   }
 

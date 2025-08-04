@@ -60,16 +60,28 @@ export class StockAnalysisApiService {
     'industry', 'listing', 'ipo', 'earnings', 'quarterly', 'results', 'financial'
   ];
 
-  // Query intent classification keywords
-  private static readonly BUY_SELL_KEYWORDS = [
-    'buy', 'sell', 'invest', 'purchase', 'should i', 'worth buying', 'worth selling',
-    'good investment', 'recommend', 'recommendation', 'advice', 'suggest', 'opinion'
+  // Query intent classification keywords - more specific patterns
+  private static readonly BUY_SELL_PATTERNS = [
+    'should i buy', 'should i sell', 'should i invest', 'worth buying', 'worth selling',
+    'good investment', 'bad investment', 'buy or sell', 'recommend buying', 'recommend selling',
+    'advice on buying', 'advice on selling', 'suggest buying', 'suggest selling',
+    'good to buy', 'good to sell', 'time to buy', 'time to sell', 'buy now', 'sell now'
   ];
   
-  private static readonly ANALYSIS_KEYWORDS = [
-    'analysis', 'report', 'financial report', 'performance', 'review', 'overview',
-    'fundamentals', 'technical analysis', 'company profile', 'business model',
-    'revenue', 'profit', 'earnings', 'balance sheet', 'cash flow'
+  private static readonly ANALYSIS_PATTERNS = [
+    'analysis of', 'financial analysis', 'stock analysis', 'company analysis',
+    'financial report', 'annual report', 'quarterly report', 'performance report',
+    'business overview', 'company overview', 'financial overview',
+    'fundamentals of', 'technical analysis of', 'company profile',
+    'business model', 'revenue details', 'profit details', 'earnings report',
+    'balance sheet', 'cash flow', 'give me analysis', 'provide analysis',
+    'detailed analysis', 'complete analysis', 'full analysis'
+  ];
+
+  private static readonly IPO_PATTERNS = [
+    'ipo', 'initial public offering', 'public listing', 'listing date',
+    'ipo price', 'ipo launch', 'going public', 'stock listing',
+    'ipo details', 'ipo news', 'ipo announcement', 'ipo application'
   ];
 
   // Comprehensive Indian stock symbols database (440+ entries)
@@ -256,12 +268,22 @@ export class StockAnalysisApiService {
   /**
    * Classify user query intent to determine response type
    */
-  static classifyQueryIntent(query: string): 'buy_sell_recommendation' | 'general_analysis' | 'price_info' {
+  static classifyQueryIntent(query: string): 'buy_sell_recommendation' | 'general_analysis' | 'price_info' | 'ipo_info' {
     const lowerQuery = query.toLowerCase().trim();
     
-    // Check for buy/sell/investment recommendation intent
-    const hasBuySellIntent = this.BUY_SELL_KEYWORDS.some(keyword => 
-      lowerQuery.includes(keyword)
+    // Check for IPO-related queries first (highest priority)
+    const hasIpoIntent = this.IPO_PATTERNS.some(pattern => 
+      lowerQuery.includes(pattern)
+    );
+    
+    if (hasIpoIntent) {
+      console.log(`🚀 Detected IPO query: "${query}"`);
+      return 'ipo_info';
+    }
+    
+    // Check for buy/sell/investment recommendation intent with specific patterns
+    const hasBuySellIntent = this.BUY_SELL_PATTERNS.some(pattern => 
+      lowerQuery.includes(pattern)
     );
     
     if (hasBuySellIntent) {
@@ -269,9 +291,9 @@ export class StockAnalysisApiService {
       return 'buy_sell_recommendation';
     }
     
-    // Check for general analysis intent
-    const hasAnalysisIntent = this.ANALYSIS_KEYWORDS.some(keyword => 
-      lowerQuery.includes(keyword)
+    // Check for general analysis intent with specific patterns
+    const hasAnalysisIntent = this.ANALYSIS_PATTERNS.some(pattern => 
+      lowerQuery.includes(pattern)
     );
     
     if (hasAnalysisIntent) {
@@ -279,9 +301,18 @@ export class StockAnalysisApiService {
       return 'general_analysis';
     }
     
-    // Default to price info for simple price/performance queries
-    console.log(`💰 Detected PRICE INFO query: "${query}"`);
-    return 'price_info';
+    // Check for simple price queries
+    const priceKeywords = ['price', 'rate', 'value', 'current', 'today', 'live', 'quote'];
+    const hasPriceIntent = priceKeywords.some(keyword => lowerQuery.includes(keyword));
+    
+    if (hasPriceIntent) {
+      console.log(`💰 Detected PRICE INFO query: "${query}"`);
+      return 'price_info';
+    }
+    
+    // Default to general analysis for other stock-related queries
+    console.log(`📊 Defaulting to GENERAL ANALYSIS for: "${query}"`);
+    return 'general_analysis';
   }
 
   /**
@@ -454,21 +485,52 @@ export class StockAnalysisApiService {
         if (result.status === 'fulfilled' && result.value) {
           const value = result.value as any;
           
-          // Check if it has valid price data
-          if ((value.currentPrice && value.currentPrice > 0) || (value.current_price && value.current_price > 0)) {
-            // Handle both formats
-            if ('current_price' in value) {
-              console.log(`✅ FAST SUCCESS: Web scraping data at ₹${value.current_price}`);
+          // More flexible data validation - accept any non-zero numeric data
+          const hasPrice = (value.currentPrice && value.currentPrice > 0) || 
+                          (value.current_price && value.current_price > 0) ||
+                          (value.price && value.price > 0) ||
+                          (value.ltp && value.ltp > 0);
+          
+          if (hasPrice) {
+            // Handle different data formats
+            if ('current_price' in value || 'price' in value) {
+              const price = value.current_price || value.price;
+              console.log(`✅ FAST SUCCESS: Web scraping data at ₹${price}`);
               return this.mapScrapedDataToAnalysisData(value);
             } else {
-              console.log(`✅ FAST SUCCESS: API data at ₹${value.currentPrice}`);
+              const price = value.currentPrice || value.ltp;
+              console.log(`✅ FAST SUCCESS: API data at ₹${price}`);
               return value as StockAnalysisData;
+            }
+          } else {
+            // Even without price, if we have company data, use it and try to get price later
+            if (value.companyName || value.name || value.company_name) {
+              console.log(`✅ FAST SUCCESS: Company data found for ${symbol} (price pending)`);
+              if ('current_price' in value || 'price' in value) {
+                return this.mapScrapedDataToAnalysisData(value);
+              } else {
+                return value as StockAnalysisData;
+              }
             }
           }
         }
       }
       
-      console.log(`⚠️ FAST FALLBACK: No real-time data, using basic structure for web analysis`);
+      console.log(`⚠️ FAST FALLBACK: No quick data found, trying final web scraping attempt...`);
+      
+      // Try web scraping one more time with longer timeout as final attempt
+      try {
+        const webData = await WebScrapingService.vercelEnhancedSearch(symbol, companyName || symbol);
+        if (webData && ((webData as any).current_price > 0 || (webData as any).price > 0)) {
+          const price = (webData as any).current_price || (webData as any).price;
+          console.log(`✅ FINAL FALLBACK SUCCESS: Web data at ₹${price}`);
+          return this.mapScrapedDataToAnalysisData(webData);
+        }
+      } catch (error) {
+        console.log(`⚠️ Final web scraping attempt failed for ${symbol}`);
+      }
+      
+      console.log(`⚠️ Using basic fallback data for: ${symbol}`);
       return this.createBasicFallbackData(symbol, companyName || symbol);
       
     } catch (error) {
@@ -1340,6 +1402,70 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
   }
 
   /**
+   * Handle IPO-related queries with intelligent web search
+   */
+  static async handleIpoQuery(symbol: string, companyName: string, userQuery: string): Promise<StockAnalysisResult | null> {
+    console.log(`🚀 IPO query mode for: ${companyName} (${symbol})`);
+    
+    try {
+      // For IPO queries, focus on web search for IPO information
+      const ipoSearchTerms = [
+        `${companyName} IPO details launch date price`,
+        `${companyName} initial public offering 2024 2025`,
+        `${companyName} stock listing NSE BSE IPO news`
+      ];
+      
+      // Search for IPO-specific information
+      let webInsights: WebSearchResult[] = [];
+      
+      for (const searchTerm of ipoSearchTerms) {
+        try {
+          const results = await GoogleSearchApiService.searchStockInsights(symbol, searchTerm, 5);
+          webInsights.push(...results);
+          if (webInsights.length >= 8) break; // Limit total results
+        } catch (error) {
+          console.log(`⚠️ IPO search failed for: ${searchTerm}`);
+        }
+      }
+
+      // Create fallback stock data for IPO (unlisted company)
+      const fallbackData: StockAnalysisData = {
+        symbol: symbol,
+        companyName: companyName,
+        currentPrice: 0, // Not listed yet
+        change: 0,
+        changePercent: 0,
+        dayHigh: 0,
+        dayLow: 0,
+        volume: 0,
+        sector: 'IPO',
+        industry: 'Initial Public Offering',
+        lastUpdated: new Date().toISOString()
+      };
+
+      return {
+        stockData: fallbackData,
+        webInsights: webInsights.slice(0, 8), // Limit to 8 results
+        recommendation: {
+          action: 'HOLD',
+          confidence: 0, // No recommendation for IPO queries
+          reasoning: ['IPO information provided - company not yet listed for trading'],
+          timeHorizon: 'LONG_TERM'
+        },
+        analysisDate: new Date().toISOString(),
+        disclaimers: [
+          'This is IPO information for educational purposes only.',
+          'IPO investments carry high risk. Research thoroughly before applying.',
+          'Consult qualified financial advisors before making IPO investment decisions.'
+        ]
+      };
+    } catch (error) {
+      console.log(`⚠️ IPO query failed, falling back to regular analysis`);
+      return null;
+    }
+  }
+
+  /**
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
@@ -1363,6 +1489,11 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       if (queryIntent === 'price_info') {
         // For simple price queries, get quick data only
         return await this.getQuickStockInfo(symbol, extractedCompanyName, userQuery);
+      }
+      
+      if (queryIntent === 'ipo_info') {
+        // For IPO queries, do intelligent web search instead of stock data
+        return await this.handleIpoQuery(symbol, extractedCompanyName, userQuery);
       }
 
       // Step 1: Start both stock data fetching and web search in parallel for speed

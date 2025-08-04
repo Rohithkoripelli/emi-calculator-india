@@ -29,6 +29,49 @@ const formatCurrency = (amount: string): string => {
   }).format(num);
 };
 
+// Enhanced financial formatting for AI responses
+const formatFinancialText = (text: string): string => {
+  let formattedText = text;
+  
+  // Fix interest rate formatting - add % symbol if missing
+  formattedText = formattedText.replace(/interest rate of (\d+(?:\.\d+)?)\b(?![%])/gi, 'interest rate of $1%');
+  formattedText = formattedText.replace(/(\d+(?:\.\d+)?)\s*percent/gi, '$1%');
+  formattedText = formattedText.replace(/rate:\s*(\d+(?:\.\d+)?)\b(?![%])/gi, 'rate: $1%');
+  
+  // Fix EMI formatting - ensure ₹ symbol and proper Indian formatting
+  formattedText = formattedText.replace(/EMI of (\d+(?:,\d+)*(?:\.\d+)?)\b/gi, (match, amount) => {
+    const num = parseFloat(amount.replace(/,/g, ''));
+    if (!isNaN(num)) {
+      return `EMI of ${formatCurrency(amount)}`;
+    }
+    return match;
+  });
+  
+  // Fix general currency amounts - add ₹ if missing for Indian context
+  formattedText = formattedText.replace(/\b(\d{1,2}(?:,\d{2})*(?:,\d{3})+)\b(?![%])/g, (match, amount) => {
+    const num = parseFloat(amount.replace(/,/g, ''));
+    if (num >= 1000) { // Only format larger amounts as currency
+      return `₹${amount}`;
+    }
+    return match;
+  });
+  
+  // Fix loan amount formatting
+  formattedText = formattedText.replace(/loan amount of (\d+(?:,\d+)*(?:\.\d+)?)\b/gi, (match, amount) => {
+    const num = parseFloat(amount.replace(/,/g, ''));
+    if (!isNaN(num)) {
+      return `loan amount of ${formatCurrency(amount)}`;
+    }
+    return match;
+  });
+  
+  // Fix tenure formatting - ensure proper units
+  formattedText = formattedText.replace(/(\d+)\s*year(?!s)/gi, '$1 years');
+  formattedText = formattedText.replace(/(\d+)\s*month(?!s)/gi, '$1 months');
+  
+  return formattedText;
+};
+
 const extractTableData = (text: string): ComparisonData[] => {
   const comparisons: ComparisonData[] = [];
   
@@ -631,9 +674,12 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
 };
 
 export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }) => {
-  const keyMetrics = extractKeyMetrics(text);
-  const comparisonData = extractTableData(text);
-  const savingsChartData = createSavingsChart(text);
+  // Apply financial formatting to fix interest rates, EMI values, and currency display
+  const formattedText = formatFinancialText(text);
+  
+  const keyMetrics = extractKeyMetrics(formattedText);
+  const comparisonData = extractTableData(formattedText);
+  const savingsChartData = createSavingsChart(formattedText);
   
   return (
     <div className="space-y-4">
@@ -647,7 +693,7 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       {savingsChartData && <SavingsChart data={savingsChartData} />}
       
       {/* Enhanced Text Formatting */}
-      <EnhancedText text={text} />
+      <EnhancedText text={formattedText} />
     </div>
   );
 };
