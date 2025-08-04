@@ -686,10 +686,13 @@ export class StockAnalysisApiService {
       
       if (results.length > 0) {
         console.log(`✅ Found ${results.length} Google search results for ${symbol}`);
+        console.log(`📝 DEBUG: Results being returned:`, results.map(r => ({ title: r.title, source: r.source })));
         return results;
       } else {
         console.warn(`⚠️ No Google search results found for ${symbol}, using fallback`);
-        return this.getFallbackInsights(symbol, companyName);
+        const fallbackResults = this.getFallbackInsights(symbol, companyName);
+        console.log(`📝 DEBUG: Fallback results:`, fallbackResults.length);
+        return fallbackResults;
       }
     } catch (error) {
       console.error('❌ Google search failed or timed out:', error);
@@ -1590,6 +1593,10 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       // Process web insights result
       const webInsights = webInsightsResult.status === 'fulfilled' ? webInsightsResult.value : [];
       console.log(`🌐 Web search completed: ${webInsights.length} insights found`);
+      console.log(`📝 DEBUG: webInsightsResult status:`, webInsightsResult.status);
+      if (webInsightsResult.status === 'rejected') {
+        console.log(`📝 DEBUG: webInsightsResult error:`, webInsightsResult.reason);
+      }
       console.log(`✅ Found ${webInsights.length} web insights from financial sources`);
 
       // SPEED OPTIMIZATION: Skip expensive price extraction from web search
