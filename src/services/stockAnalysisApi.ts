@@ -1508,7 +1508,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
     return Promise.race([
       this.performStockAnalysis(userQuery),
       new Promise<StockAnalysisResult | null>((_, reject) => 
-        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 30000) // 30 second max
+        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 75000) // 75 second max (between 60-90s)
       )
     ]).catch((error) => {
       console.error('❌ Stock analysis timed out or failed:', error);
@@ -1561,7 +1561,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
       const [stockDataResult, webInsightsResult] = await Promise.race([
         dataPromises,
         new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Overall data fetch timeout')), 10000) // 10 second max
+          setTimeout(() => reject(new Error('Overall data fetch timeout')), 15000) // 15 second max
         )
       ]).catch((error) => {
         console.log(`⚠️ Data fetching timed out, using minimal fallbacks`);
@@ -1603,7 +1603,7 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
           recommendation = await Promise.race([
             this.generateEnhancedRecommendation(stockData, webInsights, userQuery),
             new Promise<StockRecommendation>((_, reject) => 
-              setTimeout(() => reject(new Error('Recommendation timeout')), 15000) // 15 second timeout
+              setTimeout(() => reject(new Error('Recommendation timeout')), 25000) // 25 second timeout
             )
           ]);
           console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
