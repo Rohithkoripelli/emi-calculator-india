@@ -60,6 +60,18 @@ export class StockAnalysisApiService {
     'industry', 'listing', 'ipo', 'earnings', 'quarterly', 'results', 'financial'
   ];
 
+  // Query intent classification keywords
+  private static readonly BUY_SELL_KEYWORDS = [
+    'buy', 'sell', 'invest', 'purchase', 'should i', 'worth buying', 'worth selling',
+    'good investment', 'recommend', 'recommendation', 'advice', 'suggest', 'opinion'
+  ];
+  
+  private static readonly ANALYSIS_KEYWORDS = [
+    'analysis', 'report', 'financial report', 'performance', 'review', 'overview',
+    'fundamentals', 'technical analysis', 'company profile', 'business model',
+    'revenue', 'profit', 'earnings', 'balance sheet', 'cash flow'
+  ];
+
   // Comprehensive Indian stock symbols database (440+ entries)
   // Auto-generated from comprehensive database covering all major sectors
   private static readonly INDIAN_STOCKS = {
@@ -242,6 +254,37 @@ export class StockAnalysisApiService {
   };
 
   /**
+   * Classify user query intent to determine response type
+   */
+  static classifyQueryIntent(query: string): 'buy_sell_recommendation' | 'general_analysis' | 'price_info' {
+    const lowerQuery = query.toLowerCase().trim();
+    
+    // Check for buy/sell/investment recommendation intent
+    const hasBuySellIntent = this.BUY_SELL_KEYWORDS.some(keyword => 
+      lowerQuery.includes(keyword)
+    );
+    
+    if (hasBuySellIntent) {
+      console.log(`🎯 Detected BUY/SELL recommendation query: "${query}"`);
+      return 'buy_sell_recommendation';
+    }
+    
+    // Check for general analysis intent
+    const hasAnalysisIntent = this.ANALYSIS_KEYWORDS.some(keyword => 
+      lowerQuery.includes(keyword)
+    );
+    
+    if (hasAnalysisIntent) {
+      console.log(`📊 Detected GENERAL ANALYSIS query: "${query}"`);
+      return 'general_analysis';
+    }
+    
+    // Default to price info for simple price/performance queries
+    console.log(`💰 Detected PRICE INFO query: "${query}"`);
+    return 'price_info';
+  }
+
+  /**
    * Enhanced intelligent stock symbol extraction using Excel-based comprehensive database
    */
   static parseStockSymbol(query: string): string | null {
@@ -398,7 +441,7 @@ export class StockAnalysisApiService {
     try {
       // Start all methods in parallel with race condition
       const racePromises = [
-        this.tryApiSourcesWithTimeout(symbol, 3000), // 3 second timeout
+        this.tryApiSourcesWithTimeout(symbol, 2000), // Reduced to 2 second timeout
         WebScrapingService.vercelEnhancedSearch(symbol, companyName || symbol), // Skip comprehensive scraping
         this.createBasicFallbackData(symbol, companyName || symbol) // Always available fallback
       ];
@@ -1215,6 +1258,88 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
   // Removed hardcoded sector/industry mappings - now using dynamic data from APIs
 
   /**
+   * Quick stock info for simple price queries (optimized for speed)
+   */
+  static async getQuickStockInfo(symbol: string, companyName: string, userQuery: string): Promise<StockAnalysisResult | null> {
+    console.log(`⚡ Quick stock info mode for: ${symbol}`);
+    
+    try {
+      // Get basic stock data with shorter timeout (2s instead of 5s)
+      const stockData = await Promise.race([
+        this.fetchStockDataFast(symbol, companyName),
+        new Promise<StockAnalysisData | null>((_, reject) => 
+          setTimeout(() => reject(new Error('Quick fetch timeout')), 2000)
+        )
+      ]);
+
+      // If no stock data, use fallback
+      const finalStockData = stockData || this.createBasicFallbackData(symbol, companyName);
+
+      // Minimal web insights (just 3 results for speed)
+      const webInsights = await this.searchStockInsightsQuick(symbol, companyName);
+
+      return {
+        stockData: finalStockData,
+        webInsights: webInsights.slice(0, 3), // Limit to 3 for speed
+        recommendation: {
+          action: 'HOLD',
+          confidence: 0, // No recommendation for price queries
+          reasoning: ['Price information provided without investment recommendation'],
+          timeHorizon: 'SHORT_TERM'
+        },
+        analysisDate: new Date().toISOString(),
+        disclaimers: [
+          'This is basic price information for educational purposes only.',
+          'Not investment advice. Consult qualified financial advisors.'
+        ]
+      };
+    } catch (error) {
+      console.log(`⚠️ Quick mode failed, falling back to regular analysis`);
+      // Fallback to regular analysis if quick mode fails
+      return null;
+    }
+  }
+
+  /**
+   * Ultra-fast stock data fetch for quick queries (1s timeout)
+   */
+  static async fetchStockDataFast(symbol: string, companyName?: string): Promise<StockAnalysisData | null> {
+    console.log(`⚡ ULTRA-FAST stock data fetching for: ${symbol}`);
+    
+    try {
+      // Try only API sources with 1s timeout (skip web scraping for speed)
+      const result = await this.tryApiSourcesWithTimeout(symbol, 1000);
+      
+      return result || this.createBasicFallbackData(symbol, companyName || symbol);
+    } catch (error) {
+      console.log(`⚠️ Ultra-fast fetch failed, using fallback data`);
+      return this.createBasicFallbackData(symbol, companyName || symbol);
+    }
+  }
+
+  /**
+   * Quick web search for basic insights (3 results max)
+   */
+  static async searchStockInsightsQuick(symbol: string, companyName: string): Promise<WebSearchResult[]> {
+    console.log(`⚡ Quick web search for: ${symbol}`);
+    
+    try {
+      // Reduced search with timeout
+      const results = await Promise.race([
+        GoogleSearchApiService.searchStockInsights(symbol, companyName, 3), // Only 3 results
+        new Promise<WebSearchResult[]>((_, reject) => 
+          setTimeout(() => reject(new Error('Quick search timeout')), 1500) // 1.5s timeout
+        )
+      ]);
+      
+      return results.slice(0, 3); // Ensure max 3 results
+    } catch (error) {
+      console.log(`⚠️ Quick search failed, returning empty results`);
+      return [];
+    }
+  }
+
+  /**
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
@@ -1225,14 +1350,24 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         return null;
       }
 
-      console.log(`🔍 Starting comprehensive analysis for: ${symbol}`);
+      // Classify query intent to optimize response
+      const queryIntent = this.classifyQueryIntent(userQuery);
+      
+      console.log(`🔍 Starting analysis for: ${symbol} (Intent: ${queryIntent})`);
       console.log(`📝 User query: "${userQuery}"`);
+
+      // Extract company name from user query for better data fetching
+      const extractedCompanyName = this.extractCompanyNameFromQuery(userQuery, symbol);
+
+      // Optimize based on query intent
+      if (queryIntent === 'price_info') {
+        // For simple price queries, get quick data only
+        return await this.getQuickStockInfo(symbol, extractedCompanyName, userQuery);
+      }
 
       // Step 1: Start both stock data fetching and web search in parallel for speed
       console.log(`📊 Step 1: Starting parallel data fetching for ${symbol}...`);
       
-      // Extract company name from user query for better data fetching
-      const extractedCompanyName = this.extractCompanyNameFromQuery(userQuery, symbol);
       
       // Run API data fetching and web search in parallel
       const [stockDataResult, webInsightsResult] = await Promise.allSettled([
@@ -1261,14 +1396,27 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         // Use web insights directly for analysis without price extraction
       }
 
-      // Step 3: Generate recommendation based on available data
-      console.log(`🧠 Step 3: Generating recommendation using ${stockData.currentPrice > 0 ? 'extracted' : 'web-only'} data and insights...`);
-      const recommendation = await this.generateEnhancedRecommendation(
-        stockData, 
-        webInsights, 
-        userQuery
-      );
-      console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
+      // Step 3: Generate recommendation only for buy/sell queries
+      let recommendation: StockRecommendation;
+      
+      if (queryIntent === 'buy_sell_recommendation') {
+        console.log(`🧠 Step 3: Generating recommendation using ${stockData.currentPrice > 0 ? 'extracted' : 'web-only'} data and insights...`);
+        recommendation = await this.generateEnhancedRecommendation(
+          stockData, 
+          webInsights, 
+          userQuery
+        );
+        console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
+      } else {
+        // For analysis queries, provide neutral HOLD with analysis focus
+        console.log(`📊 Step 3: Skipping recommendation for analysis query, providing neutral analysis...`);
+        recommendation = {
+          action: 'HOLD',
+          confidence: 0, // 0 confidence indicates no recommendation requested
+          reasoning: ['Analysis provided without investment recommendation'],
+          timeHorizon: 'MEDIUM_TERM'
+        };
+      }
 
       return {
         stockData,

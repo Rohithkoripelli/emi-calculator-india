@@ -10,7 +10,8 @@ export class GoogleSearchApiService {
    */
   static async searchStockInsights(
     symbol: string, 
-    companyName: string
+    companyName: string,
+    maxResults: number = 8
   ): Promise<WebSearchResult[]> {
     console.log(`🔍 Searching Google for insights on ${companyName} (${symbol})`);
     
@@ -40,7 +41,7 @@ export class GoogleSearchApiService {
             key: apiKey,
             cx: searchEngineId,
             q: query,
-            num: '8', // More results in single query
+            num: maxResults.toString(), // Configurable results
             sort: 'date', // Sort by date for recent results
             safe: 'medium',
             lr: 'lang_en', // English language results
