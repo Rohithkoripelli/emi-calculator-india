@@ -677,12 +677,8 @@ export class StockAnalysisApiService {
       console.log(`🔍 Performing Google search for ${companyName} (${symbol})`);
       
       // Add aggressive timeout to prevent long delays
-      const results = await Promise.race([
-        GoogleSearchApiService.searchStockInsights(symbol, companyName, 5), // Limit to 5 results
-        new Promise<WebSearchResult[]>((_, reject) => 
-          setTimeout(() => reject(new Error('Search timeout')), 30000) // 30 second timeout
-        )
-      ]);
+      console.log(`📝 DEBUG: Starting Google search without timeout...`);
+      const results = await GoogleSearchApiService.searchStockInsights(symbol, companyName, 5); // Limit to 5 results
       
       if (results.length > 0) {
         console.log(`✅ Found ${results.length} Google search results for ${symbol}`);
@@ -1513,16 +1509,13 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
    * Complete stock analysis pipeline with enhanced web search integration
    */
   static async analyzeStock(userQuery: string): Promise<StockAnalysisResult | null> {
-    // Add overall timeout for the entire analysis to prevent long waits
-    return Promise.race([
-      this.performStockAnalysis(userQuery),
-      new Promise<StockAnalysisResult | null>((_, reject) => 
-        setTimeout(() => reject(new Error('Stock analysis timeout - please try again')), 120000) // 120 second max
-      )
-    ]).catch((error) => {
-      console.error('❌ Stock analysis timed out or failed:', error);
+    // Temporarily removed timeout to debug the issue
+    try {
+      return await this.performStockAnalysis(userQuery);
+    } catch (error) {
+      console.error('❌ Stock analysis failed:', error);
       return null;
-    });
+    }
   }
 
   /**
@@ -1566,23 +1559,9 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         this.searchStockInsights(symbol, extractedCompanyName)
       ]);
       
-      // Add overall timeout but preserve successful results
-      let results;
-      try {
-        results = await Promise.race([
-          dataPromises,
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Overall data fetch timeout')), 90000) // 90 second max
-          )
-        ]);
-      } catch (error) {
-        console.log(`⚠️ Data fetching timed out, checking for partial results...`);
-        // Even if timeout occurs, get whatever results are available
-        results = await dataPromises;
-        console.log(`📝 DEBUG: After timeout, got results:`, results.map(r => r.status));
-      }
-      
-      const [stockDataResult, webInsightsResult] = results;
+      // Remove timeout temporarily to debug
+      console.log(`📝 DEBUG: Waiting for data promises to settle...`);
+      const [stockDataResult, webInsightsResult] = await dataPromises;
       console.log(`📝 DEBUG: Final results status - stock: ${stockDataResult.status}, web: ${webInsightsResult.status}`);
       
       // Process stock data result
@@ -1623,12 +1602,8 @@ Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific
         
         // Add timeout for recommendation generation
         try {
-          recommendation = await Promise.race([
-            this.generateEnhancedRecommendation(stockData, webInsights, userQuery),
-            new Promise<StockRecommendation>((_, reject) => 
-              setTimeout(() => reject(new Error('Recommendation timeout')), 60000) // 60 second timeout
-            )
-          ]);
+          console.log(`📝 DEBUG: Generating recommendation without timeout...`);
+          recommendation = await this.generateEnhancedRecommendation(stockData, webInsights, userQuery);
           console.log(`✅ Generated ${recommendation.action} recommendation with ${recommendation.confidence}% confidence`);
         } catch (error) {
           console.log(`⚠️ Recommendation generation timed out, using fallback`);
