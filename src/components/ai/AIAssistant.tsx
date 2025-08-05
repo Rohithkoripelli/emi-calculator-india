@@ -675,18 +675,22 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
 
   const generatePortfolioRecommendation = async (query: string): Promise<string> => {
     try {
-      console.log('🔍 Starting comprehensive portfolio analysis with market research...');
+      console.log('🔍 Starting COMPREHENSIVE investment research across all market segments...');
       
-      // Step 1: Perform market research for current trends
-      const marketResearch = await performMarketResearch();
-      console.log(`📊 Market research completed: ${marketResearch.insights.length} insights gathered`);
+      // Step 1: Extensive market research across multiple dimensions
+      const marketResearch = await performComprehensiveMarketResearch();
+      console.log(`📊 Market research completed: ${marketResearch.totalInsights} insights from ${marketResearch.categories.length} categories`);
       
-      // Step 2: Get top performing stocks from different categories
-      const topStocks = await getTopPerformingStocks();
-      console.log(`🏆 Top stocks analysis completed: ${topStocks.length} stocks analyzed`);
+      // Step 2: Analyze top performers across ALL cap sizes and sectors
+      const comprehensiveAnalysis = await performComprehensiveStockAnalysis();
+      console.log(`🏆 Stock analysis completed: ${comprehensiveAnalysis.totalStocks} stocks analyzed across ${comprehensiveAnalysis.sectors.length} sectors`);
       
-      // Step 3: Generate AI-powered recommendation with real data
-      const portfolioAdvice = await generateAIPortfolioAdvice(query, marketResearch, topStocks);
+      // Step 3: Risk-based categorization and recommendation
+      const riskBasedRecommendations = await generateRiskBasedRecommendations(comprehensiveAnalysis, query);
+      console.log(`⚖️ Risk analysis completed: ${riskBasedRecommendations.recommendations.length} risk-based portfolios generated`);
+      
+      // Step 4: Generate final comprehensive advice
+      const portfolioAdvice = await generateComprehensivePortfolioAdvice(query, marketResearch, comprehensiveAnalysis, riskBasedRecommendations);
       
       return portfolioAdvice;
       
@@ -696,101 +700,372 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     }
   };
 
-  const performMarketResearch = async () => {
+  const performComprehensiveMarketResearch = async () => {
     try {
       const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
       const searchEngineId = process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
       
       if (!apiKey || !searchEngineId) {
-        console.log('⚠️ Google Search API not configured, using limited research');
-        return { insights: [], marketSentiment: 'neutral' };
+        console.log('⚠️ Google Search API not configured, using comprehensive fallback research');
+        return { 
+          totalInsights: 0, 
+          categories: ['fallback'], 
+          insights: [], 
+          marketSentiment: 'neutral',
+          sectorTrends: {},
+          capSizeAnalysis: {}
+        };
       }
 
-      // Search for current market trends and recommendations
-      const searchQueries = [
-        'best Indian stocks to buy now 2025 recommendations',
-        'NSE BSE top performing stocks January 2025',
-        'Indian stock market trends analysis 2025',
-        'best large cap mid cap stocks India 2025'
-      ];
+      // Comprehensive search across all market dimensions
+      const searchCategories = {
+        largeCap: [
+          'best large cap stocks India 2025 highest returns',
+          'top performing large cap companies NSE 2025',
+          'large cap stocks buy recommendations January 2025'
+        ],
+        midCap: [
+          'best mid cap stocks India 2025 growth potential',
+          'top mid cap stocks NSE BSE recommendations',
+          'mid cap companies high returns 2025 India'
+        ],
+        smallCap: [
+          'best small cap stocks India 2025 multibagger',
+          'top small cap stocks high growth potential',
+          'small cap gems India stock market 2025'
+        ],
+        sectors: [
+          'best IT stocks India 2025 TCS Infosys analysis',
+          'top banking stocks HDFC ICICI SBI recommendations',
+          'pharma stocks India best performers 2025',
+          'automobile sector stocks India Tata Motors Maruti',
+          'FMCG stocks India best performing companies',
+          'energy sector stocks Reliance Oil Gas India'
+        ],
+        marketTrends: [
+          'Indian stock market trends January 2025 outlook',
+          'NSE BSE market analysis current trends 2025',
+          'stock market forecast India bulls bears sentiment'
+        ]
+      };
 
-      const insights = [];
+      const allInsights = [];
+      const categoryResults = [];
       
-      for (const query of searchQueries) {
-        try {
-          const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&num=3`;
-          
-          const response = await fetch(searchUrl);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.items) {
-              for (const item of data.items) {
-                insights.push({
-                  title: item.title,
-                  snippet: item.snippet,
-                  source: new URL(item.link).hostname,
-                  url: item.link
-                });
+      // Process each category with extensive research
+      for (const [category, queries] of Object.entries(searchCategories)) {
+        console.log(`🔍 Researching ${category}...`);
+        const categoryInsights = [];
+        
+        for (const query of queries) {
+          try {
+            const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&num=5`;
+            
+            const response = await fetch(searchUrl);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.items) {
+                for (const item of data.items) {
+                  const insight = {
+                    title: item.title,
+                    snippet: item.snippet,
+                    source: new URL(item.link).hostname,
+                    url: item.link,
+                    category: category
+                  };
+                  categoryInsights.push(insight);
+                  allInsights.push(insight);
+                }
               }
             }
+            
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } catch (err) {
+            console.warn(`Search query failed for ${category}:`, query, err);
           }
-        } catch (err) {
-          console.warn('Search query failed:', query, err);
         }
+        
+        categoryResults.push({
+          category,
+          insights: categoryInsights,
+          count: categoryInsights.length
+        });
       }
 
       return {
-        insights: insights.slice(0, 10), // Top 10 insights
-        marketSentiment: insights.length > 5 ? 'positive' : 'neutral'
+        totalInsights: allInsights.length,
+        categories: categoryResults,
+        insights: allInsights.slice(0, 50), // Top 50 most relevant insights
+        marketSentiment: allInsights.length > 20 ? 'positive' : 'neutral',
+        sectorTrends: analyzeSectorTrends(allInsights),
+        capSizeAnalysis: analyzeCapSizePerformance(allInsights)
       };
       
     } catch (error) {
-      console.error('Market research failed:', error);
-      return { insights: [], marketSentiment: 'neutral' };
+      console.error('Comprehensive market research failed:', error);
+      return { 
+        totalInsights: 0, 
+        categories: [], 
+        insights: [], 
+        marketSentiment: 'neutral',
+        sectorTrends: {},
+        capSizeAnalysis: {}
+      };
     }
   };
 
-  const getTopPerformingStocks = async () => {
+  const performComprehensiveStockAnalysis = async () => {
     try {
-      // Get top stocks from different categories for analysis
-      const stocksToAnalyze = [
-        'RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', // Large cap
-        'ASIANPAINT', 'BAJFINANCE', 'MARUTI', 'LT', // Mid cap  
-        'TATAMOTORS', 'SBIN', 'ITC', 'WIPRO' // Mixed cap
-      ];
-
-      const topStocks = [];
+      console.log('📈 Starting comprehensive stock analysis across all segments...');
       
-      // Analyze a few key stocks quickly
-      for (const symbol of stocksToAnalyze.slice(0, 6)) { // Limit to 6 for speed
-        try {
-          // Use the same stock analysis API to get current performance
-          const stockAnalysis = await StockAnalysisApiService.analyzeStock(`analysis of ${symbol} stock`);
-          
-          if (stockAnalysis && stockAnalysis.stockData.currentPrice > 0) {
-            topStocks.push({
-              symbol: stockAnalysis.stockData.symbol,
-              name: stockAnalysis.stockData.companyName,
-              price: stockAnalysis.stockData.currentPrice,
-              change: stockAnalysis.stockData.changePercent,
-              recommendation: stockAnalysis.recommendation.action,
-              confidence: stockAnalysis.recommendation.confidence
-            });
+      // Comprehensive stock categorization
+      const stockCategories = {
+        largeCap: [
+          'RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'ITC', 'HINDUNILVR', 
+          'SBIN', 'BHARTIARTL', 'KOTAKBANK', 'LT', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'SUNPHARMA'
+        ],
+        midCap: [
+          'BAJFINANCE', 'HCLTECH', 'ADANIPORTS', 'POWERGRID', 'NTPC', 'ONGC', 'JSWSTEEL',
+          'INDUSINDBK', 'GRASIM', 'SHREECEM', 'PIDILITIND', 'BERGEPAINT', 'MCDOWELL-N', 'DABUR', 'GODREJCP'
+        ],
+        smallCap: [
+          'TATAMOTORS', 'SAIL', 'NMDC', 'RECLTD', 'PFC', 'IRCTC', 'ZOMATO', 'PAYTM',
+          'POLICYBZR', 'NYKAA', 'CARTRADE', 'EASEMYTRIP', 'CLEAN', 'ROUTE', 'LATENTVIEW'
+        ]
+      };
+
+      const sectorMapping = {
+        IT: ['TCS', 'INFY', 'HCLTECH', 'WIPRO', 'TECHM'],
+        Banking: ['HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK', 'INDUSINDBK'],
+        Energy: ['RELIANCE', 'ONGC', 'POWERGRID', 'NTPC'],
+        Consumer: ['HINDUNILVR', 'ITC', 'ASIANPAINT', 'MARUTI', 'DABUR', 'GODREJCP'],
+        Pharma: ['SUNPHARMA', 'DRREDDY', 'CIPLA', 'BIOCON'],
+        Auto: ['TATAMOTORS', 'MARUTI', 'BAJAJ-AUTO', 'M&M', 'ESCORTS'],
+        Metals: ['JSWSTEEL', 'SAIL', 'HINDALCO', 'VEDL', 'NMDC']
+      };
+
+      const analysisResults = {
+        totalStocks: 0,
+        sectors: Object.keys(sectorMapping),
+        largeCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        midCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        smallCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        sectorAnalysis: {},
+        overallSentiment: 'neutral'
+      };
+
+      // Analyze stocks from each category
+      for (const [capSize, stocks] of Object.entries(stockCategories)) {
+        console.log(`🔍 Analyzing ${capSize} stocks...`);
+        const categoryResults = [];
+        
+        // Analyze more stocks for better recommendations (limit per category for performance)
+        const stocksToAnalyze = stocks.slice(0, capSize === 'largeCap' ? 10 : capSize === 'midCap' ? 8 : 6);
+        
+        for (const symbol of stocksToAnalyze) {
+          try {
+            const stockAnalysis = await StockAnalysisApiService.analyzeStock(`analysis of ${symbol} stock performance`);
+            
+            if (stockAnalysis && stockAnalysis.stockData.currentPrice > 0) {
+              const stockResult = {
+                symbol: stockAnalysis.stockData.symbol,
+                name: stockAnalysis.stockData.companyName,
+                price: stockAnalysis.stockData.currentPrice,
+                change: stockAnalysis.stockData.changePercent,
+                recommendation: stockAnalysis.recommendation.action,
+                confidence: stockAnalysis.recommendation.confidence,
+                sector: findStockSector(symbol, sectorMapping),
+                capSize: capSize
+              };
+              
+              categoryResults.push(stockResult);
+              analysisResults.totalStocks++;
+            }
+            
+            // Small delay to avoid overwhelming the system
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+          } catch (err) {
+            console.warn(`Failed to analyze ${symbol}:`, err);
           }
-        } catch (err) {
-          console.warn(`Failed to analyze ${symbol}:`, err);
+        }
+        
+        // Process category results
+        if (categoryResults.length > 0) {
+          const avgPerformance = categoryResults.reduce((sum, stock) => sum + stock.change, 0) / categoryResults.length;
+          const topPerformers = categoryResults
+            .sort((a, b) => b.change - a.change)
+            .slice(0, 3);
+          const buyRecommendations = categoryResults
+            .filter(stock => stock.recommendation === 'BUY' && stock.confidence > 70)
+            .sort((a, b) => b.confidence - a.confidence);
+            
+          analysisResults[capSize as keyof typeof analysisResults] = {
+            stocks: categoryResults,
+            avgPerformance: avgPerformance,
+            topPerformers: topPerformers,
+            recommendations: buyRecommendations
+          };
         }
       }
 
-      return topStocks;
+      // Sector-wise analysis
+      for (const [sector, sectorStocks] of Object.entries(sectorMapping)) {
+        const sectorResults = [];
+        
+        // Find analyzed stocks in this sector
+        for (const capCategory of Object.values(analysisResults)) {
+          if (capCategory.stocks) {
+            const sectorStocksInCategory = capCategory.stocks.filter(stock => 
+              sectorStocks.includes(stock.symbol)
+            );
+            sectorResults.push(...sectorStocksInCategory);
+          }
+        }
+        
+        if (sectorResults.length > 0) {
+          const avgSectorPerformance = sectorResults.reduce((sum, stock) => sum + stock.change, 0) / sectorResults.length;
+          const topSectorStock = sectorResults.sort((a, b) => b.change - a.change)[0];
+          
+          analysisResults.sectorAnalysis[sector] = {
+            stocks: sectorResults,
+            avgPerformance: avgSectorPerformance,
+            topPerformer: topSectorStock,
+            sentiment: avgSectorPerformance > 2 ? 'bullish' : avgSectorPerformance < -2 ? 'bearish' : 'neutral'
+          };
+        }
+      }
+
+      return analysisResults;
       
     } catch (error) {
-      console.error('Top stocks analysis failed:', error);
-      return [];
+      console.error('Comprehensive stock analysis failed:', error);
+      return {
+        totalStocks: 0,
+        sectors: [],
+        largeCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        midCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        smallCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
+        sectorAnalysis: {},
+        overallSentiment: 'neutral'
+      };
     }
   };
 
-  const generateAIPortfolioAdvice = async (query: string, marketResearch: any, topStocks: any[]) => {
+  // Helper function to find stock sector
+  const findStockSector = (symbol: string, sectorMapping: any) => {
+    for (const [sector, stocks] of Object.entries(sectorMapping)) {
+      if ((stocks as string[]).includes(symbol)) {
+        return sector;
+      }
+    }
+    return 'Other';
+  };
+
+  // Helper functions for market analysis
+  const analyzeSectorTrends = (insights: any[]) => {
+    const sectorMentions = {
+      IT: 0, Banking: 0, Energy: 0, Consumer: 0, 
+      Pharma: 0, Auto: 0, Metals: 0, Telecom: 0
+    };
+    
+    insights.forEach(insight => {
+      const text = (insight.title + ' ' + insight.snippet).toLowerCase();
+      if (text.includes('it ') || text.includes('tcs') || text.includes('infosys')) sectorMentions.IT++;
+      if (text.includes('bank') || text.includes('hdfc') || text.includes('icici')) sectorMentions.Banking++;
+      if (text.includes('energy') || text.includes('reliance') || text.includes('ongc')) sectorMentions.Energy++;
+      if (text.includes('consumer') || text.includes('fmcg') || text.includes('unilever')) sectorMentions.Consumer++;
+      if (text.includes('pharma') || text.includes('drug') || text.includes('medicine')) sectorMentions.Pharma++;
+      if (text.includes('auto') || text.includes('car') || text.includes('tata motors')) sectorMentions.Auto++;
+      if (text.includes('metal') || text.includes('steel') || text.includes('iron')) sectorMentions.Metals++;
+      if (text.includes('telecom') || text.includes('bharti') || text.includes('airtel')) sectorMentions.Telecom++;
+    });
+    
+    return sectorMentions;
+  };
+
+  const analyzeCapSizePerformance = (insights: any[]) => {
+    const capMentions = { largeCap: 0, midCap: 0, smallCap: 0 };
+    
+    insights.forEach(insight => {
+      const text = (insight.title + ' ' + insight.snippet).toLowerCase();
+      if (text.includes('large cap') || text.includes('largecap')) capMentions.largeCap++;
+      if (text.includes('mid cap') || text.includes('midcap')) capMentions.midCap++;
+      if (text.includes('small cap') || text.includes('smallcap')) capMentions.smallCap++;
+    });
+    
+    return capMentions;
+  };
+
+  const generateRiskBasedRecommendations = async (comprehensiveAnalysis: any, query: string) => {
+    const recommendations = {
+      low: { allocation: {}, stocks: [], rationale: '' },
+      medium: { allocation: {}, stocks: [], rationale: '' },
+      high: { allocation: {}, stocks: [], rationale: '' }
+    };
+
+    // Low Risk Portfolio (Conservative)
+    recommendations.low = {
+      allocation: {
+        largeCap: 70,
+        midCap: 20,
+        smallCap: 10,
+        bonds: 0 // Not applicable for stock-only portfolio
+      },
+      stocks: [
+        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 4),
+        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 2)
+      ],
+      rationale: 'Focus on established large-cap stocks with consistent performance and lower volatility'
+    };
+
+    // Medium Risk Portfolio (Balanced)
+    recommendations.medium = {
+      allocation: {
+        largeCap: 50,
+        midCap: 35,
+        smallCap: 15
+      },
+      stocks: [
+        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 3),
+        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 3),
+        ...comprehensiveAnalysis.smallCap.recommendations.slice(0, 1)
+      ],
+      rationale: 'Balanced mix across market caps for moderate growth with managed risk'
+    };
+
+    // High Risk Portfolio (Aggressive)
+    recommendations.high = {
+      allocation: {
+        largeCap: 30,
+        midCap: 40,
+        smallCap: 30
+      },
+      stocks: [
+        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 2),
+        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 4),
+        ...comprehensiveAnalysis.smallCap.recommendations.slice(0, 3)
+      ],
+      rationale: 'Growth-focused portfolio with higher allocation to mid and small caps for maximum returns'
+    };
+
+    return {
+      recommendations: [
+        { risk: 'low', ...recommendations.low },
+        { risk: 'medium', ...recommendations.medium },
+        { risk: 'high', ...recommendations.high }
+      ],
+      marketConditions: comprehensiveAnalysis.overallSentiment,
+      topSectors: Object.entries(comprehensiveAnalysis.sectorAnalysis)
+        .sort(([,a], [,b]) => (b as any).avgPerformance - (a as any).avgPerformance)
+        .slice(0, 3)
+        .map(([sector]) => sector)
+    };
+  };
+
+  const generateComprehensivePortfolioAdvice = async (query: string, marketResearch: any, comprehensiveAnalysis: any, riskBasedRecommendations: any) => {
     try {
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
       if (!apiKey) {
