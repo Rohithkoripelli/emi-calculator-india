@@ -395,7 +395,7 @@ export class StockAnalysisApiService {
       query.replace(/\b(mr|mrs)\s+/gi, '') // Remove Mr/Mrs prefix
     );
     
-    return [...new Set(alternatives)]; // Remove duplicates
+    return Array.from(new Set(alternatives)); // Remove duplicates
   }
 
   /**
