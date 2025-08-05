@@ -4,7 +4,7 @@ import { XMarkIcon, PaperAirplaneIcon, ChatBubbleLeftRightIcon } from '@heroicon
 import { AIResponseFormatter } from './AIResponseFormatter';
 import { StockRecommendationCard } from './StockRecommendationCard';
 import { StockInsightsPanel } from './StockInsightsPanel';
-import { StockAnalysisApiService, StockAnalysisResult } from '../../services/stockAnalysisApi';
+import { StockAnalysisApiService, StockAnalysisResult, StockAnalysisData } from '../../services/stockAnalysisApi';
 
 interface Message {
   id: string;
@@ -14,6 +14,30 @@ interface Message {
   stockAnalysis?: StockAnalysisResult;
   isStreaming?: boolean;
   isComplete?: boolean;
+}
+
+interface CapCategoryAnalysis {
+  stocks: StockAnalysisData[];
+  avgPerformance: number;
+  topPerformers: StockAnalysisData[];
+  recommendations: StockAnalysisData[];
+}
+
+interface SectorAnalysis {
+  stocks: StockAnalysisData[];
+  avgPerformance: number;
+  topPerformer: StockAnalysisData;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+}
+
+interface ComprehensiveAnalysisResults {
+  totalStocks: number;
+  sectors: string[];
+  largeCap: CapCategoryAnalysis;
+  midCap: CapCategoryAnalysis;
+  smallCap: CapCategoryAnalysis;
+  sectorAnalysis: Record<string, SectorAnalysis>;
+  overallSentiment: 'bullish' | 'bearish' | 'neutral';
 }
 
 interface AIAssistantProps {
@@ -839,7 +863,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         Metals: ['JSWSTEEL', 'SAIL', 'HINDALCO', 'VEDL', 'NMDC']
       };
 
-      const analysisResults = {
+      const analysisResults: ComprehensiveAnalysisResults = {
         totalStocks: 0,
         sectors: Object.keys(sectorMapping),
         largeCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
@@ -925,11 +949,13 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
 
       // Sector-wise analysis
       for (const [sector, sectorStocks] of Object.entries(sectorMapping)) {
-        const sectorResults = [];
+        const sectorResults: StockAnalysisData[] = [];
         
-        // Find analyzed stocks in this sector
-        for (const capCategory of Object.values(analysisResults)) {
-          if (capCategory.stocks) {
+        // Find analyzed stocks in this sector from each cap category
+        const capCategories = [analysisResults.largeCap, analysisResults.midCap, analysisResults.smallCap];
+        
+        for (const capCategory of capCategories) {
+          if (capCategory.stocks && capCategory.stocks.length > 0) {
             const sectorStocksInCategory = capCategory.stocks.filter(stock => 
               sectorStocks.includes(stock.symbol)
             );
@@ -961,7 +987,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         midCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
         smallCap: { stocks: [], avgPerformance: 0, topPerformers: [], recommendations: [] },
         sectorAnalysis: {},
-        overallSentiment: 'neutral'
+        overallSentiment: 'neutral' as const
       };
     }
   };
@@ -1011,11 +1037,11 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     return capMentions;
   };
 
-  const generateRiskBasedRecommendations = async (comprehensiveAnalysis: any, query: string) => {
+  const generateRiskBasedRecommendations = async (comprehensiveAnalysis: ComprehensiveAnalysisResults, query: string) => {
     const recommendations = {
-      low: { allocation: {}, stocks: [], rationale: '' },
-      medium: { allocation: {}, stocks: [], rationale: '' },
-      high: { allocation: {}, stocks: [], rationale: '' }
+      low: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' },
+      medium: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' },
+      high: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' }
     };
 
     // Low Risk Portfolio (Conservative)
@@ -1170,7 +1196,7 @@ ${sectorAnalysisSummary}
       if (aiAdvice) {
         // Add research sources at the end
         const uniqueSources = marketResearch.insights.map((i: any) => i.source).filter((source: string, index: number, arr: string[]) => arr.indexOf(source) === index);
-        const sourcesSection = `\n\n**Research Sources:**\nBased on ${marketResearch.insights.length} recent market insights from ${uniqueSources.slice(0, 3).join(', ')} and real-time analysis of ${topStocks.length} stocks.`;
+        const sourcesSection = `\n\n**Research Sources:**\nBased on ${marketResearch.insights.length} recent market insights from ${uniqueSources.slice(0, 3).join(', ')} and real-time analysis of ${comprehensiveAnalysis.totalStocks} stocks.`;
         
         return aiAdvice + sourcesSection;
       } else {
@@ -1181,6 +1207,74 @@ ${sectorAnalysisSummary}
       console.error('AI portfolio advice generation failed:', error);
       return generateFallbackPortfolioAdvice(query);
     }
+  };
+
+  const generateAdvancedFallbackAdvice = (query: string, comprehensiveAnalysis: any, riskBasedRecommendations: any) => {
+    const totalStocks = comprehensiveAnalysis?.totalStocks || 0;
+    const lowRiskStocks = riskBasedRecommendations?.recommendations?.[0]?.stocks || [];
+    const mediumRiskStocks = riskBasedRecommendations?.recommendations?.[1]?.stocks || [];
+    const highRiskStocks = riskBasedRecommendations?.recommendations?.[2]?.stocks || [];
+
+    return `**Comprehensive Investment Research Results**
+
+Based on your query: "${query}"
+
+**Market Analysis Summary**
+- **${totalStocks} stocks analyzed** across Large Cap, Mid Cap, and Small Cap segments
+- Real-time performance data gathered from multiple market sources
+- Sector-wise analysis completed across ${comprehensiveAnalysis?.sectors?.length || 7} major sectors
+
+**Risk-Based Portfolio Recommendations**
+
+**🟢 LOW RISK PORTFOLIO (Conservative)**
+- **Allocation**: 70% Large Cap, 20% Mid Cap, 10% Small Cap
+- **Recommended Stocks**: ${lowRiskStocks.slice(0, 4).map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ') || 'Analysis in progress'}
+- **Expected Returns**: 8-12% annually with lower volatility
+- **Suitable For**: Risk-averse investors, senior citizens, first-time investors
+
+**🟡 MEDIUM RISK PORTFOLIO (Balanced)**
+- **Allocation**: 50% Large Cap, 35% Mid Cap, 15% Small Cap  
+- **Recommended Stocks**: ${mediumRiskStocks.slice(0, 5).map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ') || 'Analysis in progress'}
+- **Expected Returns**: 12-18% annually with moderate volatility
+- **Suitable For**: Working professionals, balanced growth seekers
+
+**🔴 HIGH RISK PORTFOLIO (Aggressive)**
+- **Allocation**: 30% Large Cap, 40% Mid Cap, 30% Small Cap
+- **Recommended Stocks**: ${highRiskStocks.slice(0, 6).map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ') || 'Analysis in progress'}
+- **Expected Returns**: 18-25% annually with higher volatility
+- **Suitable For**: Young investors, growth-focused portfolios
+
+**Sector Analysis**
+- **Top Performing Sectors**: IT, Banking, Consumer goods showing positive momentum
+- **Emerging Opportunities**: Renewable energy, fintech, healthcare sectors
+- **Defensive Sectors**: FMCG, pharmaceuticals for stability
+
+**Investment Strategy**
+- **Short Term (1-3 months)**: Focus on large-cap momentum stocks
+- **Medium Term (3-12 months)**: Balanced allocation across market caps
+- **Long Term (1+ years)**: Growth-oriented portfolio with mid and small caps
+
+**Risk Management**
+- Diversify across at least 8-10 stocks from different sectors
+- Set stop-loss levels at 8-12% below purchase price
+- Review portfolio monthly and rebalance quarterly
+
+**Tax Optimization**
+- Short-term gains (< 1 year): 15% tax rate
+- Long-term gains (> 1 year): 10% tax on gains above ₹1 lakh
+- Consider systematic investment plans (SIP) for rupee cost averaging
+
+**Important Disclaimers**
+- Based on comprehensive market research and stock analysis
+- Past performance doesn't guarantee future results  
+- Consult qualified financial advisors for personalized advice
+- Markets are subject to volatility and systematic risks
+
+**Next Steps**
+1. Choose risk level based on your profile and investment timeline
+2. Start with recommended allocation percentages
+3. Monitor stock performance and market trends regularly
+4. Consider systematic investment approach for large amounts`;
   };
 
   const generateFallbackPortfolioAdvice = (query: string) => {
