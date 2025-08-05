@@ -717,35 +717,28 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         };
       }
 
-      // Comprehensive search across all market dimensions
+      // Optimized search for speed - fewer but high-quality queries
       const searchCategories = {
         largeCap: [
-          'best large cap stocks India 2025 highest returns',
-          'top performing large cap companies NSE 2025',
-          'large cap stocks buy recommendations January 2025'
+          'best large cap stocks India 2025 buy recommendations',
+          'top performing large cap companies NSE BSE 2025'
         ],
         midCap: [
           'best mid cap stocks India 2025 growth potential',
-          'top mid cap stocks NSE BSE recommendations',
-          'mid cap companies high returns 2025 India'
+          'top mid cap stocks NSE recommendations 2025'
         ],
         smallCap: [
           'best small cap stocks India 2025 multibagger',
-          'top small cap stocks high growth potential',
-          'small cap gems India stock market 2025'
+          'top small cap stocks high growth 2025'
         ],
         sectors: [
-          'best IT stocks India 2025 TCS Infosys analysis',
-          'top banking stocks HDFC ICICI SBI recommendations',
-          'pharma stocks India best performers 2025',
-          'automobile sector stocks India Tata Motors Maruti',
-          'FMCG stocks India best performing companies',
-          'energy sector stocks Reliance Oil Gas India'
+          'best IT banking stocks India 2025 TCS HDFC recommendations',
+          'top pharma energy stocks India 2025 Reliance analysis',
+          'FMCG auto sector stocks India best performers 2025'
         ],
         marketTrends: [
-          'Indian stock market trends January 2025 outlook',
-          'NSE BSE market analysis current trends 2025',
-          'stock market forecast India bulls bears sentiment'
+          'Indian stock market trends January 2025 outlook analysis',
+          'NSE BSE market forecast bulls bears sentiment 2025'
         ]
       };
 
@@ -779,8 +772,8 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
               }
             }
             
-            // Small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Minimal delay for speed
+            await new Promise(resolve => setTimeout(resolve, 50));
             
           } catch (err) {
             console.warn(`Search query failed for ${category}:`, query, err);
@@ -856,58 +849,77 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         overallSentiment: 'neutral'
       };
 
-      // Analyze stocks from each category
+      // Analyze stocks from each category with parallel processing for speed
+      const stockAnalysisPromises = [];
+      
       for (const [capSize, stocks] of Object.entries(stockCategories)) {
-        console.log(`🔍 Analyzing ${capSize} stocks...`);
-        const categoryResults = [];
+        console.log(`🔍 Preparing ${capSize} stocks for parallel analysis...`);
         
-        // Analyze more stocks for better recommendations (limit per category for performance)
-        const stocksToAnalyze = stocks.slice(0, capSize === 'largeCap' ? 10 : capSize === 'midCap' ? 8 : 6);
+        // Optimize for speed - analyze fewer stocks but more strategically
+        const stocksToAnalyze = stocks.slice(0, capSize === 'largeCap' ? 5 : capSize === 'midCap' ? 4 : 3);
         
+        // Create parallel analysis promises
         for (const symbol of stocksToAnalyze) {
-          try {
-            const stockAnalysis = await StockAnalysisApiService.analyzeStock(`analysis of ${symbol} stock performance`);
-            
-            if (stockAnalysis && stockAnalysis.stockData.currentPrice > 0) {
-              const stockResult = {
-                symbol: stockAnalysis.stockData.symbol,
-                name: stockAnalysis.stockData.companyName,
-                price: stockAnalysis.stockData.currentPrice,
-                change: stockAnalysis.stockData.changePercent,
-                recommendation: stockAnalysis.recommendation.action,
-                confidence: stockAnalysis.recommendation.confidence,
-                sector: findStockSector(symbol, sectorMapping),
-                capSize: capSize
-              };
-              
-              categoryResults.push(stockResult);
-              analysisResults.totalStocks++;
-            }
-            
-            // Small delay to avoid overwhelming the system
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-          } catch (err) {
-            console.warn(`Failed to analyze ${symbol}:`, err);
+          stockAnalysisPromises.push(
+            StockAnalysisApiService.analyzeStock(`analysis of ${symbol} stock performance`)
+              .then(stockAnalysis => {
+                if (stockAnalysis && stockAnalysis.stockData.currentPrice > 0) {
+                  return {
+                    symbol: stockAnalysis.stockData.symbol,
+                    name: stockAnalysis.stockData.companyName,
+                    price: stockAnalysis.stockData.currentPrice,
+                    change: stockAnalysis.stockData.changePercent,
+                    recommendation: stockAnalysis.recommendation.action,
+                    confidence: stockAnalysis.recommendation.confidence,
+                    sector: findStockSector(symbol, sectorMapping),
+                    capSize: capSize
+                  };
+                }
+                return null;
+              })
+              .catch(err => {
+                console.warn(`Failed to analyze ${symbol}:`, err);
+                return null;
+              })
+          );
+        }
+      }
+
+      // Wait for all stock analyses to complete (with timeout)
+      console.log(`⚡ Running ${stockAnalysisPromises.length} stock analyses in parallel...`);
+      const stockResults = await Promise.allSettled(stockAnalysisPromises);
+      
+      // Process results and categorize
+      for (const result of stockResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          const stockResult = result.value;
+          const categoryResults = analysisResults[stockResult.capSize as keyof typeof analysisResults];
+          
+          if (categoryResults && typeof categoryResults === 'object' && 'stocks' in categoryResults) {
+            (categoryResults as any).stocks.push(stockResult);
+            analysisResults.totalStocks++;
           }
         }
+      }
+
+      // Process category aggregations
+      for (const [capSize] of Object.entries(stockCategories)) {
+        const categoryData = analysisResults[capSize as keyof typeof analysisResults] as any;
         
-        // Process category results
-        if (categoryResults.length > 0) {
-          const avgPerformance = categoryResults.reduce((sum, stock) => sum + stock.change, 0) / categoryResults.length;
-          const topPerformers = categoryResults
-            .sort((a, b) => b.change - a.change)
+        // Process category results if stocks exist
+        if (categoryData.stocks && categoryData.stocks.length > 0) {
+          const avgPerformance = categoryData.stocks.reduce((sum: number, stock: any) => sum + stock.change, 0) / categoryData.stocks.length;
+          const topPerformers = categoryData.stocks
+            .sort((a: any, b: any) => b.change - a.change)
             .slice(0, 3);
-          const buyRecommendations = categoryResults
-            .filter(stock => stock.recommendation === 'BUY' && stock.confidence > 70)
-            .sort((a, b) => b.confidence - a.confidence);
+          const buyRecommendations = categoryData.stocks
+            .filter((stock: any) => stock.recommendation === 'BUY' && stock.confidence > 70)
+            .sort((a: any, b: any) => b.confidence - a.confidence);
             
-          analysisResults[capSize as keyof typeof analysisResults] = {
-            stocks: categoryResults,
-            avgPerformance: avgPerformance,
-            topPerformers: topPerformers,
-            recommendations: buyRecommendations
-          };
+          // Update the category data with aggregated results
+          categoryData.avgPerformance = avgPerformance;
+          categoryData.topPerformers = topPerformers;
+          categoryData.recommendations = buyRecommendations;
         }
       }
 
@@ -1069,29 +1081,61 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     try {
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
       if (!apiKey) {
-        return generateFallbackPortfolioAdvice(query);
+        return generateAdvancedFallbackAdvice(query, comprehensiveAnalysis, riskBasedRecommendations);
       }
 
-      const prompt = `You are an expert Indian investment advisor. Based on the REAL-TIME market research and stock analysis provided, give comprehensive portfolio recommendations.
+      // Create comprehensive data summary for AI
+      const marketInsightsSummary = marketResearch.insights.slice(0, 20).map((insight: any) => 
+        `- [${insight.source}] ${insight.title}: ${insight.snippet}`
+      ).join('\n');
+
+      const stockAnalysisSummary = `
+**LARGE CAP ANALYSIS** (${comprehensiveAnalysis.largeCap.stocks.length} stocks analyzed):
+Top Performers: ${comprehensiveAnalysis.largeCap.topPerformers.map((s: any) => `${s.name} (+${s.change.toFixed(2)}%)`).join(', ')}
+Buy Recommendations: ${comprehensiveAnalysis.largeCap.recommendations.map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ')}
+
+**MID CAP ANALYSIS** (${comprehensiveAnalysis.midCap.stocks.length} stocks analyzed):
+Top Performers: ${comprehensiveAnalysis.midCap.topPerformers.map((s: any) => `${s.name} (+${s.change.toFixed(2)}%)`).join(', ')}
+Buy Recommendations: ${comprehensiveAnalysis.midCap.recommendations.map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ')}
+
+**SMALL CAP ANALYSIS** (${comprehensiveAnalysis.smallCap.stocks.length} stocks analyzed):
+Top Performers: ${comprehensiveAnalysis.smallCap.topPerformers.map((s: any) => `${s.name} (+${s.change.toFixed(2)}%)`).join(', ')}
+Buy Recommendations: ${comprehensiveAnalysis.smallCap.recommendations.map((s: any) => `${s.name} (${s.confidence}% confidence)`).join(', ')}`;
+
+      const sectorAnalysisSummary = Object.entries(comprehensiveAnalysis.sectorAnalysis)
+        .map(([sector, data]: [string, any]) => 
+          `${sector}: ${data.sentiment} sentiment (${data.avgPerformance.toFixed(2)}% avg), Top: ${data.topPerformer?.name || 'N/A'}`
+        ).join('\n');
+
+      const prompt = `You are an expert Indian investment advisor. Based on COMPREHENSIVE real-time analysis of ${comprehensiveAnalysis.totalStocks} stocks across all market segments, provide detailed portfolio recommendations.
 
 **USER QUERY:** "${query}"
 
-**CURRENT MARKET RESEARCH:**
-${marketResearch.insights.map((insight: any) => `- [${insight.source}] ${insight.title}: ${insight.snippet}`).join('\n')}
+**EXTENSIVE MARKET RESEARCH** (${marketResearch.totalInsights} insights analyzed):
+${marketInsightsSummary}
 
-**CURRENT TOP PERFORMING STOCKS:**
-${topStocks.map(stock => `- ${stock.name} (${stock.symbol}): ₹${stock.price} (${stock.change > 0 ? '+' : ''}${stock.change.toFixed(2)}%) - Recommendation: ${stock.recommendation}`).join('\n')}
+**COMPREHENSIVE STOCK ANALYSIS:**
+${stockAnalysisSummary}
+
+**SECTOR PERFORMANCE ANALYSIS:**
+${sectorAnalysisSummary}
+
+**RISK-BASED RECOMMENDATIONS AVAILABLE:**
+- Low Risk: ${riskBasedRecommendations.recommendations[0].stocks.length} stocks recommended
+- Medium Risk: ${riskBasedRecommendations.recommendations[1].stocks.length} stocks recommended  
+- High Risk: ${riskBasedRecommendations.recommendations[2].stocks.length} stocks recommended
 
 **PROVIDE COMPREHENSIVE RESPONSE WITH:**
-1. **Risk Assessment** based on current market conditions
-2. **Specific Stock Recommendations** from the analyzed stocks above
-3. **Asset Allocation** with exact percentages
-4. **Current Market Analysis** based on research insights
-5. **Timeline Strategy** for the investment
-6. **Tax Implications** for Indian investors
-7. **Risk Warnings** and disclaimers
+1. **Market Overview** - Current trends based on research
+2. **Risk-Based Portfolio Options** - All three risk levels with specific stocks and allocations
+3. **Sector Recommendations** - Best performing sectors with specific stocks
+4. **Investment Strategy** - Based on amount and timeline mentioned in query
+5. **Specific Stock Picks** - With current prices, expected returns, and rationale
+6. **Diversification Strategy** - Across sectors and market caps
+7. **Tax Optimization** - Indian tax implications and strategies
+8. **Risk Management** - Stop-loss suggestions and monitoring approach
 
-**FORMAT:** Use clear headings with ** ** and bullet points. Focus on ACTIONABLE advice with SPECIFIC stock names and percentages.`;
+**FORMAT:** Use clear headings, bullet points, and SPECIFIC stock names with current data. Make it actionable and comprehensive.`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
