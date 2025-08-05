@@ -299,9 +299,9 @@ Ask me anything about your loan, financial planning, or stock analysis!` : 'Plea
       console.log('Processing query:', currentInput);
       
       // Check if this is a portfolio/investment recommendation query
-      if (this.isPortfolioRecommendationQuery(currentInput)) {
+      if (isPortfolioRecommendationQuery(currentInput)) {
         console.log('Portfolio recommendation query detected, processing...');
-        const portfolioResponse = await this.generatePortfolioRecommendation(currentInput);
+        const portfolioResponse = await generatePortfolioRecommendation(currentInput);
         
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
