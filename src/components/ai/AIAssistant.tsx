@@ -1183,9 +1183,75 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     };
   };
 
+  // Helper function to calculate realistic investment allocations
+  const calculateStockAllocations = (stocks: StockAnalysisData[], totalAmount: number, allocations: Record<string, number>) => {
+    const result: Array<{stock: StockAnalysisData, allocation: number, shares: number, cost: number}> = [];
+    
+    // Sort stocks by price to prioritize affordable ones
+    const sortedStocks = [...stocks].sort((a, b) => a.currentPrice - b.currentPrice);
+    
+    let remainingAmount = totalAmount;
+    const targetStocks = Math.min(7, sortedStocks.length); // Maximum 7 stocks
+    const baseAllocation = totalAmount / targetStocks;
+    
+    for (let i = 0; i < targetStocks && i < sortedStocks.length; i++) {
+      const stock = sortedStocks[i];
+      const stockPrice = stock.currentPrice || 500;
+      
+      // Skip stocks that are too expensive (more than 40% of total investment)
+      if (stockPrice > totalAmount * 0.4) continue;
+      
+      // Calculate allocation (minimum ₹1000, maximum 30% of total)
+      let allocation = Math.min(
+        Math.max(baseAllocation * 0.8, 1000), // Minimum ₹1000
+        totalAmount * 0.3 // Maximum 30% of total
+      );
+      
+      // Adjust if not enough remaining
+      allocation = Math.min(allocation, remainingAmount);
+      
+      // Calculate shares (rounded down to whole shares)
+      const shares = Math.floor(allocation / stockPrice);
+      const actualCost = shares * stockPrice;
+      
+      if (shares > 0 && actualCost <= remainingAmount) {
+        result.push({
+          stock,
+          allocation: actualCost,
+          shares,
+          cost: actualCost
+        });
+        remainingAmount -= actualCost;
+      }
+      
+      if (remainingAmount < 1000) break; // Stop if less than ₹1000 remaining
+    }
+    
+    return result;
+  };
+
   const generateStructuredPortfolioResponse = (query: string, marketResearch: any, comprehensiveAnalysis: any, riskBasedRecommendations: any) => {
     const investmentInfo = riskBasedRecommendations.investmentInfo;
     const marketTrends = marketResearch.insights.slice(0, 5).map((insight: any) => insight.title).join('; ');
+    
+    // Calculate realistic allocations for each risk level
+    const lowRiskAllocations = calculateStockAllocations(
+      riskBasedRecommendations.recommendations[0].stocks, 
+      investmentInfo.amount, 
+      riskBasedRecommendations.recommendations[0].allocation
+    );
+    
+    const mediumRiskAllocations = calculateStockAllocations(
+      riskBasedRecommendations.recommendations[1].stocks, 
+      investmentInfo.amount, 
+      riskBasedRecommendations.recommendations[1].allocation
+    );
+    
+    const highRiskAllocations = calculateStockAllocations(
+      riskBasedRecommendations.recommendations[2].stocks, 
+      investmentInfo.amount, 
+      riskBasedRecommendations.recommendations[2].allocation
+    );
     
     // Generate structured response without AI API
     const response = `
@@ -1205,10 +1271,13 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
 **Investment Horizon**: ${riskBasedRecommendations.recommendations[0].investmentHorizon}
 **Allocation Strategy**: ${riskBasedRecommendations.recommendations[0].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[0].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[0].allocation.smallCap}% Small Cap
 
-**Recommended Stocks (${riskBasedRecommendations.recommendations[0].stocks.length} picks):**
-${riskBasedRecommendations.recommendations[0].stocks.map((stock: any, index: number) => 
-  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
-).join('\n')}
+**Recommended Stocks with Allocations:**
+${lowRiskAllocations.map((allocation, index) => 
+  `${index + 1}. **${allocation.stock.companyName || allocation.stock.symbol}** (${allocation.stock.symbol})
+   - Current Price: ₹${allocation.stock.currentPrice.toFixed(2)} | Change: ${allocation.stock.changePercent >= 0 ? '+' : ''}${allocation.stock.changePercent.toFixed(2)}%
+   - Investment: ₹${allocation.cost.toLocaleString('en-IN')} (${allocation.shares} shares)
+   - Allocation: ${((allocation.cost / investmentInfo.amount) * 100).toFixed(1)}% of portfolio`
+).join('\n\n')}
 
 **Strategy**: ${riskBasedRecommendations.recommendations[0].rationale}
 
@@ -1217,10 +1286,13 @@ ${riskBasedRecommendations.recommendations[0].stocks.map((stock: any, index: num
 **Investment Horizon**: ${riskBasedRecommendations.recommendations[1].investmentHorizon}
 **Allocation Strategy**: ${riskBasedRecommendations.recommendations[1].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[1].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[1].allocation.smallCap}% Small Cap
 
-**Recommended Stocks (${riskBasedRecommendations.recommendations[1].stocks.length} picks):**
-${riskBasedRecommendations.recommendations[1].stocks.map((stock: any, index: number) => 
-  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
-).join('\n')}
+**Recommended Stocks with Allocations:**
+${mediumRiskAllocations.map((allocation, index) => 
+  `${index + 1}. **${allocation.stock.companyName || allocation.stock.symbol}** (${allocation.stock.symbol})
+   - Current Price: ₹${allocation.stock.currentPrice.toFixed(2)} | Change: ${allocation.stock.changePercent >= 0 ? '+' : ''}${allocation.stock.changePercent.toFixed(2)}%
+   - Investment: ₹${allocation.cost.toLocaleString('en-IN')} (${allocation.shares} shares)
+   - Allocation: ${((allocation.cost / investmentInfo.amount) * 100).toFixed(1)}% of portfolio`
+).join('\n\n')}
 
 **Strategy**: ${riskBasedRecommendations.recommendations[1].rationale}
 
@@ -1229,10 +1301,13 @@ ${riskBasedRecommendations.recommendations[1].stocks.map((stock: any, index: num
 **Investment Horizon**: ${riskBasedRecommendations.recommendations[2].investmentHorizon}
 **Allocation Strategy**: ${riskBasedRecommendations.recommendations[2].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[2].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[2].allocation.smallCap}% Small Cap
 
-**Recommended Stocks (${riskBasedRecommendations.recommendations[2].stocks.length} picks):**
-${riskBasedRecommendations.recommendations[2].stocks.map((stock: any, index: number) => 
-  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
-).join('\n')}
+**Recommended Stocks with Allocations:**
+${highRiskAllocations.map((allocation, index) => 
+  `${index + 1}. **${allocation.stock.companyName || allocation.stock.symbol}** (${allocation.stock.symbol})
+   - Current Price: ₹${allocation.stock.currentPrice.toFixed(2)} | Change: ${allocation.stock.changePercent >= 0 ? '+' : ''}${allocation.stock.changePercent.toFixed(2)}%
+   - Investment: ₹${allocation.cost.toLocaleString('en-IN')} (${allocation.shares} shares)
+   - Allocation: ${((allocation.cost / investmentInfo.amount) * 100).toFixed(1)}% of portfolio`
+).join('\n\n')}
 
 **Strategy**: ${riskBasedRecommendations.recommendations[2].rationale}
 
