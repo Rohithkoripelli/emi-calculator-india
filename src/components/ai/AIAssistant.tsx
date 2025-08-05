@@ -298,7 +298,25 @@ Ask me anything about your loan, financial planning, or stock analysis!` : 'Plea
     try {
       console.log('Processing query:', currentInput);
       
-      // Check if this is a stock-related query
+      // Check if this is a portfolio/investment recommendation query
+      if (this.isPortfolioRecommendationQuery(currentInput)) {
+        console.log('Portfolio recommendation query detected, processing...');
+        const portfolioResponse = await this.generatePortfolioRecommendation(currentInput);
+        
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: portfolioResponse,
+          isUser: false,
+          timestamp: new Date(),
+          isComplete: true
+        };
+
+        setMessages(prev => [...prev, aiResponse]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if this is a specific stock-related query
       const stockAnalysis = await StockAnalysisApiService.analyzeStock(currentInput);
       
       if (stockAnalysis) {
@@ -629,6 +647,106 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Portfolio/Investment recommendation detection
+  const isPortfolioRecommendationQuery = (query: string): boolean => {
+    const lowerQuery = query.toLowerCase();
+    const portfolioKeywords = [
+      'invest', 'investment', 'portfolio', 'rupees', 'amount', 'money',
+      'recommendations', 'suggest', 'advice', 'fund', 'funds', 'mutual fund',
+      'large cap', 'mid cap', 'small cap', 'risk', 'diversify', 'allocation'
+    ];
+    
+    const investmentPhrases = [
+      'i want to invest', 'looking to invest', 'investment advice',
+      'portfolio recommendations', 'best stocks', 'good investment',
+      'where to invest', 'how to invest', 'investment strategy'
+    ];
+    
+    // Check for investment amount patterns
+    const hasAmount = /(\d+k?|\d+,?\d*)\s*(rupees?|rs\.?|₹)/i.test(query);
+    const hasKeywords = portfolioKeywords.some(keyword => lowerQuery.includes(keyword));
+    const hasPhrases = investmentPhrases.some(phrase => lowerQuery.includes(phrase));
+    
+    return (hasAmount && hasKeywords) || hasPhrases;
+  };
+
+  const generatePortfolioRecommendation = async (query: string): Promise<string> => {
+    try {
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+      if (!apiKey) {
+        return "I'd be happy to help with investment advice, but I need API access to provide detailed portfolio recommendations. Please contact support to enable this feature.";
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert Indian investment advisor. Provide comprehensive portfolio recommendations based on user queries.
+
+**ALWAYS PROVIDE:**
+1. Risk assessment (High/Medium/Low)
+2. Asset allocation recommendations
+3. Specific fund/stock categories with examples
+4. Timeline-based strategy
+5. Tax implications
+6. Diversification strategy
+
+**FORMAT YOUR RESPONSE WITH:**
+- Clear headings with ** **
+- Bullet points for easy reading
+- Specific Indian market focus (NSE/BSE stocks, Indian mutual funds)
+- Risk warnings and disclaimers`
+            },
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1500
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || "I apologize, but I couldn't generate portfolio recommendations at this time. Please try again.";
+      
+    } catch (error) {
+      console.error('Portfolio recommendation error:', error);
+      return `**Investment Portfolio Recommendations**
+
+I'd love to help you create a comprehensive investment strategy! Here's a general framework:
+
+**Risk Assessment**
+- **Low Risk**: Focus on large-cap stocks and debt funds
+- **Medium Risk**: Balanced mix of large-cap, mid-cap stocks and hybrid funds  
+- **High Risk**: Small-cap stocks, sectoral funds, and growth stocks
+
+**Suggested Asset Allocation**
+- **Conservative (Low Risk)**: 70% Debt, 30% Equity
+- **Balanced (Medium Risk)**: 50% Debt, 50% Equity
+- **Aggressive (High Risk)**: 30% Debt, 70% Equity
+
+**Recommended Categories**
+- **Large Cap**: TCS, Reliance, HDFC Bank, Infosys
+- **Mid Cap**: Asian Paints, Bajaj Finance, SBI
+- **Small Cap**: Research-based selection with higher risk
+- **Mutual Funds**: SIP in diversified equity funds
+
+**Important Note**: This is general guidance. Please consult a qualified financial advisor for personalized advice based on your specific financial situation, goals, and risk tolerance.`;
     }
   };
 

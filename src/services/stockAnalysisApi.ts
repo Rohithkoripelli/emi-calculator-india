@@ -319,19 +319,83 @@ export class StockAnalysisApiService {
    * Enhanced intelligent stock symbol extraction using Excel-based comprehensive database
    */
   static parseStockSymbol(query: string): string | null {
-    console.log(`🔍 Using Excel-based stock detection for: "${query}"`);
+    console.log(`🔍 Using multi-layered stock detection for: "${query}"`);
     
-    // Use the Excel-based service for stock symbol extraction
-    const symbol = ExcelBasedStockAnalysisService.parseStockSymbol(query);
+    // Primary search: Excel-based service
+    let symbol = ExcelBasedStockAnalysisService.parseStockSymbol(query);
     
     if (symbol) {
       const company = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
       console.log(`✅ Excel database match: ${company?.name} (${symbol})`);
-    } else {
-      console.log(`❌ No match found in Excel database for: "${query}"`);
+      return symbol;
     }
     
-    return symbol;
+    console.log(`⚠️ Primary search failed, trying alternative searches...`);
+    
+    // Secondary search: Try with variations and common misspellings
+    const alternativeQueries = this.generateAlternativeQueries(query);
+    for (const altQuery of alternativeQueries) {
+      console.log(`🔄 Trying alternative: "${altQuery}"`);
+      symbol = ExcelBasedStockAnalysisService.parseStockSymbol(altQuery);
+      if (symbol) {
+        const company = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
+        console.log(`✅ Alternative match found: ${company?.name} (${symbol})`);
+        return symbol;
+      }
+    }
+    
+    console.log(`❌ No match found in any search method for: "${query}"`);
+    return null;
+  }
+  
+  /**
+   * Generate alternative search queries for better matching
+   */
+  private static generateAlternativeQueries(query: string): string[] {
+    const alternatives: string[] = [];
+    const normalizedQuery = query.toLowerCase();
+    
+    // Common variations and corrections
+    const corrections = {
+      'reddy labs': ['dr reddys laboratories', 'drreddys', 'dr reddy', 'reddys'],
+      'vimta labs': ['vimta', 'vimta laboratories'], 
+      'path labs': ['dr lal path labs', 'lal path labs'],
+      'asian paints': ['asian paint'],
+      'tata motors': ['tatamotors', 'tata motor'],
+      'reliance': ['reliance industries', 'ril'],
+      'hdfc': ['hdfc bank', 'hdfcbank'],
+      'icici': ['icici bank', 'icicibank']
+    };
+    
+    // Check for known corrections
+    for (const [key, values] of Object.entries(corrections)) {
+      if (normalizedQuery.includes(key)) {
+        alternatives.push(...values);
+      }
+    }
+    
+    // Add variations with/without common suffixes
+    const commonSuffixes = ['limited', 'ltd', 'pvt', 'private', 'company', 'corp', 'corporation'];
+    const words = query.split(/\s+/);
+    
+    // Try without suffixes
+    const withoutSuffixes = words.filter(word => 
+      !commonSuffixes.includes(word.toLowerCase())
+    ).join(' ');
+    if (withoutSuffixes !== query) {
+      alternatives.push(withoutSuffixes);
+    }
+    
+    // Try with common variations
+    alternatives.push(
+      query.replace(/\s+/g, ''), // Remove spaces
+      query.replace(/labs?/gi, 'laboratories'), // labs -> laboratories
+      query.replace(/laboratories/gi, 'labs'), // laboratories -> labs  
+      query.replace(/\b(dr|doctor)\s+/gi, ''), // Remove Dr/Doctor prefix
+      query.replace(/\b(mr|mrs)\s+/gi, '') // Remove Mr/Mrs prefix
+    );
+    
+    return [...new Set(alternatives)]; // Remove duplicates
   }
 
   /**
@@ -795,7 +859,7 @@ export class StockAnalysisApiService {
         date: insight.publishedDate
       }));
 
-      const aiPrompt = `You are an expert Indian stock market analyst. Analyze the following stock data and provide a recommendation.
+      const aiPrompt = `You are an expert Indian stock market analyst. Analyze the following stock data and provide an OBJECTIVE recommendation based ONLY on the stock's performance and market conditions, regardless of what the user is asking.
 
 **STOCK DATA:**
 ${JSON.stringify(marketData, null, 2)}
@@ -805,10 +869,17 @@ ${newsData.map(news => `- [${news.source}] ${news.title}: ${news.snippet}`).join
 
 **USER QUERY:** "${userQuery}"
 
+**CRITICAL ANALYSIS GUIDELINES:**
+1. IGNORE the user's question phrasing (buy/sell) - provide recommendation based ONLY on stock analysis
+2. If stock is underperforming/declining/negative trends → Recommend SELL (even if user asks "should I buy")
+3. If stock is performing well/growing/positive trends → Recommend BUY (even if user asks "should I sell") 
+4. If stock is neutral/mixed signals → Recommend HOLD
+5. Be objective and data-driven, not influenced by user's bias
+
 **ANALYSIS REQUIREMENTS:**
-1. Provide a clear BUY/SELL/HOLD recommendation
+1. Provide a clear BUY/SELL/HOLD recommendation based on stock performance
 2. Give confidence level (0-100%)
-3. Provide 4-6 key reasoning points
+3. Provide 4-6 key reasoning points explaining why
 4. Suggest time horizon (SHORT_TERM/MEDIUM_TERM/LONG_TERM)
 5. Calculate target price and stop loss if applicable
 
@@ -817,10 +888,10 @@ ${newsData.map(news => `- [${news.source}] ${news.title}: ${news.snippet}`).join
   "action": "BUY|SELL|HOLD",
   "confidence": 85,
   "reasoning": [
-    "Technical analysis shows...",
-    "Market sentiment indicates...",
-    "Fundamental factors suggest...",
-    "Recent news impact..."
+    "Technical analysis shows strong/weak momentum...",
+    "Market sentiment indicates positive/negative outlook...", 
+    "Fundamental factors suggest growth/decline...",
+    "Recent news impact is positive/negative..."
   ],
   "timeHorizon": "MEDIUM_TERM",
   "targetPrice": 1250.50,
@@ -828,7 +899,7 @@ ${newsData.map(news => `- [${news.source}] ${news.title}: ${news.snippet}`).join
   "analysis": "Brief overall analysis summary"
 }
 
-Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific factors. Base your analysis on actual data provided.`;
+Consider Indian market conditions, NSE/BSE trading patterns, and sector-specific factors. Base your analysis OBJECTIVELY on actual data provided, not on user's question.`;
 
       // Add aggressive timeout for OpenAI API call
       const controller = new AbortController();

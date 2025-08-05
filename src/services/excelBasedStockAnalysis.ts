@@ -109,33 +109,50 @@ export class ExcelBasedStockAnalysisService {
         score += isWellKnownMatch;
       }
 
-      // Check if company name contains any meaningful word
+      // Enhanced matching logic with better precision
       for (const word of meaningfulWords) {
         const lowerWord = word.toLowerCase();
         
         // Exact word match in company name gets highest score
         const companyNameWords = company.cleanName.split(/\s+/);
-        if (companyNameWords.includes(lowerWord)) {
+        const exactWordMatch = companyNameWords.includes(lowerWord);
+        
+        if (exactWordMatch) {
           score += 15;
         }
-        // Partial match in company name
-        else if (company.cleanName.includes(lowerWord)) {
+        // Only give partial match points if word is reasonably unique (length > 3)
+        else if (lowerWord.length > 3 && company.cleanName.includes(lowerWord)) {
           score += 8;
         }
         
-        // Check original company name
-        if (company.name.toLowerCase().includes(lowerWord)) {
+        // Check original company name - be more strict
+        if (company.name.toLowerCase().includes(lowerWord) && lowerWord.length > 3) {
           score += 5;
         }
         
-        // Check search terms for partial matches
+        // Check search terms for partial matches - prioritize exact matches
         for (const term of company.searchTerms) {
           if (term === lowerWord) {
             score += 12; // Exact search term match
-          } else if (term.includes(lowerWord) || lowerWord.includes(term)) {
-            score += 3;
+          } else if (lowerWord.length > 3 && (term.includes(lowerWord) || lowerWord.includes(term))) {
+            score += 2; // Reduced score for partial matches
           }
         }
+      }
+      
+      // Boost score for multiple word matches (company name matching)
+      let wordMatches = 0;
+      for (const word of meaningfulWords) {
+        const lowerWord = word.toLowerCase();
+        const companyNameWords = company.cleanName.split(/\s+/);
+        if (companyNameWords.includes(lowerWord)) {
+          wordMatches++;
+        }
+      }
+      
+      // Boost score significantly if multiple words match
+      if (wordMatches > 1) {
+        score += wordMatches * 10; // Extra points for multiple word matches
       }
 
       // Penalty for generic terms that match too many companies
