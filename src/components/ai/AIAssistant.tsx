@@ -1037,56 +1037,135 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     return capMentions;
   };
 
+  // Enhanced function to detect investment type and amount
+  const analyzeInvestmentPattern = (query: string) => {
+    const lowerQuery = query.toLowerCase();
+    const amountMatch = query.match(/(?:₹|rs\.?|rupees?)\s*([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s*(?:k|thousand|lakh|lakhs|crore|crores)?/i);
+    
+    let amount = 10000; // Default
+    if (amountMatch) {
+      const numStr = amountMatch[1] || amountMatch[2];
+      let num = parseFloat(numStr.replace(/,/g, ''));
+      
+      if (lowerQuery.includes('lakh')) num *= 100000;
+      else if (lowerQuery.includes('crore')) num *= 10000000;
+      else if (lowerQuery.includes('k') || lowerQuery.includes('thousand')) num *= 1000;
+      
+      amount = num;
+    }
+    
+    const isMonthly = lowerQuery.includes('monthly') || lowerQuery.includes('every month') || lowerQuery.includes('per month');
+    const isLumpSum = lowerQuery.includes('lump sum') || lowerQuery.includes('one time') || (!isMonthly && amount > 50000);
+    const isSIP = lowerQuery.includes('sip') || lowerQuery.includes('systematic') || isMonthly;
+    
+    return {
+      amount,
+      type: isLumpSum ? 'lumpsum' : isSIP ? 'sip' : 'regular',
+      isMonthly,
+      isLargeAmount: amount >= 100000
+    };
+  };
+
   const generateRiskBasedRecommendations = async (comprehensiveAnalysis: ComprehensiveAnalysisResults, query: string) => {
-    const recommendations = {
-      low: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' },
-      medium: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' },
-      high: { allocation: {} as Record<string, number>, stocks: [] as StockAnalysisData[], rationale: '' }
+    const investmentInfo = analyzeInvestmentPattern(query);
+    
+    // Enhanced stock selection based on performance and market conditions
+    const selectBestStocks = (category: CapCategoryAnalysis, count: number) => {
+      const allStocks = [...category.stocks];
+      // Sort by performance and fundamentals
+      allStocks.sort((a, b) => {
+        const aScore = (a.changePercent || 0) + (a.volume > 1000000 ? 5 : 0) + (a.marketCap && a.marketCap > 10000 ? 3 : 0);
+        const bScore = (b.changePercent || 0) + (b.volume > 1000000 ? 5 : 0) + (b.marketCap && b.marketCap > 10000 ? 3 : 0);
+        return bScore - aScore;
+      });
+      return allStocks.slice(0, count);
     };
 
-    // Low Risk Portfolio (Conservative)
+    const recommendations = {
+      low: { 
+        allocation: {} as Record<string, number>, 
+        stocks: [] as StockAnalysisData[], 
+        rationale: '',
+        expectedReturn: '8-12%',
+        riskLevel: 'Low',
+        investmentHorizon: investmentInfo.type === 'sip' ? '3-5 years' : '1-2 years'
+      },
+      medium: { 
+        allocation: {} as Record<string, number>, 
+        stocks: [] as StockAnalysisData[], 
+        rationale: '',
+        expectedReturn: '12-18%',
+        riskLevel: 'Medium',
+        investmentHorizon: investmentInfo.type === 'sip' ? '2-4 years' : '1-3 years'
+      },
+      high: { 
+        allocation: {} as Record<string, number>, 
+        stocks: [] as StockAnalysisData[], 
+        rationale: '',
+        expectedReturn: '18-25%',
+        riskLevel: 'High',
+        investmentHorizon: investmentInfo.type === 'sip' ? '3-7 years' : '2-5 years'
+      }
+    };
+
+    // Low Risk Portfolio (Conservative) - 5-7 stocks
     recommendations.low = {
       allocation: {
-        largeCap: 70,
-        midCap: 20,
-        smallCap: 10,
-        bonds: 0 // Not applicable for stock-only portfolio
+        largeCap: investmentInfo.type === 'lumpsum' ? 80 : 70,
+        midCap: investmentInfo.type === 'lumpsum' ? 15 : 25,
+        smallCap: investmentInfo.type === 'lumpsum' ? 5 : 5
       },
       stocks: [
-        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 4),
-        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 2)
-      ],
-      rationale: 'Focus on established large-cap stocks with consistent performance and lower volatility'
+        ...selectBestStocks(comprehensiveAnalysis.largeCap, 4),
+        ...selectBestStocks(comprehensiveAnalysis.midCap, 2),
+        ...selectBestStocks(comprehensiveAnalysis.smallCap, 1)
+      ].slice(0, 7),
+      rationale: investmentInfo.type === 'sip' 
+        ? 'Conservative SIP portfolio focusing on blue-chip stocks with consistent dividend yields and stable growth'
+        : 'Lump sum investment in established large-cap leaders with strong fundamentals and lower volatility',
+      expectedReturn: investmentInfo.type === 'sip' ? '10-14%' : '8-12%',
+      riskLevel: 'Low',
+      investmentHorizon: investmentInfo.type === 'sip' ? '3-5 years' : '1-2 years'
     };
 
-    // Medium Risk Portfolio (Balanced)
+    // Medium Risk Portfolio (Balanced) - 6-7 stocks
     recommendations.medium = {
       allocation: {
-        largeCap: 50,
-        midCap: 35,
-        smallCap: 15
+        largeCap: investmentInfo.type === 'lumpsum' ? 60 : 50,
+        midCap: investmentInfo.type === 'lumpsum' ? 30 : 35,
+        smallCap: investmentInfo.type === 'lumpsum' ? 10 : 15
       },
       stocks: [
-        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 3),
-        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 3),
-        ...comprehensiveAnalysis.smallCap.recommendations.slice(0, 1)
-      ],
-      rationale: 'Balanced mix across market caps for moderate growth with managed risk'
+        ...selectBestStocks(comprehensiveAnalysis.largeCap, 3),
+        ...selectBestStocks(comprehensiveAnalysis.midCap, 3),
+        ...selectBestStocks(comprehensiveAnalysis.smallCap, 1)
+      ].slice(0, 7),
+      rationale: investmentInfo.type === 'sip'
+        ? 'Balanced SIP approach with quality mid-caps for growth and large-caps for stability'
+        : 'Diversified lump sum allocation across proven performers in different market segments',
+      expectedReturn: investmentInfo.type === 'sip' ? '14-18%' : '12-16%',
+      riskLevel: 'Medium',
+      investmentHorizon: investmentInfo.type === 'sip' ? '2-4 years' : '1-3 years'
     };
 
-    // High Risk Portfolio (Aggressive)
+    // High Risk Portfolio (Aggressive) - 6-8 stocks
     recommendations.high = {
       allocation: {
-        largeCap: 30,
-        midCap: 40,
-        smallCap: 30
+        largeCap: investmentInfo.type === 'lumpsum' ? 40 : 30,
+        midCap: investmentInfo.type === 'lumpsum' ? 35 : 40,
+        smallCap: investmentInfo.type === 'lumpsum' ? 25 : 30
       },
       stocks: [
-        ...comprehensiveAnalysis.largeCap.recommendations.slice(0, 2),
-        ...comprehensiveAnalysis.midCap.recommendations.slice(0, 4),
-        ...comprehensiveAnalysis.smallCap.recommendations.slice(0, 3)
-      ],
-      rationale: 'Growth-focused portfolio with higher allocation to mid and small caps for maximum returns'
+        ...selectBestStocks(comprehensiveAnalysis.largeCap, 2),
+        ...selectBestStocks(comprehensiveAnalysis.midCap, 3),
+        ...selectBestStocks(comprehensiveAnalysis.smallCap, 3)
+      ].slice(0, 8),
+      rationale: investmentInfo.type === 'sip'
+        ? 'Growth-oriented SIP with high allocation to emerging mid and small-cap opportunities'
+        : 'Aggressive lump sum strategy targeting high-growth potential stocks across market caps',
+      expectedReturn: investmentInfo.type === 'sip' ? '18-25%' : '15-22%',
+      riskLevel: 'High',
+      investmentHorizon: investmentInfo.type === 'sip' ? '3-7 years' : '2-5 years'
     };
 
     return {
@@ -1095,12 +1174,158 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         { risk: 'medium', ...recommendations.medium },
         { risk: 'high', ...recommendations.high }
       ],
+      investmentInfo,
       marketConditions: comprehensiveAnalysis.overallSentiment,
       topSectors: Object.entries(comprehensiveAnalysis.sectorAnalysis)
         .sort(([,a], [,b]) => (b as any).avgPerformance - (a as any).avgPerformance)
         .slice(0, 3)
         .map(([sector]) => sector)
     };
+  };
+
+  const generateStructuredPortfolioResponse = (query: string, marketResearch: any, comprehensiveAnalysis: any, riskBasedRecommendations: any) => {
+    const investmentInfo = riskBasedRecommendations.investmentInfo;
+    const marketTrends = marketResearch.insights.slice(0, 5).map((insight: any) => insight.title).join('; ');
+    
+    // Generate structured response without AI API
+    const response = `
+# 📊 Portfolio Recommendations for ₹${investmentInfo.amount.toLocaleString('en-IN')} Investment
+
+## 1. 📈 Market Overview & Current Trends
+
+• **Market Sentiment**: ${comprehensiveAnalysis.overallSentiment.toUpperCase()} - Based on analysis of ${comprehensiveAnalysis.totalStocks} stocks across all segments
+• **Key Trends**: ${marketTrends}
+• **Best Performing Sectors**: ${riskBasedRecommendations.topSectors.join(', ')}
+• **Investment Type Detected**: ${investmentInfo.type.toUpperCase()} ${investmentInfo.isMonthly ? '(Monthly)' : '(One-time)'}
+
+## 2. 🎯 Risk-Based Portfolio Options
+
+### 🛡️ LOW RISK (Conservative Portfolio)
+**Expected Returns**: ${riskBasedRecommendations.recommendations[0].expectedReturn} annually
+**Investment Horizon**: ${riskBasedRecommendations.recommendations[0].investmentHorizon}
+**Allocation Strategy**: ${riskBasedRecommendations.recommendations[0].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[0].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[0].allocation.smallCap}% Small Cap
+
+**Recommended Stocks (${riskBasedRecommendations.recommendations[0].stocks.length} picks):**
+${riskBasedRecommendations.recommendations[0].stocks.map((stock: any, index: number) => 
+  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
+).join('\n')}
+
+**Strategy**: ${riskBasedRecommendations.recommendations[0].rationale}
+
+### ⚖️ MEDIUM RISK (Balanced Portfolio)
+**Expected Returns**: ${riskBasedRecommendations.recommendations[1].expectedReturn} annually
+**Investment Horizon**: ${riskBasedRecommendations.recommendations[1].investmentHorizon}
+**Allocation Strategy**: ${riskBasedRecommendations.recommendations[1].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[1].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[1].allocation.smallCap}% Small Cap
+
+**Recommended Stocks (${riskBasedRecommendations.recommendations[1].stocks.length} picks):**
+${riskBasedRecommendations.recommendations[1].stocks.map((stock: any, index: number) => 
+  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
+).join('\n')}
+
+**Strategy**: ${riskBasedRecommendations.recommendations[1].rationale}
+
+### 🚀 HIGH RISK (Aggressive Portfolio)
+**Expected Returns**: ${riskBasedRecommendations.recommendations[2].expectedReturn} annually
+**Investment Horizon**: ${riskBasedRecommendations.recommendations[2].investmentHorizon}
+**Allocation Strategy**: ${riskBasedRecommendations.recommendations[2].allocation.largeCap}% Large Cap, ${riskBasedRecommendations.recommendations[2].allocation.midCap}% Mid Cap, ${riskBasedRecommendations.recommendations[2].allocation.smallCap}% Small Cap
+
+**Recommended Stocks (${riskBasedRecommendations.recommendations[2].stocks.length} picks):**
+${riskBasedRecommendations.recommendations[2].stocks.map((stock: any, index: number) => 
+  `${index + 1}. **${stock.companyName || stock.symbol}** (${stock.symbol}) - ₹${stock.currentPrice || 'N/A'} | ${stock.changePercent >= 0 ? '+' : ''}${(stock.changePercent || 0).toFixed(2)}%`
+).join('\n')}
+
+**Strategy**: ${riskBasedRecommendations.recommendations[2].rationale}
+
+## 3. 🏭 Sector-wise Performance Analysis
+
+${Object.entries(comprehensiveAnalysis.sectorAnalysis)
+  .sort(([,a], [,b]) => (b as any).avgPerformance - (a as any).avgPerformance)
+  .slice(0, 5)
+  .map(([sector, data]: [string, any]) => 
+    `• **${sector}**: ${data.sentiment.toUpperCase()} sentiment (${data.avgPerformance.toFixed(2)}% avg performance)\n  - Top Performer: ${data.topPerformer?.companyName || data.topPerformer?.symbol || 'N/A'}\n  - Stocks Analyzed: ${data.stocks.length}`
+  ).join('\n')}
+
+## 4. 💡 Investment Strategy Recommendations
+
+**For ${investmentInfo.type.toUpperCase()} Investment of ₹${investmentInfo.amount.toLocaleString('en-IN')}:**
+
+${investmentInfo.type === 'sip' ? `
+• **SIP Strategy**: Start with ${investmentInfo.amount >= 50000 ? 'aggressive' : 'balanced'} allocation
+• **Timing**: Begin immediately due to rupee cost averaging benefits
+• **Duration**: Minimum ${investmentInfo.amount >= 25000 ? '3-5 years' : '2-3 years'} for optimal returns
+• **Auto-increase**: Consider 10% annual step-up if income allows` :
+investmentInfo.type === 'lumpsum' ? `
+• **Lump Sum Strategy**: ${investmentInfo.amount >= 100000 ? 'Stagger entry over 2-3 months' : 'Single entry acceptable'}
+• **Timing**: Current market conditions ${comprehensiveAnalysis.overallSentiment === 'bullish' ? 'favor immediate investment' : 'suggest cautious entry'}
+• **Rebalancing**: Review quarterly and rebalance if needed
+• **Profit Booking**: Book partial profits at 20-25% gains` :
+`
+• **Regular Investment**: Build systematic approach with monthly reviews
+• **Flexibility**: Adjust allocations based on market conditions
+• **Monitoring**: Track performance monthly and rebalance quarterly`}
+
+## 5. 📋 Detailed Stock Analysis & Rationale
+
+| Stock | Current Price | Market Cap | Sector | Expected Return | Risk Level | Rationale |
+|-------|---------------|------------|---------|-----------------|------------|----------|
+${[...riskBasedRecommendations.recommendations[1].stocks.slice(0, 7)]
+  .map((stock: any) => 
+    `| ${stock.symbol} | ₹${stock.currentPrice || 'N/A'} | ${stock.marketCap ? (stock.marketCap/10000000).toFixed(1) + 'K Cr' : 'N/A'} | ${stock.sector || 'N/A'} | ${stock.changePercent >= 0 ? 'Positive' : 'Consolidation'} | ${stock.changePercent > 5 ? 'High' : stock.changePercent > 0 ? 'Medium' : 'Low'} | ${
+      stock.changePercent > 5 ? 'Strong momentum, good fundamentals' :
+      stock.changePercent > 0 ? 'Steady growth, defensive play' :
+      'Value opportunity, potential turnaround'
+    } |`
+  ).join('\n')}
+
+## 6. 🔄 Diversification Matrix
+
+**Sector Diversification:**
+${Object.entries(comprehensiveAnalysis.sectorAnalysis)
+  .slice(0, 4)
+  .map(([sector, data]: [string, any]) => 
+    `• ${sector}: ${((data.stocks.length / comprehensiveAnalysis.totalStocks) * 100).toFixed(1)}% allocation`
+  ).join('\n')}
+
+**Market Cap Diversification:**
+• Large Cap: ${((comprehensiveAnalysis.largeCap.stocks.length / comprehensiveAnalysis.totalStocks) * 100).toFixed(1)}% of analyzed universe
+• Mid Cap: ${((comprehensiveAnalysis.midCap.stocks.length / comprehensiveAnalysis.totalStocks) * 100).toFixed(1)}% of analyzed universe
+• Small Cap: ${((comprehensiveAnalysis.smallCap.stocks.length / comprehensiveAnalysis.totalStocks) * 100).toFixed(1)}% of analyzed universe
+
+## 7. 💰 Tax Optimization Strategies
+
+**For ${investmentInfo.type.toUpperCase()} Investment:**
+• **STCG Tax**: 15% on gains from stocks held < 1 year
+• **LTCG Tax**: 10% on gains > ₹1 lakh from stocks held > 1 year
+• **Strategy**: ${investmentInfo.type === 'sip' ? 'Hold for minimum 1 year to benefit from LTCG rates' : 'Consider tax-loss harvesting for optimization'}
+• **ELSS Option**: Consider ₹1.5 lakh annual limit for 80C deduction
+
+## 8. ⚠️ Risk Management Framework
+
+**Stop-Loss Recommendations:**
+${riskBasedRecommendations.recommendations[1].stocks.slice(0, 5).map((stock: any) => 
+  `• ${stock.symbol}: Stop-loss at ₹${stock.currentPrice ? (stock.currentPrice * 0.85).toFixed(0) : 'N/A'} (15% below current price)`
+).join('\n')}
+
+**Monitoring Approach:**
+• **Daily**: Track major news and market sentiment
+• **Weekly**: Review individual stock performance vs benchmarks
+• **Monthly**: Assess sector rotation and rebalancing needs
+• **Quarterly**: Complete portfolio review and strategy adjustment
+
+**Risk Alerts:**
+• Exit if any stock falls > 20% without fundamental reason
+• Reduce exposure if sector allocation exceeds 25% of portfolio
+• Book profits if overall portfolio gains exceed 30% in < 12 months
+
+---
+
+**Research Sources:**
+Based on ${marketResearch.totalInsights} recent market insights from ${marketResearch.insights.slice(0, 3).map((i: any) => i.source).join(', ')} and real-time analysis of ${comprehensiveAnalysis.totalStocks} stocks across all market segments.
+
+**Disclaimer**: This analysis is for educational purposes only. Consult with a qualified financial advisor before making investment decisions. Past performance does not guarantee future results.
+`;
+
+    return response;
   };
 
   const generateComprehensivePortfolioAdvice = async (query: string, marketResearch: any, comprehensiveAnalysis: any, riskBasedRecommendations: any) => {
@@ -1163,49 +1388,12 @@ ${sectorAnalysisSummary}
 
 **FORMAT:** Use clear headings, bullet points, and SPECIFIC stock names with current data. Make it actionable and comprehensive.`;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert Indian investment advisor providing actionable, research-based portfolio recommendations.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiAdvice = data.choices?.[0]?.message?.content;
-      
-      if (aiAdvice) {
-        // Add research sources at the end
-        const uniqueSources = marketResearch.insights.map((i: any) => i.source).filter((source: string, index: number, arr: string[]) => arr.indexOf(source) === index);
-        const sourcesSection = `\n\n**Research Sources:**\nBased on ${marketResearch.insights.length} recent market insights from ${uniqueSources.slice(0, 3).join(', ')} and real-time analysis of ${comprehensiveAnalysis.totalStocks} stocks.`;
-        
-        return aiAdvice + sourcesSection;
-      } else {
-        return generateFallbackPortfolioAdvice(query);
-      }
+      // Use structured response instead of AI API for better consistency and formatting
+      return generateStructuredPortfolioResponse(query, marketResearch, comprehensiveAnalysis, riskBasedRecommendations);
       
     } catch (error) {
-      console.error('AI portfolio advice generation failed:', error);
-      return generateFallbackPortfolioAdvice(query);
+      console.error('Portfolio advice generation failed:', error);
+      return generateStructuredPortfolioResponse(query, marketResearch, comprehensiveAnalysis, riskBasedRecommendations);
     }
   };
 
