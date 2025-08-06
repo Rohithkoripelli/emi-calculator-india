@@ -533,6 +533,34 @@ const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
   return <EnhancedTextContent text={text} />;
 };
 
+const StockRecommendationBadge: React.FC<{ recommendation: string }> = ({ recommendation }) => {
+  const rec = recommendation.toUpperCase();
+  let bgColor = 'bg-gray-100';
+  let textColor = 'text-gray-700';
+  let icon = '📊';
+  
+  if (rec.includes('BUY')) {
+    bgColor = 'bg-green-100 dark:bg-green-600/20';
+    textColor = 'text-green-700 dark:text-green-300';
+    icon = '📈';
+  } else if (rec.includes('SELL')) {
+    bgColor = 'bg-red-100 dark:bg-red-600/20';
+    textColor = 'text-red-700 dark:text-red-300';
+    icon = '📉';
+  } else if (rec.includes('HOLD')) {
+    bgColor = 'bg-yellow-100 dark:bg-yellow-600/20';
+    textColor = 'text-yellow-700 dark:text-yellow-300';
+    icon = '🔄';
+  }
+  
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${bgColor} ${textColor} border-2 border-current`}>
+      <span className="mr-2">{icon}</span>
+      {recommendation}
+    </span>
+  );
+};
+
 const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   // Split text into lines and format each line
   const lines = text.split('\n').filter(line => line.trim());
@@ -652,19 +680,57 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
     
     // Handle regular paragraphs
     else {
-      // Highlight currency amounts
-      const formattedText = trimmedLine.replace(
-        /₹[\d,]+/g, 
-        '<span class="font-semibold text-green-600 bg-green-50 px-1 rounded">$&</span>'
-      );
+      // Check for stock recommendations
+      const buyMatch = trimmedLine.match(/\*\*Action:\*\*\s*(BUY|SELL|HOLD)/i);
+      const actionMatch = trimmedLine.match(/Action:\s*(BUY|SELL|HOLD)/i);
+      const recommendationMatch = trimmedLine.match(/Recommendation:\s*(BUY|SELL|HOLD)/i);
       
-      processedElements.push(
-        <p 
-          key={i} 
-          className="text-gray-700 dark:text-dark-text-secondary leading-relaxed text-sm lg:text-base"
-          dangerouslySetInnerHTML={{ __html: formattedText }}
-        />
-      );
+      if (buyMatch || actionMatch || recommendationMatch) {
+        const recommendation = (buyMatch || actionMatch || recommendationMatch)?.[1] || '';
+        const beforeText = trimmedLine.split(/Action:|Recommendation:/i)[0];
+        const afterText = trimmedLine.split(/(BUY|SELL|HOLD)/i)[2] || '';
+        
+        processedElements.push(
+          <div key={i} className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20 rounded-lg border border-blue-200 dark:border-blue-600/30">
+            <div className="text-gray-700 dark:text-dark-text-secondary text-sm lg:text-base">
+              {beforeText && <span>{beforeText.replace(/\*\*/g, '').trim()}</span>}
+              {(beforeText || actionMatch || recommendationMatch) && <span className="font-semibold">Action: </span>}
+            </div>
+            <StockRecommendationBadge recommendation={recommendation} />
+            {afterText && (
+              <div className="text-gray-700 dark:text-dark-text-secondary text-sm lg:text-base">
+                {afterText.trim()}
+              </div>
+            )}
+          </div>
+        );
+      } else {
+        // Highlight currency amounts and share quantities
+        let formattedText = trimmedLine.replace(
+          /₹[\d,]+/g, 
+          '<span class="font-semibold text-green-600 bg-green-50 dark:bg-green-600/20 px-1 rounded">$&</span>'
+        );
+        
+        // Highlight share quantities
+        formattedText = formattedText.replace(
+          /(\d+)\s+shares?\s*=/g,
+          '<span class="font-semibold text-blue-600 bg-blue-50 dark:bg-blue-600/20 px-1 rounded">$1 shares</span> ='
+        );
+        
+        // Highlight "Skip" recommendations for expensive stocks
+        formattedText = formattedText.replace(
+          /Skip\s*\([^)]+\)/g,
+          '<span class="font-semibold text-orange-600 bg-orange-50 dark:bg-orange-600/20 px-2 py-1 rounded">$&</span>'
+        );
+        
+        processedElements.push(
+          <p 
+            key={i} 
+            className="text-gray-700 dark:text-dark-text-secondary leading-relaxed text-sm lg:text-base"
+            dangerouslySetInnerHTML={{ __html: formattedText }}
+          />
+        );
+      }
     }
     
     i++;

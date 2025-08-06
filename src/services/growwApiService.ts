@@ -191,14 +191,37 @@ export class GrowwApiService {
     segment: string = 'CASH'
   ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol}...`);
+      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} via backend API...`);
       
-      // Historical data is not available via backend API yet, so skip direct API call
-      // TODO: Add historical data endpoint to backend API
-      console.log(`⚠️ Historical data not available via backend API, using realistic fallback for ${tradingSymbol}`);
+      // Use the backend API for historical data
+      const response = await fetch('/api/groww-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symbols: [tradingSymbol],
+          type: 'historical',
+          days: days
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data[tradingSymbol]) {
+          const candles = result.data[tradingSymbol];
+          console.log(`✅ Successfully fetched ${candles.length} historical candles for ${tradingSymbol} from backend API`);
+          return candles;
+        } else {
+          console.log(`⚠️ No historical data returned from backend API for ${tradingSymbol}`);
+        }
+      } else {
+        console.log(`⚠️ Backend API error: ${response.status}`);
+      }
       
       // Fallback: Generate realistic historical data
-      console.log(`🔄 Generating realistic historical data for ${tradingSymbol}...`);
+      console.log(`🔄 Using fallback historical data generation for ${tradingSymbol}...`);
       return this.generateRealisticHistoricalData(tradingSymbol, days);
       
     } catch (error) {

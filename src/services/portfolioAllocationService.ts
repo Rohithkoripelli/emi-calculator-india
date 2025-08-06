@@ -342,46 +342,102 @@ export class PortfolioAllocationService {
     const midCapAmount = investmentAmount * midCapPercent;
     const smallCapAmount = investmentAmount * smallCapPercent;
     
-    // Large Cap Allocation
+    // Large Cap Allocation with proper share calculations
     if (categorizedStocks.largeCap.length > 0) {
       const perLargeCapStock = largeCapAmount / categorizedStocks.largeCap.length;
       categorizedStocks.largeCap.forEach((stock: any) => {
+        const shareCalc = this.calculateOptimalShares(stock.currentPrice, perLargeCapStock, investmentAmount);
         allocation.push({
           stock: `${stock.companyName} (${stock.symbol})`,
           sector: this.determineSector(stock.companyName),
-          amount: `₹${this.formatCurrency(perLargeCapStock)}`,
+          amount: shareCalc.displayAmount,
           reasoning: this.generateStockReasoning(stock, 'Large Cap')
         });
       });
     }
     
-    // Mid Cap Allocation
+    // Mid Cap Allocation with proper share calculations
     if (categorizedStocks.midCap.length > 0) {
       const perMidCapStock = midCapAmount / categorizedStocks.midCap.length;
       categorizedStocks.midCap.forEach((stock: any) => {
+        const shareCalc = this.calculateOptimalShares(stock.currentPrice, perMidCapStock, investmentAmount);
         allocation.push({
           stock: `${stock.companyName} (${stock.symbol})`,
           sector: this.determineSector(stock.companyName),
-          amount: `₹${this.formatCurrency(perMidCapStock)}`,
+          amount: shareCalc.displayAmount,
           reasoning: this.generateStockReasoning(stock, 'Mid Cap')
         });
       });
     }
     
-    // Small Cap Allocation
+    // Small Cap Allocation with proper share calculations  
     if (categorizedStocks.smallCap.length > 0) {
       const perSmallCapStock = smallCapAmount / categorizedStocks.smallCap.length;
       categorizedStocks.smallCap.forEach((stock: any) => {
+        const shareCalc = this.calculateOptimalShares(stock.currentPrice, perSmallCapStock, investmentAmount);
         allocation.push({
           stock: `${stock.companyName} (${stock.symbol})`,
           sector: this.determineSector(stock.companyName),
-          amount: `₹${this.formatCurrency(perSmallCapStock)}`,
+          amount: shareCalc.displayAmount,
           reasoning: this.generateStockReasoning(stock, 'Small Cap')
         });
       });
     }
     
     return allocation;
+  }
+
+  /**
+   * Calculate optimal share quantities avoiding fractional shares
+   */
+  private static calculateOptimalShares(sharePrice: number, idealAmount: number, totalInvestment: number): { 
+    shares: number; 
+    actualAmount: number; 
+    displayAmount: string; 
+  } {
+    
+    // For expensive stocks (>₹2000), suggest minimum viable quantity
+    if (sharePrice > 2000) {
+      const minShares = Math.max(1, Math.floor(idealAmount / sharePrice));
+      const actualAmount = minShares * sharePrice;
+      
+      // If even 1 share exceeds the ideal amount significantly, suggest reducing allocation
+      if (actualAmount > idealAmount * 1.5 && totalInvestment < 50000) {
+        return {
+          shares: 0,
+          actualAmount: 0,
+          displayAmount: `Skip (₹${this.formatCurrency(sharePrice)} per share - too expensive for allocation)`
+        };
+      }
+      
+      return {
+        shares: minShares,
+        actualAmount: actualAmount,
+        displayAmount: `${minShares} share${minShares > 1 ? 's' : ''} = ₹${this.formatCurrency(actualAmount)}`
+      };
+    }
+    
+    // For moderately priced stocks (₹500-2000), calculate optimal quantity  
+    if (sharePrice > 500) {
+      const optimalShares = Math.round(idealAmount / sharePrice);
+      const actualAmount = optimalShares * sharePrice;
+      
+      return {
+        shares: optimalShares,
+        actualAmount: actualAmount,
+        displayAmount: `${optimalShares} share${optimalShares > 1 ? 's' : ''} = ₹${this.formatCurrency(actualAmount)}`
+      };
+    }
+    
+    // For affordable stocks (<₹500), can buy multiple shares
+    const optimalShares = Math.round(idealAmount / sharePrice);
+    const actualAmount = optimalShares * sharePrice;
+    
+    return {
+      shares: optimalShares,
+      actualAmount: actualAmount,
+      displayAmount: `${optimalShares} shares = ₹${this.formatCurrency(actualAmount)}`
+    };
   }
 
   private static createPortfolioStock(stock: any, marketCap: 'Large Cap' | 'Mid Cap' | 'Small Cap'): PortfolioStock {
