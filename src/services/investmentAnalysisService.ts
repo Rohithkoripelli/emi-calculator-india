@@ -426,53 +426,7 @@ export class InvestmentAnalysisService {
     try {
       console.log('🔬 Starting comprehensive market research...');
       
-      // Use Task tool for comprehensive web research
-      const { Task } = await import('@anthropic-ai/sdk');
-      
-      // Search for trending stocks across different sectors and market caps
-      const marketResearchPrompt = `
-        Conduct comprehensive market research to identify the best performing Indian stocks across:
-        
-        1. LARGE CAP STOCKS:
-        - Search for top performing large cap stocks in last 3 months
-        - Focus on Nifty 50 and Nifty 100 components showing strong momentum
-        - Look for stocks with consistent earnings growth
-        
-        2. MID CAP STOCKS:
-        - Identify emerging mid-cap companies with strong fundamentals
-        - Look for stocks in Nifty Midcap 150 with recent positive developments
-        - Focus on companies expanding market share
-        
-        3. SMALL CAP STOCKS:
-        - Find high-growth small cap stocks with innovative business models
-        - Look for companies in emerging sectors like renewable energy, fintech
-        - Identify stocks with strong order books or recent contract wins
-        
-        4. SECTOR ANALYSIS:
-        - Banking & Finance: Latest performers and upcoming opportunities
-        - Technology: AI, Software services, and IT infrastructure
-        - Healthcare & Pharmaceuticals: Recent drug approvals and expansions
-        - Manufacturing: Make in India beneficiaries and infrastructure
-        - Consumer goods: Brands showing strong rural/urban penetration
-        - Energy: Renewable energy and traditional energy companies
-        
-        5. RECENT MARKET DEVELOPMENTS:
-        - Stocks that have announced strong quarterly results
-        - Companies with recent expansion announcements
-        - Stocks benefiting from government policy changes
-        - IPOs and listings showing strong performance
-        
-        Return a structured list of 15-20 stocks across market caps with:
-        - Stock symbol and company name
-        - Current market cap category
-        - Sector and key business
-        - Recent performance reason
-        - Why it's attractive for investment
-        
-        Investment amount context: ₹${amount}
-      `;
-      
-      // For now, use fallback research since Task might not be available
+      // Use comprehensive fallback research with enhanced stock discovery
       const discoveredStocks = await this.fallbackMarketResearch();
       const marketSentiment = await this.analyzeCurrentMarketSentiment();
       
