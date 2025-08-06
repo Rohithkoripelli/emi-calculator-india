@@ -344,35 +344,187 @@ Please provide these details so I can give you a comprehensive portfolio recomme
   };
 
   /**
-   * Handle generic financial queries (fallback to traditional approach)
+   * Handle generic financial queries (loan analysis, tax planning, etc.)
    */
   const handleGenericFinancialQuery = async (query: string, aiMessageId: string) => {
     try {
-      // For generic queries, use a simpler approach or existing loan analysis
-      const fallbackResponse = generateFallbackResponse(query);
+      console.log('🧠 Processing financial query with OpenAI...');
       
+      // Update message to show progress
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: fallbackResponse, isStreaming: false, isComplete: true }
+          ? { ...msg, text: `🔄 Analyzing your query...\n\n• Processing loan and tax analysis\n• Calculating optimal strategies\n• Generating personalized recommendations` }
+          : msg
+      ));
+
+      // Check if OpenAI API key is available
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        console.log('OpenAI API key not found, using fallback response');
+        throw new Error('OpenAI API key not configured');
+      }
+
+      // Enhanced system prompt for loan/tax analysis
+      let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities, specialized in precise loan calculations, tax planning, investment strategies, and financial planning in India.
+
+**CRITICAL: QUESTION TYPE DETECTION**
+Before responding, determine if the question is:
+
+**GENERIC QUESTION** - Examples:
+- "What are tax benefits with home loan?"
+- "How to save tax?"
+- "Best investment options for 30-year-old?"
+- "Should I invest in ELSS?"
+- "What is SIP?"
+- "How does compound interest work?"
+- "Tax deductions under section 80C"
+
+**LOAN-SPECIFIC QUESTION** - Examples:
+- "When will my loan close if I prepay ₹8 lakhs?"
+- "How much will I save with prepayment?"
+- "Should I prepay my loan or invest this amount?"
+- "What's my current EMI breakdown?"
+- "If I increase my EMI by ₹5000, when will loan finish?"
+
+**RESPONSE RULES:**
+
+**For GENERIC questions:**
+- Do NOT mention user's specific loan details
+- Do NOT show pie charts or loan-specific tables  
+- Do NOT use phrases like "based on your loan of ₹35.5 lakhs"
+- Provide general educational content and advice
+- Use hypothetical examples if needed: "For example, on a ₹30 lakh loan..."
+- Focus on concepts, rules, and general strategies
+
+**For LOAN-SPECIFIC questions:**
+- Use the provided loan details for calculations
+- Show specific tables with user's loan data
+- Calculate exact amounts, dates, and savings
+- Reference their actual loan: "your ₹35.5 lakh loan"
+- Provide personalized recommendations based on their situation
+
+**YOUR CORE STRENGTHS:**
+- Perform complex financial calculations with 100% accuracy
+- Provide step-by-step mathematical reasoning
+- Present calculations in professional, easy-to-understand formats
+- Offer data-driven investment and tax optimization strategies
+- Use current Indian financial regulations and tax laws
+
+**HUMAN-FRIENDLY PRESENTATION REQUIREMENTS:**
+- NEVER show LaTeX formulas or mathematical symbols like \\[, \\], \\(, \\)
+- NEVER use complex mathematical notation
+- Explain calculations in simple, conversational language
+- Use practical examples and relatable scenarios
+- Present numbers in easy-to-understand breakdowns
+- Focus on the "what this means for you" rather than mathematical theory
+
+**CURRENCY FORMAT:** Always use Indian format: ₹1,23,45,678
+**DATE FORMAT:** Use conversational dates: "June 2029" instead of complex calculations
+**TIME FORMAT:** Use practical terms: "3 years 11 months" instead of "47 months"`;
+
+      // Add loan context if available
+      if (loanData) {
+        const loanStartDate = loanData.startDate ? new Date(loanData.startDate) : new Date();
+        const loanStartFormatted = loanStartDate.toLocaleDateString('en-IN', { 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        const monthlyRate = loanData.interestRate / 12 / 100;
+        const tenureMonths = loanData.termUnit === 'years' ? loanData.term * 12 : loanData.term;
+        
+        // Calculate exact completion date
+        const completionDate = new Date(loanStartDate);
+        completionDate.setMonth(completionDate.getMonth() + tenureMonths);
+        const completionFormatted = completionDate.toLocaleDateString('en-IN', { 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        const currentEMI = loanData.emi || 0;
+        
+        systemPrompt += `
+
+**USER'S LOAN DETAILS (Use ONLY for loan-specific questions):**
+- Principal: ₹${loanData.principal.toLocaleString('en-IN')}
+- Interest Rate: ${loanData.interestRate}% per annum (${(monthlyRate * 100).toFixed(4)}% monthly)
+- Current EMI: ₹${currentEMI.toLocaleString('en-IN')}
+- Tenure: ${tenureMonths} months (${loanData.term} ${loanData.termUnit})
+- Start Date: ${loanStartFormatted}
+- Completion Date: ${completionFormatted}
+- Loan Type: ${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)}
+
+**INTELLIGENT CONTEXT USAGE:**
+- If the question is about general financial advice, tax benefits, or investment strategies → Don't use loan details
+- If the question is specifically about their loan, prepayment, or EMI calculations → Use loan details for precise calculations`;
+      }
+
+      systemPrompt += `
+
+**RESPONSE QUALITY STANDARDS:**
+- Always provide actionable, practical advice
+- Include relevant examples and scenarios
+- Consider current Indian tax laws and financial regulations
+- Provide multiple options when applicable
+- Include risk considerations and disclaimers when appropriate
+- Use professional yet conversational tone
+- Focus on educating the user while solving their problem`;
+
+      // Prepare messages for OpenAI API
+      const messages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user', 
+          content: query
+        }
+      ];
+
+      // Call OpenAI API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-2024-11-20',
+          messages: messages,
+          max_tokens: 2000,
+          temperature: 0.0,
+          seed: 42
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.choices[0].message.content;
+
+      // Validate response
+      if (!aiResponse || aiResponse.trim().length < 20) {
+        throw new Error('Invalid or too short response from OpenAI');
+      }
+
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, text: aiResponse, isStreaming: false, isComplete: true }
           : msg
       ));
       
     } catch (error) {
       console.error('❌ Error in generic query:', error);
       
-      const errorResponse = `I'm here to help with your financial questions! I specialize in:
-
-📊 **Stock Analysis**: Ask me about any Indian stock (e.g., "Analyze Reliance stock", "HDFC Bank recommendation")
-
-💼 **Investment Planning**: Get portfolio recommendations (e.g., "Invest 50,000 rupees", "Monthly SIP of 10K")
-
-💰 **Loan & EMI**: Optimization strategies and calculations
-
-Please try rephrasing your question or ask about specific stocks or investment amounts!`;
-
+      // Use enhanced fallback that maintains loan/tax capabilities
+      const fallbackResponse = generateFallbackResponse(query);
+      
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: errorResponse, isStreaming: false, isComplete: true }
+          ? { ...msg, text: fallbackResponse, isStreaming: false, isComplete: true }
           : msg
       ));
     }
@@ -450,7 +602,7 @@ Please try rephrasing your question or ask about specific stocks or investment a
   };
 
   /**
-   * Generate fallback response for generic queries
+   * Generate comprehensive fallback response showing all capabilities
    */
   const generateFallbackResponse = (userMessage: string): string => {
     const formatCurrency = (amount: number): string => {
@@ -461,32 +613,66 @@ Please try rephrasing your question or ask about specific stocks or investment a
       }).format(amount);
     };
 
-    return `I'm your AI financial assistant powered by real-time market data. I can help you with:
+    return `I'm your comprehensive AI financial advisor with expertise in Indian finance. I can help you with:
 
-## 📊 **Stock Market Analysis**
-• Real-time stock prices and analysis (e.g., "Analyze TCS stock")
-• Buy/sell recommendations with technical indicators
-• Market sentiment and news analysis
+## 💰 **Loan Analysis & EMI Optimization**
+• **Prepayment Strategies**: "Should I prepay ₹5 lakhs or invest it?"
+• **EMI Calculations**: "When will my loan close if I prepay ₹8 lakhs?"
+• **Loan Restructuring**: "What if I increase my EMI by ₹10,000?"
+• **Interest Savings**: Calculate exact savings from different prepayment scenarios
+• **Optimal Payment Strategies**: Balance between loan closure and investments
 
-## 💼 **Investment Planning** 
-• Personalized portfolio recommendations
-• SIP vs lump sum strategies
-• Risk-based asset allocation
+## 📊 **Tax Planning & Optimization** 
+• **Home Loan Benefits**: Section 24(b) interest deduction up to ₹2 lakhs
+• **Section 80C Investments**: ELSS, PPF, ULIP optimization strategies
+• **Capital Gains Planning**: LTCG vs STCG tax strategies
+• **Tax-Saving Investments**: Best options based on your income bracket
+• **Section 80EE/80EEA**: Additional home loan benefits for first-time buyers
 
-## 💰 **Loan & EMI Optimization**
-• Prepayment strategies and calculations
-• EMI optimization techniques
-• Tax-saving investment advice
+## 🏠 **Real Estate & Property Finance**
+• **Home Loan vs Rent**: Financial analysis with exact calculations
+• **Property Investment**: ROI calculations and market timing
+• **Refinancing Decisions**: When to switch lenders
+• **Joint vs Individual Loans**: Tax and EMI implications
 
-${loanData ? `\n**Your Current Loan Details:**\n• Loan Amount: ${formatCurrency(loanData.principal)}\n• EMI: ${formatCurrency(loanData.emi || 0)}\n• Interest Rate: ${loanData.interestRate}% p.a.\n• Tenure: ${loanData.term} ${loanData.termUnit}\n\nAsk me anything about optimizing your loan!` : ''}
+## 📈 **Investment & Wealth Planning**
+• **SIP Planning**: Optimal amount and fund selection
+• **Portfolio Rebalancing**: Asset allocation strategies
+• **Retirement Planning**: Corpus calculation with inflation
+• **Emergency Fund**: Ideal amount and investment options
+• **Goal-Based Investing**: Education, marriage, retirement planning
 
-**Try asking:**
-• "Analyze Reliance stock"
-• "I want to invest 50,000 rupees"
-• "Monthly SIP recommendations for 10K"
-• "Best performing stocks right now"
+## 📊 **NEW: Stock Market Analysis**
+• **Real-time Stock Analysis**: "Analyze Reliance stock" → Live data + recommendations
+• **Investment Recommendations**: "Invest ₹50,000 in stocks" → Dynamic portfolio
+• **Technical Analysis**: RSI, moving averages, support/resistance
+• **Portfolio Allocation**: Risk-based distribution across market caps
 
-How can I help you today?`;
+${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Amount**: ${formatCurrency(loanData.principal)}\n• **Current EMI**: ${formatCurrency(loanData.emi || 0)}\n• **Interest Rate**: ${loanData.interestRate}% p.a.\n• **Remaining Tenure**: ${loanData.term} ${loanData.termUnit}\n• **Loan Type**: ${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)}\n\n**I can calculate exact scenarios for:**\n• Prepayment impact and savings\n• EMI restructuring options\n• Loan closure timeline\n• Tax benefits optimization\n• Investment vs prepayment decisions` : ''}
+
+## 💡 **Sample Questions You Can Ask:**
+
+**Loan & EMI:**
+• "How much will I save if I prepay ₹5 lakhs now?"
+• "Should I prepay my loan or invest in mutual funds?"
+• "What's my loan amortization schedule?"
+
+**Tax Planning:**
+• "How to save tax under Section 80C?"
+• "What are home loan tax benefits?"
+• "ELSS vs PPF - which is better?"
+
+**Investments:**
+• "Best SIP amount for ₹50,000 monthly income?"
+• "Should I invest lump sum or SIP in current market?"
+• "Analyze HDFC Bank stock for long-term investment"
+
+**Stock Analysis:**
+• "Analyze TCS stock" → Real-time data + buy/sell recommendation
+• "I want to invest ₹1 lakh in stocks" → Dynamic portfolio allocation
+• "Best performing stocks for monthly SIP of ₹10,000"
+
+**How can I assist you today?** 🚀`;
   };
 
   /**

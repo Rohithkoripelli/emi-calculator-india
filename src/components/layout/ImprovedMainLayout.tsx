@@ -6,6 +6,7 @@ import { SukanyaCalculator } from '../calculators/SukanyaCalculator';
 import { SIPCalculator } from '../calculators/SIPCalculator';
 import { CreditCardCalculator } from '../calculators/CreditCardCalculator';
 import { GratuityCalculator } from '../calculators/GratuityCalculator';
+import { StockScreener } from '../stocks/StockScreener';
 import { AdditionalCalculators } from '../calculators/AdditionalCalculators';
 import { CapitalGainsCalculator } from '../calculators/CapitalGainsCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
@@ -33,6 +34,12 @@ const calculators: NavigationItem[] = [
     icon: '🧮',
     description: 'More Financial Tools'
   },
+  {
+    id: 'stocks',
+    name: 'Stock Screener',
+    icon: '📊',
+    description: 'Indian Stock Market Indices'
+  }
 ];
 
 const additionalCalculators: NavigationItem[] = [
@@ -91,6 +98,8 @@ export const ImprovedMainLayout: React.FC = () => {
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
       case 'capital-gains':
         return <CapitalGainsCalculator />;
+      case 'stocks':
+        return <StockScreener />;
       case 'additional':
         return <AdditionalCalculators calculators={additionalCalculators} onCalculatorSelect={setActiveCalculator} />;
       case 'sukanya':
