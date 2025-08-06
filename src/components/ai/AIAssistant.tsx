@@ -360,7 +360,8 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       // Check if OpenAI API key is available
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        console.log('OpenAI API key not found, using fallback response');
+        console.log('⚠️ OpenAI API key not found, using fallback response');
+        console.log('Please set REACT_APP_OPENAI_API_KEY in your .env file');
         throw new Error('OpenAI API key not configured');
       }
 

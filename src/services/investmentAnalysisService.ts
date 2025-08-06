@@ -120,9 +120,10 @@ export class InvestmentAnalysisService {
   private static readonly OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
   
   private static getOpenAIHeaders(): Record<string, string> {
-    const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
       console.warn('⚠️ OpenAI API key not found in environment variables');
+      console.warn('Please set REACT_APP_OPENAI_API_KEY in your .env file');
     }
     
     return {
