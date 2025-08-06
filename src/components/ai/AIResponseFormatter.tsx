@@ -561,6 +561,51 @@ const StockRecommendationBadge: React.FC<{ recommendation: string }> = ({ recomm
   );
 };
 
+const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
+  // Check if this is a comprehensive investment analysis
+  if (!text.includes('Phase') && !text.includes('comprehensive') && !text.includes('market research')) {
+    return null;
+  }
+  
+  return (
+    <div className="my-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-600/10 dark:to-purple-600/10 rounded-xl border border-blue-200 dark:border-blue-600/30">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-lg">🔬</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-dark-text-primary">Comprehensive Market Research</h3>
+          <p className="text-sm text-gray-600 dark:text-dark-text-secondary">AI-powered analysis across multiple data sources</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+          <div className="text-2xl mb-1">📊</div>
+          <div className="text-sm font-semibold text-gray-700 dark:text-dark-text-secondary">Historical Analysis</div>
+          <div className="text-xs text-gray-600 dark:text-dark-text-muted">5-6 months trend data</div>
+        </div>
+        
+        <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+          <div className="text-2xl mb-1">📰</div>
+          <div className="text-sm font-semibold text-gray-700 dark:text-dark-text-secondary">News Sentiment</div>
+          <div className="text-xs text-gray-600 dark:text-dark-text-muted">Real-time market news</div>
+        </div>
+        
+        <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+          <div className="text-2xl mb-1">🎯</div>
+          <div className="text-sm font-semibold text-gray-700 dark:text-dark-text-secondary">Stock Ranking</div>
+          <div className="text-xs text-gray-600 dark:text-dark-text-muted">Composite scoring system</div>
+        </div>
+      </div>
+      
+      <div className="text-xs text-gray-500 dark:text-dark-text-muted italic">
+        ✅ Research-based recommendations using multiple data points and technical analysis
+      </div>
+    </div>
+  );
+};
+
 const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   // Split text into lines and format each line
   const lines = text.split('\n').filter(line => line.trim());
@@ -749,6 +794,9 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   
   return (
     <div className="space-y-4">
+      {/* Research Insights Card for investment analysis */}
+      <ResearchInsightsCard text={formattedText} />
+      
       {/* Key Metrics Cards */}
       {keyMetrics.length > 0 && <LoanMetricsCard metrics={keyMetrics} />}
       
