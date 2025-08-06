@@ -322,9 +322,30 @@ Ask me anything about your loan, financial planning, or stock analysis!` : 'Plea
     try {
       console.log('Processing query:', currentInput);
       
-      // Check if this is a portfolio/investment recommendation query
+      // Check if query needs follow-up questions first
+      if (needsFollowUpQuestions(currentInput)) {
+        console.log('Generic investment query detected, asking follow-up questions...');
+        const analysis = analyzeInvestmentQuery(currentInput);
+        const followUpQuestions = generateFollowUpQuestions(currentInput, analysis);
+        
+        const followUpResponse = `I'd love to help you create a personalized investment strategy! To provide the most suitable recommendations, I need to understand your preferences better:\n\n${followUpQuestions.join('\n\n')}\n\n**Please provide these details, and I'll create a comprehensive investment plan tailored specifically for you.**\n\n*You can answer in any format - just mention your preferences and I'll take care of the rest!*`;
+        
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: followUpResponse,
+          isUser: false,
+          timestamp: new Date(),
+          isComplete: true
+        };
+        
+        setMessages(prev => [...prev, aiResponse]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if this is a detailed portfolio/investment recommendation query
       if (isPortfolioRecommendationQuery(currentInput)) {
-        console.log('Portfolio recommendation query detected, processing...');
+        console.log('Detailed portfolio recommendation query detected, processing...');
         const portfolioResponse = await generatePortfolioRecommendation(currentInput);
         
         const aiResponse: Message = {
@@ -674,27 +695,77 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     }
   };
 
+  // Enhanced investment query detection and follow-up question system
+  const analyzeInvestmentQuery = (query: string) => {
+    const lowerQuery = query.toLowerCase();
+    
+    // Investment indicators
+    const investmentIndicators = {
+      amount: /(\d+k?|\d+,?\d*)\s*(rupees?|rs\.?|₹|thousand|lakh|crore)/i.test(query),
+      timeframe: /month|year|daily|weekly|short.*term|long.*term|horizon/i.test(query),
+      riskProfile: /risk|conservative|aggressive|moderate|safe|growth/i.test(query),
+      sectors: /sector|banking|it|pharma|auto|energy|consumer|metals|telecom/i.test(query),
+      capSize: /large.*cap|mid.*cap|small.*cap|blue.*chip/i.test(query),
+      investmentType: /sip|lump.*sum|monthly|systematic|recurring/i.test(query)
+    };
+    
+    const portfolioKeywords = [
+      'invest', 'investment', 'portfolio', 'recommendations', 'suggest', 'advice',
+      'best stocks', 'good investment', 'where to invest', 'how to invest'
+    ];
+    
+    const hasInvestmentIntent = portfolioKeywords.some(keyword => lowerQuery.includes(keyword));
+    
+    return {
+      isInvestmentQuery: hasInvestmentIntent,
+      specificity: Object.values(investmentIndicators).filter(Boolean).length,
+      indicators: investmentIndicators,
+      needsFollowUp: hasInvestmentIntent && Object.values(investmentIndicators).filter(Boolean).length < 3
+    };
+  };
+  
+  const generateFollowUpQuestions = (query: string, analysis: any) => {
+    const questions: string[] = [];
+    const lowerQuery = query.toLowerCase();
+    
+    // Risk profile questions
+    if (!analysis.indicators.riskProfile) {
+      questions.push("**What's your risk tolerance?**\n• Conservative (8-12% returns, stable stocks)\n• Moderate (12-18% returns, balanced portfolio)\n• Aggressive (18%+ returns, high growth potential)");
+    }
+    
+    // Investment amount and frequency
+    if (!analysis.indicators.amount) {
+      questions.push("**How much are you planning to invest?**\n• One-time lump sum investment\n• Monthly SIP amount\n• Please specify the amount in ₹");
+    }
+    
+    // Time horizon
+    if (!analysis.indicators.timeframe) {
+      questions.push("**What's your investment timeline?**\n• Short-term (3-12 months) - for specific goals\n• Medium-term (1-3 years) - for planned expenses\n• Long-term (3+ years) - for wealth creation");
+    }
+    
+    // Sector preference
+    if (!analysis.indicators.sectors && questions.length < 2) {
+      questions.push("**Do you have any sector preferences?**\n• Technology (IT, Software)\n• Banking & Financial Services\n• Healthcare & Pharmaceuticals\n• No preference (diversified across all sectors)");
+    }
+    
+    // Investment experience
+    if (lowerQuery.includes('new') || lowerQuery.includes('beginner') || lowerQuery.includes('first time')) {
+      questions.push("**What's your investment experience?**\n• Complete beginner - need basic guidance\n• Some experience - looking for better strategies\n• Experienced - want advanced recommendations");
+    }
+    
+    return questions.slice(0, 3); // Maximum 3 follow-up questions
+  };
+
   // Portfolio/Investment recommendation detection
   const isPortfolioRecommendationQuery = (query: string): boolean => {
-    const lowerQuery = query.toLowerCase();
-    const portfolioKeywords = [
-      'invest', 'investment', 'portfolio', 'rupees', 'amount', 'money',
-      'recommendations', 'suggest', 'advice', 'fund', 'funds', 'mutual fund',
-      'large cap', 'mid cap', 'small cap', 'risk', 'diversify', 'allocation'
-    ];
-    
-    const investmentPhrases = [
-      'i want to invest', 'looking to invest', 'investment advice',
-      'portfolio recommendations', 'best stocks', 'good investment',
-      'where to invest', 'how to invest', 'investment strategy'
-    ];
-    
-    // Check for investment amount patterns
-    const hasAmount = /(\d+k?|\d+,?\d*)\s*(rupees?|rs\.?|₹)/i.test(query);
-    const hasKeywords = portfolioKeywords.some(keyword => lowerQuery.includes(keyword));
-    const hasPhrases = investmentPhrases.some(phrase => lowerQuery.includes(phrase));
-    
-    return (hasAmount && hasKeywords) || hasPhrases;
+    const analysis = analyzeInvestmentQuery(query);
+    return analysis.isInvestmentQuery && !analysis.needsFollowUp;
+  };
+  
+  // Check if query needs follow-up questions
+  const needsFollowUpQuestions = (query: string): boolean => {
+    const analysis = analyzeInvestmentQuery(query);
+    return analysis.isInvestmentQuery && analysis.needsFollowUp;
   };
 
   const generatePortfolioRecommendation = async (query: string): Promise<string> => {
@@ -880,21 +951,40 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
     try {
       console.log('📈 Starting comprehensive stock analysis across all segments...');
       
-      // Comprehensive stock categorization
-      const stockCategories = {
-        largeCap: [
-          'RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'ITC', 'HINDUNILVR', 
-          'SBIN', 'BHARTIARTL', 'KOTAKBANK', 'LT', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'SUNPHARMA'
-        ],
-        midCap: [
-          'BAJFINANCE', 'HCLTECH', 'ADANIPORTS', 'POWERGRID', 'NTPC', 'ONGC', 'JSWSTEEL',
-          'INDUSINDBK', 'GRASIM', 'SHREECEM', 'PIDILITIND', 'BERGEPAINT', 'MCDOWELL-N', 'DABUR', 'GODREJCP'
-        ],
-        smallCap: [
-          'TATAMOTORS', 'SAIL', 'NMDC', 'RECLTD', 'PFC', 'IRCTC', 'ZOMATO', 'PAYTM',
-          'POLICYBZR', 'NYKAA', 'CARTRADE', 'EASEMYTRIP', 'CLEAN', 'ROUTE', 'LATENTVIEW'
-        ]
+      // Dynamic stock selection for faster analysis - focus on most liquid and popular stocks
+      const getTopStocksByCategory = () => {
+        const allStocks = {
+          largeCap: [
+            'RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'INFY', 'ITC', 'SBIN', 
+            'BHARTIARTL', 'KOTAKBANK', 'LT', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 'SUNPHARMA'
+          ],
+          midCap: [
+            'BAJFINANCE', 'HCLTECH', 'ADANIPORTS', 'POWERGRID', 'NTPC', 'ONGC', 
+            'JSWSTEEL', 'INDUSINDBK', 'GRASIM', 'DABUR', 'GODREJCP'
+          ],
+          smallCap: [
+            'TATAMOTORS', 'SAIL', 'NMDC', 'ZOMATO', 'PAYTM', 'NYKAA', 'IRCTC'
+          ]
+        };
+        
+        // Randomize selection to get variety across different runs
+        const shuffleArray = (array: string[]) => {
+          const shuffled = [...array];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          return shuffled;
+        };
+        
+        return {
+          largeCap: shuffleArray(allStocks.largeCap).slice(0, 4), // Top 4 large cap
+          midCap: shuffleArray(allStocks.midCap).slice(0, 3),     // Top 3 mid cap  
+          smallCap: shuffleArray(allStocks.smallCap).slice(0, 2)  // Top 2 small cap
+        };
       };
+      
+      const stockCategories = getTopStocksByCategory();
 
       const sectorMapping = {
         IT: ['TCS', 'INFY', 'HCLTECH', 'WIPRO', 'TECHM'],
@@ -923,7 +1013,7 @@ A: "Based on your loan of ₹35.5 lakhs at 7.45% interest, here's your tax benef
         console.log(`🔍 Preparing ${capSize} stocks for parallel analysis...`);
         
         // Optimize for speed - analyze fewer stocks but more strategically
-        const stocksToAnalyze = stocks.slice(0, capSize === 'largeCap' ? 5 : capSize === 'midCap' ? 4 : 3);
+        const stocksToAnalyze = stocks.slice(0, capSize === 'largeCap' ? 3 : capSize === 'midCap' ? 2 : 2);
         
         // Create parallel analysis promises
         for (const symbol of stocksToAnalyze) {
