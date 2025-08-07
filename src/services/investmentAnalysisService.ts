@@ -915,7 +915,8 @@ export class InvestmentAnalysisService {
     }
     
     // Validate symbols against our database
-    for (const symbol of potentialSymbols) {
+    const symbolsArray = Array.from(potentialSymbols);
+    for (const symbol of symbolsArray) {
       const companyInfo = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
       if (companyInfo) {
         stocks.push({
@@ -942,49 +943,49 @@ export class InvestmentAnalysisService {
       'Defense & Aerospace': {
         theme: 'Defense modernization and Make in India initiatives',
         stocks: [
-          { symbol: 'BEL', companyName: 'Bharat Electronics Limited', marketCap: 'MID_CAP', reason: 'Defense electronics leader with strong order book' },
-          { symbol: 'HAL', companyName: 'Hindustan Aeronautics Limited', marketCap: 'MID_CAP', reason: 'Aircraft manufacturing with growing defense budget' },
-          { symbol: 'MAZAGON', companyName: 'Mazagon Dock Shipbuilders Limited', marketCap: 'MID_CAP', reason: 'Naval shipbuilding with submarine projects' }
+          { symbol: 'BEL', companyName: 'Bharat Electronics Limited', marketCap: 'MID_CAP', sector: 'Defense', reason: 'Defense electronics leader with strong order book' },
+          { symbol: 'HAL', companyName: 'Hindustan Aeronautics Limited', marketCap: 'MID_CAP', sector: 'Defense', reason: 'Aircraft manufacturing with growing defense budget' },
+          { symbol: 'MAZAGON', companyName: 'Mazagon Dock Shipbuilders Limited', marketCap: 'MID_CAP', sector: 'Defense', reason: 'Naval shipbuilding with submarine projects' }
         ]
       },
       'Railways & Infrastructure': {
         theme: 'Infrastructure development and railway modernization',
         stocks: [
-          { symbol: 'RVNL', companyName: 'Rail Vikas Nigam Limited', marketCap: 'SMALL_CAP', reason: 'Railway infrastructure development projects' },
-          { symbol: 'IRCON', companyName: 'IRCON International Limited', marketCap: 'SMALL_CAP', reason: 'Railway construction and infrastructure' },
-          { symbol: 'IRFC', companyName: 'Indian Railway Finance Corporation Limited', marketCap: 'LARGE_CAP', reason: 'Railway project financing arm' }
+          { symbol: 'RVNL', companyName: 'Rail Vikas Nigam Limited', marketCap: 'SMALL_CAP', sector: 'Infrastructure', reason: 'Railway infrastructure development projects' },
+          { symbol: 'IRCON', companyName: 'IRCON International Limited', marketCap: 'SMALL_CAP', sector: 'Infrastructure', reason: 'Railway construction and infrastructure' },
+          { symbol: 'IRFC', companyName: 'Indian Railway Finance Corporation Limited', marketCap: 'LARGE_CAP', sector: 'Infrastructure', reason: 'Railway project financing arm' }
         ]
       },
       'Green Energy & EVs': {
         theme: 'Renewable energy transition and EV adoption',
         stocks: [
-          { symbol: 'ADANIGREEN', companyName: 'Adani Green Energy Limited', marketCap: 'LARGE_CAP', reason: 'Leading renewable energy player' },
-          { symbol: 'TATAPOWER', companyName: 'Tata Power Company Limited', marketCap: 'LARGE_CAP', reason: 'Power generation with renewable focus' },
-          { symbol: 'SUZLON', companyName: 'Suzlon Energy Limited', marketCap: 'SMALL_CAP', reason: 'Wind energy equipment manufacturer' }
+          { symbol: 'ADANIGREEN', companyName: 'Adani Green Energy Limited', marketCap: 'LARGE_CAP', sector: 'Green Energy', reason: 'Leading renewable energy player' },
+          { symbol: 'TATAPOWER', companyName: 'Tata Power Company Limited', marketCap: 'LARGE_CAP', sector: 'Power', reason: 'Power generation with renewable focus' },
+          { symbol: 'SUZLON', companyName: 'Suzlon Energy Limited', marketCap: 'SMALL_CAP', sector: 'Green Energy', reason: 'Wind energy equipment manufacturer' }
         ]
       },
       'Digital & Fintech': {
         theme: 'Digital transformation and fintech growth',
         stocks: [
-          { symbol: 'PAYTM', companyName: 'One 97 Communications Limited', marketCap: 'MID_CAP', reason: 'Digital payments and fintech services' },
-          { symbol: 'NYKAA', companyName: 'FSN E-Commerce Ventures Limited', marketCap: 'MID_CAP', reason: 'E-commerce beauty and fashion platform' },
-          { symbol: 'ZOMATO', companyName: 'Zomato Limited', marketCap: 'LARGE_CAP', reason: 'Food delivery and restaurant tech platform' }
+          { symbol: 'PAYTM', companyName: 'One 97 Communications Limited', marketCap: 'MID_CAP', sector: 'Fintech', reason: 'Digital payments and fintech services' },
+          { symbol: 'NYKAA', companyName: 'FSN E-Commerce Ventures Limited', marketCap: 'MID_CAP', sector: 'E-commerce', reason: 'E-commerce beauty and fashion platform' },
+          { symbol: 'ZOMATO', companyName: 'Zomato Limited', marketCap: 'LARGE_CAP', sector: 'E-commerce', reason: 'Food delivery and restaurant tech platform' }
         ]
       },
       'Healthcare & Pharma': {
         theme: 'Healthcare innovation and pharmaceutical exports',
         stocks: [
-          { symbol: 'SUNPHARMA', companyName: 'Sun Pharmaceutical Industries Limited', marketCap: 'LARGE_CAP', reason: 'Leading pharmaceutical company with global presence' },
-          { symbol: 'DRREDDY', companyName: 'Dr Reddys Laboratories Limited', marketCap: 'LARGE_CAP', reason: 'Pharmaceutical research and generics' },
-          { symbol: 'APOLLOHOSP', companyName: 'Apollo Hospitals Enterprise Limited', marketCap: 'LARGE_CAP', reason: 'Healthcare services and hospital chain' }
+          { symbol: 'SUNPHARMA', companyName: 'Sun Pharmaceutical Industries Limited', marketCap: 'LARGE_CAP', sector: 'Pharmaceuticals', reason: 'Leading pharmaceutical company with global presence' },
+          { symbol: 'DRREDDY', companyName: 'Dr Reddys Laboratories Limited', marketCap: 'LARGE_CAP', sector: 'Pharmaceuticals', reason: 'Pharmaceutical research and generics' },
+          { symbol: 'APOLLOHOSP', companyName: 'Apollo Hospitals Enterprise Limited', marketCap: 'LARGE_CAP', sector: 'Healthcare', reason: 'Healthcare services and hospital chain' }
         ]
       },
       'FMCG & Consumer': {
         theme: 'Rural recovery and premiumization trends',
         stocks: [
-          { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', marketCap: 'LARGE_CAP', reason: 'FMCG leader with strong brand portfolio' },
-          { symbol: 'NESTLEIND', companyName: 'Nestle India Limited', marketCap: 'LARGE_CAP', reason: 'Premium food and beverage products' },
-          { symbol: 'BRITANNIA', companyName: 'Britannia Industries Limited', marketCap: 'LARGE_CAP', reason: 'Food products with strong distribution' }
+          { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', marketCap: 'LARGE_CAP', sector: 'FMCG', reason: 'FMCG leader with strong brand portfolio' },
+          { symbol: 'NESTLEIND', companyName: 'Nestle India Limited', marketCap: 'LARGE_CAP', sector: 'FMCG', reason: 'Premium food and beverage products' },
+          { symbol: 'BRITANNIA', companyName: 'Britannia Industries Limited', marketCap: 'LARGE_CAP', sector: 'FMCG', reason: 'Food products with strong distribution' }
         ]
       }
     };
@@ -998,16 +999,17 @@ export class InvestmentAnalysisService {
       selectedStocks.push(
         { symbol: 'TCS', companyName: 'Tata Consultancy Services Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'Leading IT services with strong digital capabilities' },
         { symbol: 'HDFCBANK', companyName: 'HDFC Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Top private bank with digital focus' },
-        currentTrends['Healthcare & Pharma'].stocks[0],
-        currentTrends['FMCG & Consumer'].stocks[0],
-        currentTrends['Green Energy & EVs'].stocks[0]
+        currentTrends['Healthcare & Pharma' as keyof typeof currentTrends].stocks[0],
+        currentTrends['FMCG & Consumer' as keyof typeof currentTrends].stocks[0],
+        currentTrends['Green Energy & EVs' as keyof typeof currentTrends].stocks[0]
       );
     } else {
       // For larger amounts, include more diverse sectors and mid/small caps
       const trendKeys = Object.keys(currentTrends);
       
       for (let i = 0; i < Math.min(trendKeys.length, 6); i++) {
-        const trend = currentTrends[trendKeys[i]];
+        const trendKey = trendKeys[i] as keyof typeof currentTrends;
+        const trend = currentTrends[trendKey];
         // Add 1-2 stocks from each trending sector
         selectedStocks.push(...trend.stocks.slice(0, amount > 100000 ? 2 : 1));
       }
@@ -1024,7 +1026,7 @@ export class InvestmentAnalysisService {
       .filter((stock, index, self) => index === self.findIndex(s => s.symbol === stock.symbol))
       .slice(0, 12);
     
-    console.log(`✅ Enhanced research selected ${uniqueStocks.length} stocks across ${new Set(uniqueStocks.map(s => s.sector)).size} sectors`);
+    console.log(`✅ Enhanced research selected ${uniqueStocks.length} stocks across ${new Set(uniqueStocks.map(s => s.sector || 'Unknown')).size} sectors`);
     return uniqueStocks;
   }
   

@@ -708,7 +708,8 @@ export class GrowwApiService {
     // Group similar prices together
     for (const price of prices) {
       let found = false;
-      for (const [existingPrice, count] of priceMap.entries()) {
+      const entries = Array.from(priceMap.entries());
+      for (const [existingPrice, count] of entries) {
         if (Math.abs(price - existingPrice) / existingPrice <= tolerance) {
           priceMap.set(existingPrice, count + 1);
           found = true;
@@ -724,7 +725,8 @@ export class GrowwApiService {
     let bestPrice = null;
     let bestCount = 0;
     
-    for (const [price, count] of priceMap.entries()) {
+    const allEntries = Array.from(priceMap.entries());
+    for (const [price, count] of allEntries) {
       if (count > bestCount && count >= 2) { // At least 2 touches
         bestCount = count;
         bestPrice = price;

@@ -883,7 +883,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
                         {row.map((cell, cellIdx) => {
                           // Enhanced cell styling based on content
                           let cellClass = 'px-6 py-4 text-sm text-gray-900 dark:text-dark-text-primary border-r border-gray-100 dark:border-dark-border last:border-r-0';
-                          let cellContent = cell;
+                          let cellContent: string | React.ReactNode = cell;
                           
                           // Special formatting for different data types
                           if (cell.includes('₹')) {
