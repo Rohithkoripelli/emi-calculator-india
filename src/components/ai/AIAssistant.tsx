@@ -163,10 +163,24 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
     let queryType: 'STOCK_ANALYSIS' | 'INVESTMENT_RECOMMENDATION' | 'GENERIC_FINANCIAL' = 'GENERIC_FINANCIAL';
     let confidence = 50;
     
-    if (stockSymbol) {
+    // Check for loan-related context first (higher priority than stock symbol detection)
+    const loanContextKeywords = [
+      'home loan', 'housing loan', 'mortgage', 'prepay', 'prepayment', 'emi', 'loan closure', 
+      'loan term', 'interest rate', 'principal', 'tenure', 'foreclose', 'refinance'
+    ];
+    
+    const hasLoanContext = loanContextKeywords.some(keyword => lowerQuery.includes(keyword));
+    
+    if (stockSymbol && !hasLoanContext) {
+      // Only treat as stock analysis if no loan context is detected
       queryType = 'STOCK_ANALYSIS';
       confidence = 85;
       console.log(`📊 Detected stock analysis query for: ${stockSymbol}`);
+    } else if (hasLoanContext) {
+      // Prioritize loan analysis even if a stock symbol is detected
+      queryType = 'GENERIC_FINANCIAL';
+      confidence = 90;
+      console.log(`🏠 Detected loan-related query, ignoring potential stock symbol: ${stockSymbol || 'none'}`);
     } else if (investmentAmount && (lowerQuery.includes('invest') || lowerQuery.includes('portfolio') || lowerQuery.includes('stocks') || lowerQuery.includes('recommend'))) {
       queryType = 'INVESTMENT_RECOMMENDATION';
       confidence = 80;
@@ -386,6 +400,19 @@ Before responding, determine if the question is:
 - "Should I prepay my loan or invest this amount?"
 - "What's my current EMI breakdown?"
 - "If I increase my EMI by ₹5000, when will loan finish?"
+- "How soon can I close my home loan if I prepay X amount?"
+- "What's the impact of lump sum prepayment on tenure?"
+
+**PREPAYMENT CALCULATION METHODOLOGY:**
+For prepayment scenarios, calculate:
+1. **Remaining Principal**: Current outstanding principal balance
+2. **New Principal**: Outstanding balance minus prepayment amount
+3. **Revised Tenure**: Calculate months needed to pay new principal with same EMI
+4. **Time Savings**: Original tenure minus revised tenure
+5. **Interest Savings**: Total interest in original scenario minus revised scenario
+6. **New Completion Date**: Start date plus revised tenure
+
+Present results in a clear table format with before/after comparison.
 
 **RESPONSE RULES:**
 
