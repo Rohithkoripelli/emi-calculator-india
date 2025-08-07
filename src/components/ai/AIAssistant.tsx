@@ -595,6 +595,18 @@ Before responding, determine if the question is:
     });
     response += '\n';
     
+    // Web Research Results
+    if (analysis.web_research && analysis.web_research.search_results.length > 0) {
+      response += `## 🌐 Market Research Sources\n`;
+      response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
+      
+      analysis.web_research.search_results.forEach((result, index) => {
+        response += `**${index + 1}. ${result.title}**\n`;
+        response += `${result.snippet}\n`;
+        response += `🔗 [Read more](${result.url})\n\n`;
+      });
+    }
+    
     // Disclaimer
     response += `## ⚠️ Disclaimer\n`;
     response += `This analysis is based on real-time data from Groww API, technical indicators, and market news. It's for educational purposes only and not financial advice. Please consult with a qualified financial advisor and do your own research before making investment decisions.`;

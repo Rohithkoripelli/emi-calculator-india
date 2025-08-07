@@ -43,6 +43,14 @@ interface StockAnalysisReport {
     key_risks: string[];
     volatility: number;
   };
+  web_research?: {
+    search_results: Array<{
+      title: string;
+      url: string;
+      snippet: string;
+    }>;
+    search_queries: string[];
+  };
 }
 
 interface InvestmentRecommendation {
@@ -160,11 +168,15 @@ export class InvestmentAnalysisService {
       const technicalAnalysis = historicalData ? 
         GrowwApiService.performTechnicalAnalysis(historicalData) : null;
       
-      // Step 4: Get news and sentiment analysis
+      // Step 4: Conduct comprehensive web research for market analysis
+      console.log(`🔍 Conducting comprehensive web research for ${symbol}...`);
+      const webResearch = await this.conductWebResearch(symbol, companyInfo.name);
+      
+      // Step 5: Get news and sentiment analysis (now enhanced with web research)
       const stockNews = await NewsSearchService.getStockNews(symbol, companyInfo.name);
       const newsSentiment = this.analyzeNewsSentiment(stockNews);
       
-      // Step 5: Generate comprehensive recommendation using OpenAI
+      // Step 6: Generate comprehensive recommendation using all data
       const recommendation = await this.generateStockRecommendation({
         quote,
         technicalAnalysis,
@@ -193,7 +205,8 @@ export class InvestmentAnalysisService {
         },
         news_sentiment: newsSentiment,
         recommendation: recommendation,
-        risk_analysis: this.assessRiskLevel(quote, technicalAnalysis, newsSentiment)
+        risk_analysis: this.assessRiskLevel(quote, technicalAnalysis, newsSentiment),
+        web_research: webResearch
       };
       
       console.log(`✅ Analysis complete for ${symbol}: ${recommendation.action} (${recommendation.confidence}% confidence)`);
@@ -825,6 +838,73 @@ export class InvestmentAnalysisService {
         'Consider staggered entry over 2-3 weeks for better average price'
       ]
     };
+  }
+
+  /**
+   * Conduct comprehensive web research for stock analysis
+   */
+  private static async conductWebResearch(symbol: string, companyName: string): Promise<any> {
+    try {
+      const { WebSearch } = await import('../utils/webSearchUtil');
+      
+      // Define comprehensive search queries for market research
+      const searchQueries = [
+        `${companyName} ${symbol} stock analysis latest target price 2025`,
+        `${symbol} quarterly results earnings growth prospects`,
+        `${companyName} news recent developments expansion plans`,
+        `${symbol} brokerage recommendation buy sell rating`,
+        `${companyName} market share competitive position industry`
+      ];
+      
+      const allResults = [];
+      const usedQueries = [];
+      
+      for (const query of searchQueries) {
+        try {
+          console.log(`🔍 Searching: "${query}"`);
+          const results = await WebSearch(query, 3);
+          
+          if (results && results.length > 0) {
+            // Filter for relevant results
+            const relevantResults = results.filter(result => 
+              !result.title.includes('Mock') && 
+              result.url.startsWith('http') &&
+              (result.title.toLowerCase().includes(symbol.toLowerCase()) ||
+               result.snippet.toLowerCase().includes(symbol.toLowerCase()) ||
+               result.snippet.toLowerCase().includes('stock') ||
+               result.snippet.toLowerCase().includes('share'))
+            );
+            
+            allResults.push(...relevantResults);
+            usedQueries.push(query);
+            
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.error(`❌ Error in web search for query "${query}":`, error);
+        }
+      }
+      
+      // Remove duplicates and get top 5 results
+      const uniqueResults = allResults.filter((result, index, self) => 
+        index === self.findIndex(r => r.url === result.url)
+      ).slice(0, 5);
+      
+      console.log(`✅ Found ${uniqueResults.length} relevant web results for ${symbol}`);
+      
+      return {
+        search_results: uniqueResults,
+        search_queries: usedQueries
+      };
+      
+    } catch (error) {
+      console.error('❌ Error in web research:', error);
+      return {
+        search_results: [],
+        search_queries: []
+      };
+    }
   }
 
   // Helper methods

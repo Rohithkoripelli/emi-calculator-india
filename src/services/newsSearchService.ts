@@ -19,6 +19,7 @@ interface StockNews {
   source: string;
   publishedAt: string;
   relevanceScore: number;
+  url: string;
 }
 
 interface MarketTrends {
@@ -342,7 +343,8 @@ export class NewsSearchService {
             sentiment: sentiment,
             source: this.extractSource(result.url),
             publishedAt: new Date().toISOString(), // Approximate
-            relevanceScore: relevanceScore
+            relevanceScore: relevanceScore,
+            url: result.url
           });
         }
       } catch (error) {
