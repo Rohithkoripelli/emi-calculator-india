@@ -565,15 +565,22 @@ export class GrowwApiService {
         const priceChange = price * (trendFactor + randomFactor);
         let close = open + priceChange;
         
-        // Ensure reasonable price bounds (within 20% of base price)
-        const minPrice = currentPrice * 0.8;
-        const maxPrice = currentPrice * 1.2;
+        // Ensure reasonable price bounds based on current price context
+        const minPrice = open * 0.95; // Max 5% down from open
+        const maxPrice = open * 1.05; // Max 5% up from open
         close = Math.max(minPrice, Math.min(maxPrice, close));
         
         // Generate high and low within realistic ranges
-        const highLowRange = Math.abs(close - open) + (open * 0.005); // At least 0.5% range
-        const high = Math.max(open, close) + (Math.random() * highLowRange * 0.5);
-        const low = Math.min(open, close) - (Math.random() * highLowRange * 0.5);
+        const dayRange = Math.abs(close - open);
+        const minDayRange = open * 0.008; // Minimum 0.8% daily range
+        const actualRange = Math.max(dayRange, minDayRange);
+        
+        const high = Math.max(open, close) + (Math.random() * actualRange * 0.3);
+        const low = Math.min(open, close) - (Math.random() * actualRange * 0.3);
+        
+        // Ensure high/low are reasonable relative to open/close
+        const finalHigh = Math.min(high, Math.max(open, close) * 1.02);
+        const finalLow = Math.max(low, Math.min(open, close) * 0.98);
         
         // Generate volume based on price movement
         const baseVolume = this.getRealisticVolume(tradingSymbol, currentPrice);
@@ -584,8 +591,8 @@ export class GrowwApiService {
           timestamp: Math.floor(candleDate.getTime() / 1000),
           date: candleDate.toISOString().split('T')[0],
           open: Math.round(open * 100) / 100,
-          high: Math.round(high * 100) / 100,
-          low: Math.round(low * 100) / 100,
+          high: Math.round(finalHigh * 100) / 100,
+          low: Math.round(finalLow * 100) / 100,
           close: Math.round(close * 100) / 100,
           volume: volume
         });
