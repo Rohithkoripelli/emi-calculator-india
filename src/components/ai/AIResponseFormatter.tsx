@@ -1140,11 +1140,11 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       {/* Savings Chart */}
       {savingsChartData && <SavingsChart data={savingsChartData} />}
       
-      {/* News Articles Card - using original text to extract news */}
-      <NewsArticlesCard text={formattedText} />
-      
       {/* Enhanced Text Formatting - using cleaned text without news */}
       <EnhancedText text={textWithoutNews} />
+      
+      {/* News Articles Card - moved to bottom using original text to extract news */}
+      <NewsArticlesCard text={formattedText} />
     </div>
   );
 };
