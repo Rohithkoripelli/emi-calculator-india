@@ -374,10 +374,12 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       // Check if OpenAI API key is available
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        console.log('⚠️ OpenAI API key not found, using fallback response');
-        console.log('Please set REACT_APP_OPENAI_API_KEY in your .env file');
+        console.error('❌ OpenAI API key not found in environment variables');
+        console.error('Please set REACT_APP_OPENAI_API_KEY in your Vercel environment variables');
         throw new Error('OpenAI API key not configured');
       }
+      
+      console.log('✅ OpenAI API key found, preparing analysis request...');
 
       // Enhanced system prompt for loan/tax analysis
       let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities, specialized in precise loan calculations, tax planning, investment strategies, and financial planning in India.
@@ -527,7 +529,9 @@ Present results in a clear table format with before/after comparison.
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`❌ OpenAI API error (${response.status}):`, errorText);
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();

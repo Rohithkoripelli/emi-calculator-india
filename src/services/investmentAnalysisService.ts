@@ -130,10 +130,12 @@ export class InvestmentAnalysisService {
   private static getOpenAIHeaders(): Record<string, string> {
     const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.warn('⚠️ OpenAI API key not found in environment variables');
-      console.warn('Please set REACT_APP_OPENAI_API_KEY in your .env file');
+      console.error('❌ OpenAI API key not found in environment variables');
+      console.error('Please set REACT_APP_OPENAI_API_KEY in your Vercel environment variables');
+      throw new Error('OpenAI API key is required but not configured');
     }
     
+    console.log('✅ OpenAI API key found, preparing request...');
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
@@ -404,32 +406,46 @@ export class InvestmentAnalysisService {
    * Call OpenAI API
    */
   private static async callOpenAI(prompt: string): Promise<string> {
+    console.log('🤖 Calling OpenAI API with GPT-4o...');
+    
     const response = await fetch(this.OPENAI_API_URL, {
       method: 'POST',
       headers: this.getOpenAIHeaders(),
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o', // Updated to GPT-4o as requested
         messages: [
           {
             role: 'system',
-            content: 'You are a professional financial analyst specializing in Indian stock market. Provide accurate, data-driven recommendations.'
+            content: 'You are a professional financial analyst specializing in Indian stock market analysis. Provide accurate, data-driven recommendations based on current market conditions, technical analysis, and fundamental factors. Always return valid JSON responses when requested.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 1500,
-        temperature: 0.3
+        max_tokens: 2000, // Increased for more detailed responses
+        temperature: 0.2  // Lower temperature for more consistent financial advice
       })
     });
     
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ OpenAI API error (${response.status}):`, errorText);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
-    return data.choices[0].message.content;
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('❌ Invalid response structure from OpenAI:', data);
+      throw new Error('Invalid response structure from OpenAI API');
+    }
+    
+    const content = data.choices[0].message.content;
+    console.log('✅ OpenAI API response received successfully');
+    console.log('📊 Response preview:', content.substring(0, 200) + '...');
+    
+    return content;
   }
 
   /**
