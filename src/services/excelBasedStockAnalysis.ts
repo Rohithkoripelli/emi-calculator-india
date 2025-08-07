@@ -19,15 +19,40 @@ export class ExcelBasedStockAnalysisService {
   private static searchIndex = new Map<string, ExcelCompany[]>();
   private static initialized = false;
 
-  // Enhanced stop words list
+  // Enhanced stop words list with financial context
   private static readonly STOP_WORDS = new Set([
-    'i', 'should', 'buy', 'sell', 'invest', 'stock', 'share', 'shares', 'equity', 'now', 'today',
-    'analysis', 'recommendation', 'price', 'target', 'good', 'bad', 'investment', 'the', 'a', 'an',
-    'is', 'are', 'was', 'were', 'what', 'when', 'where', 'why', 'how', 'about', 'for', 'on', 'in',
-    'can', 'could', 'will', 'would', 'shall', 'may', 'might', 'do', 'does', 'did', 'have', 'has', 'had',
-    'be', 'been', 'being', 'to', 'at', 'by', 'from', 'with', 'into', 'during', 'before', 'after',
+    // Basic stop words
+    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
+    'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers',
+    'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+    // Articles and determiners
+    'the', 'a', 'an', 'this', 'that', 'these', 'those', 'some', 'any', 'all', 'each', 'every',
+    // Prepositions
+    'in', 'on', 'at', 'by', 'for', 'with', 'about', 'into', 'through', 'during', 'before', 'after',
     'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once',
-    'vs', 'versus', 'or', 'and', 'but', 'if', 'worth', 'better', 'best', 'worst', 'compare', 'comparison'
+    // Conjunctions
+    'and', 'or', 'but', 'nor', 'so', 'yet', 'because', 'although', 'since', 'unless', 'while',
+    // Verbs
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having',
+    'do', 'does', 'did', 'doing', 'will', 'would', 'could', 'should', 'may', 'might',
+    'can', 'shall', 'must', 'ought', 'need', 'dare',
+    // Question words
+    'what', 'when', 'where', 'why', 'how', 'who', 'whom', 'whose', 'which',
+    // Financial context stop words (be more selective)
+    'stock', 'share', 'shares', 'equity', 'analysis', 'recommendation', 'price', 'target',
+    'good', 'bad', 'investment', 'invest', 'investing', 'buy', 'sell', 'hold', 'trading',
+    'market', 'portfolio', 'fund', 'mutual', 'dividend', 'earnings', 'profit', 'loss',
+    'financial', 'money', 'cash', 'value', 'worth', 'cost', 'expensive', 'cheap',
+    'high', 'low', 'up', 'down', 'rise', 'fall', 'growth', 'decline',
+    // Time-related
+    'now', 'today', 'tomorrow', 'yesterday', 'week', 'month', 'year', 'time', 'when',
+    'current', 'latest', 'recent', 'future', 'past', 'next', 'last', 'previous',
+    // Comparative
+    'better', 'best', 'worse', 'worst', 'more', 'most', 'less', 'least',
+    'compare', 'comparison', 'vs', 'versus', 'between', 'among',
+    // Common question patterns
+    'tell', 'show', 'give', 'find', 'search', 'look', 'see', 'check', 'analyze',
+    'please', 'thanks', 'thank', 'help', 'suggest', 'recommend'
   ]);
 
   private static initialize() {
@@ -177,9 +202,16 @@ export class ExcelBasedStockAnalysisService {
     const bestCompany = this.symbolToCompany.get(bestSymbol)!;
     const bestScore = sorted[0][1];
 
-    // Only return if score is above threshold
-    if (bestScore < 35) {
-      console.log(`⚠️ Best match score too low (${bestScore}), rejecting`);
+    // Enhanced threshold logic - be more strict about matches
+    const threshold = meaningfulWords.length === 1 ? 50 : 40; // Higher threshold for single words
+    if (bestScore < threshold) {
+      console.log(`⚠️ Best match score too low (${bestScore} < ${threshold}), rejecting`);
+      
+      // Additional check: if multiple candidates have similar scores, it's ambiguous
+      if (sorted.length > 1 && sorted[1][1] > bestScore * 0.7) {
+        console.log(`⚠️ Ambiguous match detected - top scores too close: ${bestScore} vs ${sorted[1][1]}`);
+        return null;
+      }
       return null;
     }
 
@@ -198,37 +230,131 @@ export class ExcelBasedStockAnalysisService {
   }
 
   /**
-   * Special handling for well-known company matches
+   * Enhanced fuzzy matching for well-known company patterns and disambiguation
    */
   private static checkWellKnownMatches(meaningfulWords: string[], company: ExcelCompany): number {
     const words = meaningfulWords.map(w => w.toLowerCase());
+    const joinedQuery = words.join(' ');
     
-    // Special cases for common companies
-    if (words.includes('hdfc') && words.includes('bank') && company.symbol === 'HDFCBANK') {
-      return 25; // High boost for HDFC Bank
-    }
-    if (words.includes('sbi') && (words.includes('bank') || words.includes('state')) && company.symbol === 'SBIN') {
-      return 25; // High boost for SBI
-    }
-    if (words.includes('l&t') && company.symbol === 'LT') {
-      return 50; // Very high boost for L&T (unique identifier)
-    }
-    if (words.includes('tcs') && company.symbol === 'TCS') {
-      return 25; // High boost for TCS
-    }
-    if (words.includes('infosys') && company.symbol === 'INFY') {
-      return 25; // High boost for Infosys
-    }
+    // Enhanced pattern matching for common stock queries
     
-    // Fix for Indian Bank vs South Indian Bank confusion
-    if (words.includes('indian') && words.includes('bank')) {
-      // Exact match for "Indian Bank" should get highest priority
-      if (company.symbol === 'INDIANB' && !words.includes('south') && !words.includes('overseas')) {
-        return 60; // Very high boost for exact Indian Bank match
+    // SBI variants - distinguish between different SBI entities
+    if (words.includes('sbi')) {
+      if (words.includes('life') && company.symbol === 'SBILIFE') {
+        return 80; // Strong boost for SBI Life
       }
-      // Penalize South Indian Bank when user just says "indian bank"
+      if (words.includes('card') && company.symbol === 'SBICARD') {
+        return 80; // Strong boost for SBI Card
+      }
+      if ((words.includes('bank') || words.includes('state') || joinedQuery.match(/\bsbi\s+(stock|share)\b/)) && company.symbol === 'SBIN') {
+        return 60; // High boost for SBI Bank
+      }
+    }
+    
+    // ICICI variants - handle ICICI vs ICICI Prudential confusion
+    if (words.includes('icici')) {
+      if (words.includes('prudential') || words.includes('insurance') || words.includes('life') && company.symbol === 'ICICIPRUDENTIAL') {
+        return 80; // Strong boost for ICICI Prudential
+      }
+      if ((words.includes('bank') || !words.includes('prudential')) && company.symbol === 'ICICIBANK') {
+        return 70; // Prefer ICICI Bank over Prudential when "prudential" not mentioned
+      }
+    }
+    
+    // HDFC variants
+    if (words.includes('hdfc')) {
+      if (words.includes('bank') && company.symbol === 'HDFCBANK') {
+        return 60;
+      }
+      if (words.includes('life') && company.symbol === 'HDFCLIFE') {
+        return 80;
+      }
+      if (!words.includes('bank') && !words.includes('life') && company.symbol === 'HDFC') {
+        return 50; // Default to HDFC Ltd when no specific variant mentioned
+      }
+    }
+    
+    // TCS - very specific match
+    if ((words.includes('tcs') || joinedQuery.includes('tata consultancy')) && company.symbol === 'TCS') {
+      return 90;
+    }
+    
+    // Infosys variants
+    if ((words.includes('infosys') || words.includes('infy')) && company.symbol === 'INFY') {
+      return 80;
+    }
+    
+    // Reliance variants
+    if (words.includes('reliance')) {
+      if (words.includes('industries') && company.symbol === 'RELIANCE') {
+        return 70;
+      }
+      if (words.includes('power') && company.symbol === 'RPOWER') {
+        return 80;
+      }
+      if (!words.includes('power') && !words.includes('capital') && company.symbol === 'RELIANCE') {
+        return 60; // Default to RIL
+      }
+    }
+    
+    // L&T - unique identifier
+    if ((words.includes('l&t') || joinedQuery.includes('larsen') || joinedQuery.includes('toubro')) && company.symbol === 'LT') {
+      return 90;
+    }
+    
+    // Indian Bank disambiguation - major improvement here
+    if (words.includes('indian') && words.includes('bank')) {
+      if (words.includes('south') && company.symbol === 'SOUTHBANK') {
+        return 80; // Strong boost for South Indian Bank when "south" mentioned
+      }
+      if (words.includes('overseas') && company.symbol === 'IOB') {
+        return 80; // Strong boost for Indian Overseas Bank
+      }
+      if (!words.includes('south') && !words.includes('overseas') && company.symbol === 'INDIANB') {
+        return 70; // Prefer Indian Bank when no qualifier mentioned
+      }
       if (company.symbol === 'SOUTHBANK' && !words.includes('south')) {
-        return -30; // Heavy penalty for South Indian Bank when "south" not mentioned
+        return -50; // Heavy penalty for South Indian Bank when "south" not mentioned
+      }
+    }
+    
+    // Tata Group companies - enhanced disambiguation
+    if (words.includes('tata')) {
+      if (words.includes('steel') && company.symbol === 'TATASTEEL') return 80;
+      if (words.includes('motors') && company.symbol === 'TATAMOTORS') return 80;
+      if (words.includes('power') && company.symbol === 'TATAPOWER') return 80;
+      if (words.includes('chemicals') && company.symbol === 'TATACHEM') return 80;
+      if (words.includes('consumer') && company.symbol === 'TATACONSUM') return 80;
+      if (words.includes('consultancy') && company.symbol === 'TCS') return 90;
+    }
+    
+    // Adani Group companies
+    if (words.includes('adani')) {
+      if (words.includes('ports') && company.symbol === 'ADANIPORTS') return 80;
+      if (words.includes('green') && company.symbol === 'ADANIGREEN') return 80;
+      if (words.includes('power') && company.symbol === 'ADANIPOWER') return 80;
+      if (words.includes('enterprises') && company.symbol === 'ADANIENT') return 80;
+    }
+    
+    // Aditya Birla Group
+    if ((words.includes('aditya') && words.includes('birla')) || words.includes('ultratech')) {
+      if (words.includes('cement') || words.includes('ultratech') && company.symbol === 'ULTRACEMCO') return 80;
+    }
+    
+    // Common abbreviations and aliases
+    const abbreviations: Record<string, { symbol: string, score: number }> = {
+      'ril': { symbol: 'RELIANCE', score: 70 },
+      'itc': { symbol: 'ITC', score: 90 },
+      'wipro': { symbol: 'WIPRO', score: 80 },
+      'hul': { symbol: 'HINDUNILVR', score: 80 },
+      'bajaj': { symbol: 'BAJFINANCE', score: 60 }, // Default to Bajaj Finance
+      'maruti': { symbol: 'MARUTI', score: 80 },
+      'mahindra': { symbol: 'M&M', score: 70 },
+    };
+    
+    for (const word of words) {
+      if (abbreviations[word] && company.symbol === abbreviations[word].symbol) {
+        return abbreviations[word].score;
       }
     }
     
@@ -236,26 +362,45 @@ export class ExcelBasedStockAnalysisService {
   }
 
   /**
-   * Check if search terms are too generic and might cause false matches
+   * Enhanced generic term detection with better disambiguation
    */
   private static isGenericTerm(meaningfulWords: string[], company: ExcelCompany): boolean {
     const words = meaningfulWords.map(w => w.toLowerCase());
+    const joinedQuery = words.join(' ');
     
-    // Penalize if only generic terms like "bank" match banking companies
-    if (words.includes('bank') && company.cleanName.includes('bank') && 
-        !words.some(w => company.cleanName.includes(w) && w !== 'bank')) {
+    // Enhanced generic term detection
+    const genericTerms = ['bank', 'company', 'limited', 'ltd', 'corporation', 'corp', 'group', 'industries'];
+    
+    // Check if query consists only of generic terms
+    const nonGenericWords = words.filter(w => !genericTerms.includes(w));
+    
+    // If only generic terms and company name also only has generic terms, penalize heavily
+    if (nonGenericWords.length === 0) {
       return true;
     }
     
-    // Similar logic for other generic terms
-    if (words.includes('company') && company.cleanName.includes('company') && 
-        !words.some(w => company.cleanName.includes(w) && w !== 'company')) {
+    // Penalize if only one generic term matches and no specific identifiers
+    const specificMatches = nonGenericWords.filter(w => 
+      company.cleanName.includes(w) || company.searchTerms.includes(w)
+    );
+    
+    if (specificMatches.length === 0 && words.some(w => genericTerms.includes(w))) {
       return true;
     }
     
-    // Penalize random/meaningless words
-    const randomWords = ['random', 'xyz', 'abc', 'test', 'dummy', 'sample'];
-    if (words.some(w => randomWords.includes(w))) {
+    // Enhanced random/test word detection
+    const invalidWords = [
+      'random', 'xyz', 'abc', 'test', 'dummy', 'sample', 'example', 'demo',
+      'hello', 'hi', 'hey', 'nothing', 'something', 'anything', 'whatever'
+    ];
+    
+    if (words.some(w => invalidWords.includes(w))) {
+      return true;
+    }
+    
+    // Detect gibberish or very short meaningless words
+    const shortWords = words.filter(w => w.length <= 2 && !['lt', 'it', 'mg'].includes(w));
+    if (shortWords.length === words.length) {
       return true;
     }
     

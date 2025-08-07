@@ -254,11 +254,13 @@ export class GrowwApiService {
       // Calculate RSI
       const rsi = this.calculateRSI(prices, 14);
       
-      // Calculate support and resistance
+      // Calculate proper support and resistance with validation
       const highs = candles.map(c => c.high);
       const lows = candles.map(c => c.low);
-      const resistance = Math.max(...highs.slice(-10)); // Resistance from last 10 sessions
-      const support = Math.min(...lows.slice(-10)); // Support from last 10 sessions
+      
+      const supportResistanceData = this.calculateSupportResistance(candles, currentPrice);
+      const resistance = supportResistanceData.resistance;
+      const support = supportResistanceData.support;
       
       // Calculate volatility (standard deviation of price changes)
       const priceChanges = prices.slice(1).map((price, i) => ((price - prices[i]) / prices[i]) * 100);
@@ -613,6 +615,123 @@ export class GrowwApiService {
       console.error('❌ Error generating realistic historical data:', error);
       return null;
     }
+  }
+
+  /**
+   * Calculate proper support and resistance levels with validation
+   */
+  private static calculateSupportResistance(candles: HistoricalCandle[], currentPrice: number): { support: number; resistance: number } {
+    if (!candles || candles.length < 10) {
+      // Fallback for insufficient data
+      return {
+        support: currentPrice * 0.95,
+        resistance: currentPrice * 1.05
+      };
+    }
+    
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+    const closes = candles.map(c => c.close);
+    
+    // Use multiple timeframes for better accuracy
+    const shortTerm = Math.min(10, candles.length);
+    const mediumTerm = Math.min(20, candles.length);
+    const longTerm = Math.min(50, candles.length);
+    
+    // Calculate support levels from different periods
+    const support10 = Math.min(...lows.slice(-shortTerm));
+    const support20 = Math.min(...lows.slice(-mediumTerm));
+    const support50 = Math.min(...lows.slice(-longTerm));
+    
+    // Calculate resistance levels from different periods
+    const resistance10 = Math.max(...highs.slice(-shortTerm));
+    const resistance20 = Math.max(...highs.slice(-mediumTerm));
+    const resistance50 = Math.max(...highs.slice(-longTerm));
+    
+    // Find pivot points - significant price levels where price has bounced multiple times
+    const pivotSupport = this.findPivotLevels(lows.slice(-longTerm), 'support');
+    const pivotResistance = this.findPivotLevels(highs.slice(-longTerm), 'resistance');
+    
+    // Weight different support levels (prioritize recent but validate with longer term)
+    let finalSupport = support10;
+    if (Math.abs(support20 - currentPrice) / currentPrice < 0.20) { // Within 20% of current price
+      finalSupport = Math.max(support10, support20 * 0.98); // Slight buffer
+    }
+    if (pivotSupport && Math.abs(pivotSupport - currentPrice) / currentPrice < 0.15) {
+      finalSupport = Math.max(finalSupport, pivotSupport);
+    }
+    
+    // Weight different resistance levels
+    let finalResistance = resistance10;
+    if (Math.abs(resistance20 - currentPrice) / currentPrice < 0.20) {
+      finalResistance = Math.min(resistance10, resistance20 * 1.02); // Slight buffer
+    }
+    if (pivotResistance && Math.abs(pivotResistance - currentPrice) / currentPrice < 0.15) {
+      finalResistance = Math.min(finalResistance, pivotResistance);
+    }
+    
+    // Validation: ensure support/resistance make logical sense
+    // Support should be below current price, resistance should be above
+    if (finalSupport >= currentPrice) {
+      finalSupport = currentPrice * 0.92; // 8% below current price
+    }
+    
+    if (finalResistance <= currentPrice) {
+      finalResistance = currentPrice * 1.08; // 8% above current price
+    }
+    
+    // Additional validation: ensure reasonable spread
+    const spread = (finalResistance - finalSupport) / currentPrice;
+    if (spread < 0.05) { // Less than 5% spread is too tight
+      finalSupport = currentPrice * 0.95;
+      finalResistance = currentPrice * 1.05;
+    } else if (spread > 0.5) { // More than 50% spread is too wide
+      finalSupport = currentPrice * 0.85;
+      finalResistance = currentPrice * 1.15;
+    }
+    
+    return {
+      support: Math.round(finalSupport * 100) / 100,
+      resistance: Math.round(finalResistance * 100) / 100
+    };
+  }
+  
+  /**
+   * Find pivot levels where price has bounced multiple times
+   */
+  private static findPivotLevels(prices: number[], type: 'support' | 'resistance'): number | null {
+    if (prices.length < 10) return null;
+    
+    const priceMap = new Map<number, number>();
+    const tolerance = 0.02; // 2% tolerance for price clustering
+    
+    // Group similar prices together
+    for (const price of prices) {
+      let found = false;
+      for (const [existingPrice, count] of priceMap.entries()) {
+        if (Math.abs(price - existingPrice) / existingPrice <= tolerance) {
+          priceMap.set(existingPrice, count + 1);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        priceMap.set(price, 1);
+      }
+    }
+    
+    // Find the price level that occurred most frequently
+    let bestPrice = null;
+    let bestCount = 0;
+    
+    for (const [price, count] of priceMap.entries()) {
+      if (count > bestCount && count >= 2) { // At least 2 touches
+        bestCount = count;
+        bestPrice = price;
+      }
+    }
+    
+    return bestPrice;
   }
 
   // Helper methods for technical analysis

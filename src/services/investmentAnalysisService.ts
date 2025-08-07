@@ -437,10 +437,18 @@ export class InvestmentAnalysisService {
    */
   private static async conductComprehensiveMarketResearch(amount: number): Promise<any> {
     try {
-      console.log('🔬 Starting comprehensive market research...');
+      console.log('🔬 Starting comprehensive market research with web scraping...');
       
-      // Use comprehensive fallback research with enhanced stock discovery
-      const discoveredStocks = await this.fallbackMarketResearch();
+      // Step 1: Try advanced web-based stock discovery
+      let discoveredStocks = await this.webBasedStockDiscovery();
+      
+      // Step 2: If web research fails or returns insufficient results, use enhanced fallback
+      if (!discoveredStocks || discoveredStocks.length < 8) {
+        console.log('🔄 Web research insufficient, using enhanced fallback with market context...');
+        discoveredStocks = await this.enhancedMarketResearch(amount);
+      }
+      
+      // Step 3: Analyze current market sentiment
       const marketSentiment = await this.analyzeCurrentMarketSentiment();
       
       return {
@@ -451,14 +459,14 @@ export class InvestmentAnalysisService {
       };
       
     } catch (error) {
-      console.error('❌ Error in market research:', error);
-      // Fallback to basic research
-      const discoveredStocks = await this.fallbackMarketResearch();
+      console.error('❌ Error in comprehensive market research:', error);
+      // Final fallback to enhanced research
+      const discoveredStocks = await this.enhancedMarketResearch(amount);
       return {
         discoveredStocks,
         marketSentiment: 'MIXED',
-        trendingSectors: ['Technology', 'Banking', 'Healthcare'],
-        marketSummary: 'Market showing mixed signals with selective opportunities'
+        trendingSectors: ['Technology', 'Banking', 'Healthcare', 'Pharmaceuticals', 'FMCG'],
+        marketSummary: 'Market showing mixed signals with selective opportunities across sectors'
       };
     }
   }
@@ -726,12 +734,56 @@ export class InvestmentAnalysisService {
   }
 
   private static findSupportResistance(historicalData: any[]): any {
+    if (!historicalData || historicalData.length === 0) {
+      return { support: 0, resistance: 0 };
+    }
+    
     const lows = historicalData.map(d => d.low);
     const highs = historicalData.map(d => d.high);
+    const closes = historicalData.map(d => d.close);
+    const currentPrice = closes[closes.length - 1];
+    
+    // Use multiple timeframes for better accuracy
+    const shortTerm = Math.min(20, historicalData.length);
+    const longTerm = Math.min(60, historicalData.length);
+    
+    // Calculate support/resistance from different periods
+    const support20 = Math.min(...lows.slice(-shortTerm));
+    const support60 = Math.min(...lows.slice(-longTerm));
+    const resistance20 = Math.max(...highs.slice(-shortTerm));
+    const resistance60 = Math.max(...highs.slice(-longTerm));
+    
+    // Choose more relevant support level (closer to current price but still below)
+    let finalSupport = support20;
+    if (support60 > currentPrice * 0.8 && support60 < currentPrice) {
+      finalSupport = Math.max(support20, support60);
+    }
+    
+    // Choose more relevant resistance level (closer to current price but still above)
+    let finalResistance = resistance20;
+    if (resistance60 < currentPrice * 1.2 && resistance60 > currentPrice) {
+      finalResistance = Math.min(resistance20, resistance60);
+    }
+    
+    // Validation: ensure support is below current price and resistance is above
+    if (finalSupport >= currentPrice) {
+      finalSupport = currentPrice * 0.90; // 10% below current price
+    }
+    
+    if (finalResistance <= currentPrice) {
+      finalResistance = currentPrice * 1.10; // 10% above current price
+    }
+    
+    // Ensure reasonable spread
+    const spread = (finalResistance - finalSupport) / currentPrice;
+    if (spread > 0.4) { // More than 40% spread is too wide
+      finalSupport = currentPrice * 0.88;
+      finalResistance = currentPrice * 1.12;
+    }
     
     return {
-      support: Math.min(...lows.slice(-60)), // 60-day low
-      resistance: Math.max(...highs.slice(-60)) // 60-day high
+      support: Math.round(finalSupport * 100) / 100,
+      resistance: Math.round(finalResistance * 100) / 100
     };
   }
 
@@ -747,25 +799,239 @@ export class InvestmentAnalysisService {
     };
   }
 
-  private static async fallbackMarketResearch(): Promise<any[]> {
-    // Curated list of stocks across market caps with recent relevance
-    return [
-      // Large Cap
-      { symbol: 'RELIANCE', companyName: 'Reliance Industries Limited', marketCap: 'LARGE_CAP', sector: 'Energy', reason: 'Diversified business model and consistent performance' },
-      { symbol: 'TCS', companyName: 'Tata Consultancy Services Limited', marketCap: 'LARGE_CAP', sector: 'Technology', reason: 'AI and digital transformation leader' },
-      { symbol: 'HDFCBANK', companyName: 'HDFC Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Strong digital banking initiatives' },
-      { symbol: 'INFY', companyName: 'Infosys Limited', marketCap: 'LARGE_CAP', sector: 'Technology', reason: 'Strong cloud and AI capabilities' },
-      { symbol: 'ICICIBANK', companyName: 'ICICI Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Robust retail banking growth' },
+  /**
+   * Advanced web-based stock discovery using multiple search strategies
+   */
+  private static async webBasedStockDiscovery(): Promise<any[]> {
+    try {
+      console.log('🌐 Starting advanced web-based stock discovery...');
+      const discoveredStocks = [];
       
-      // Mid Cap  
-      { symbol: 'BEL', companyName: 'Bharat Electronics Limited', marketCap: 'MID_CAP', sector: 'Defense', reason: 'Defense modernization beneficiary' },
-      { symbol: 'DIXON', companyName: 'Dixon Technologies Limited', marketCap: 'MID_CAP', sector: 'Manufacturing', reason: 'PLI scheme beneficiary in electronics' },
-      { symbol: 'PERSISTENT', companyName: 'Persistent Systems Limited', marketCap: 'MID_CAP', sector: 'Technology', reason: 'Niche technology solutions provider' },
+      // Import WebSearch utility
+      const { WebSearch } = await import('../utils/webSearchUtil');
       
-      // Small Cap
-      { symbol: 'RVNL', companyName: 'Rail Vikas Nigam Limited', marketCap: 'SMALL_CAP', sector: 'Infrastructure', reason: 'Railway infrastructure development' },
-      { symbol: 'HAL', companyName: 'Hindustan Aeronautics Limited', marketCap: 'SMALL_CAP', sector: 'Defense', reason: 'Defense aircraft manufacturing' }
+      // Comprehensive search queries for current market trends
+      const searchQueries = [
+        'best Indian stocks to buy January 2025 Nifty 50 recommendations',
+        'top performing Indian stocks 2025 latest analyst recommendations',
+        'trending Indian stocks January 2025 high growth potential',
+        'best Nifty 100 stocks investment 2025 market outlook',
+        'Indian stock market winners January 2025 sectoral analysis',
+        'top midcap smallcap stocks India 2025 investment opportunities',
+        'best banking pharma IT stocks India 2025 sector analysis',
+        'Indian stock market trends January 2025 buy recommendations'
+      ];
+      
+      const stockCandidates = new Map<string, any>();
+      
+      // Process each search query
+      for (let i = 0; i < Math.min(4, searchQueries.length); i++) {
+        const query = searchQueries[i];
+        console.log(`🔍 Web search ${i + 1}/4: "${query}"`);
+        
+        try {
+          const searchResults = await WebSearch(query, 5);
+          
+          if (searchResults && searchResults.length > 0) {
+            // Extract stock names and symbols from search results
+            for (const result of searchResults) {
+              const extractedStocks = this.extractStocksFromContent(result.title + ' ' + result.snippet);
+              
+              extractedStocks.forEach(stock => {
+                if (stockCandidates.has(stock.symbol)) {
+                  // Increase confidence for stocks mentioned multiple times
+                  const existing = stockCandidates.get(stock.symbol);
+                  existing.confidence = Math.min(95, existing.confidence + 10);
+                  existing.mentions += 1;
+                } else {
+                  stockCandidates.set(stock.symbol, {
+                    ...stock,
+                    confidence: 60,
+                    mentions: 1,
+                    source: 'web_research'
+                  });
+                }
+              });
+            }
+          }
+          
+          // Add delay between searches
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+        } catch (error) {
+          console.error(`❌ Error in web search ${i + 1}:`, error);
+          continue;
+        }
+      }
+      
+      // Convert to array and sort by confidence and mentions
+      const webDiscoveredStocks = Array.from(stockCandidates.values())
+        .sort((a, b) => {
+          const scoreA = a.confidence + (a.mentions * 5);
+          const scoreB = b.confidence + (b.mentions * 5);
+          return scoreB - scoreA;
+        })
+        .slice(0, 12); // Top 12 stocks from web research
+      
+      console.log(`✅ Web-based discovery found ${webDiscoveredStocks.length} stocks`);
+      return webDiscoveredStocks;
+      
+    } catch (error) {
+      console.error('❌ Error in web-based stock discovery:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Extract stock symbols and names from content text
+   */
+  private static extractStocksFromContent(content: string): any[] {
+    const stocks = [];
+    const { ExcelBasedStockAnalysisService } = require('./excelBasedStockAnalysis');
+    
+    // Common patterns for stock mentions in financial content
+    const stockPatterns = [
+      // Pattern 1: Company Name (SYMBOL)
+      /([A-Z][a-zA-Z\s&]+)\s*\(([A-Z]{2,10})\)/g,
+      // Pattern 2: SYMBOL (Company Name)
+      /([A-Z]{2,10})\s*\(([A-Z][a-zA-Z\s&]+)\)/g,
+      // Pattern 3: Just symbols in caps
+      /\b([A-Z]{3,10})\b/g
     ];
+    
+    // Extract potential stock symbols
+    const potentialSymbols = new Set<string>();
+    
+    for (const pattern of stockPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1] && match[1].length <= 10 && match[1].match(/^[A-Z]+$/)) {
+          potentialSymbols.add(match[1]);
+        }
+        if (match[2] && match[2].length <= 10 && match[2].match(/^[A-Z]+$/)) {
+          potentialSymbols.add(match[2]);
+        }
+      }
+    }
+    
+    // Validate symbols against our database
+    for (const symbol of potentialSymbols) {
+      const companyInfo = ExcelBasedStockAnalysisService.getCompanyBySymbol(symbol);
+      if (companyInfo) {
+        stocks.push({
+          symbol: symbol,
+          companyName: companyInfo.name,
+          marketCap: this.determineMarketCap(companyInfo.name),
+          sector: this.determineSector(companyInfo.name),
+          reason: 'Mentioned in recent market analysis'
+        });
+      }
+    }
+    
+    return stocks;
+  }
+  
+  /**
+   * Enhanced market research with sector rotation and current trends
+   */
+  private static async enhancedMarketResearch(amount: number): Promise<any[]> {
+    console.log('🔍 Using enhanced market research with sector rotation...');
+    
+    // Current market trends and sector themes (updated regularly)
+    const currentTrends = {
+      'Defense & Aerospace': {
+        theme: 'Defense modernization and Make in India initiatives',
+        stocks: [
+          { symbol: 'BEL', companyName: 'Bharat Electronics Limited', marketCap: 'MID_CAP', reason: 'Defense electronics leader with strong order book' },
+          { symbol: 'HAL', companyName: 'Hindustan Aeronautics Limited', marketCap: 'MID_CAP', reason: 'Aircraft manufacturing with growing defense budget' },
+          { symbol: 'MAZAGON', companyName: 'Mazagon Dock Shipbuilders Limited', marketCap: 'MID_CAP', reason: 'Naval shipbuilding with submarine projects' }
+        ]
+      },
+      'Railways & Infrastructure': {
+        theme: 'Infrastructure development and railway modernization',
+        stocks: [
+          { symbol: 'RVNL', companyName: 'Rail Vikas Nigam Limited', marketCap: 'SMALL_CAP', reason: 'Railway infrastructure development projects' },
+          { symbol: 'IRCON', companyName: 'IRCON International Limited', marketCap: 'SMALL_CAP', reason: 'Railway construction and infrastructure' },
+          { symbol: 'IRFC', companyName: 'Indian Railway Finance Corporation Limited', marketCap: 'LARGE_CAP', reason: 'Railway project financing arm' }
+        ]
+      },
+      'Green Energy & EVs': {
+        theme: 'Renewable energy transition and EV adoption',
+        stocks: [
+          { symbol: 'ADANIGREEN', companyName: 'Adani Green Energy Limited', marketCap: 'LARGE_CAP', reason: 'Leading renewable energy player' },
+          { symbol: 'TATAPOWER', companyName: 'Tata Power Company Limited', marketCap: 'LARGE_CAP', reason: 'Power generation with renewable focus' },
+          { symbol: 'SUZLON', companyName: 'Suzlon Energy Limited', marketCap: 'SMALL_CAP', reason: 'Wind energy equipment manufacturer' }
+        ]
+      },
+      'Digital & Fintech': {
+        theme: 'Digital transformation and fintech growth',
+        stocks: [
+          { symbol: 'PAYTM', companyName: 'One 97 Communications Limited', marketCap: 'MID_CAP', reason: 'Digital payments and fintech services' },
+          { symbol: 'NYKAA', companyName: 'FSN E-Commerce Ventures Limited', marketCap: 'MID_CAP', reason: 'E-commerce beauty and fashion platform' },
+          { symbol: 'ZOMATO', companyName: 'Zomato Limited', marketCap: 'LARGE_CAP', reason: 'Food delivery and restaurant tech platform' }
+        ]
+      },
+      'Healthcare & Pharma': {
+        theme: 'Healthcare innovation and pharmaceutical exports',
+        stocks: [
+          { symbol: 'SUNPHARMA', companyName: 'Sun Pharmaceutical Industries Limited', marketCap: 'LARGE_CAP', reason: 'Leading pharmaceutical company with global presence' },
+          { symbol: 'DRREDDY', companyName: 'Dr Reddys Laboratories Limited', marketCap: 'LARGE_CAP', reason: 'Pharmaceutical research and generics' },
+          { symbol: 'APOLLOHOSP', companyName: 'Apollo Hospitals Enterprise Limited', marketCap: 'LARGE_CAP', reason: 'Healthcare services and hospital chain' }
+        ]
+      },
+      'FMCG & Consumer': {
+        theme: 'Rural recovery and premiumization trends',
+        stocks: [
+          { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', marketCap: 'LARGE_CAP', reason: 'FMCG leader with strong brand portfolio' },
+          { symbol: 'NESTLEIND', companyName: 'Nestle India Limited', marketCap: 'LARGE_CAP', reason: 'Premium food and beverage products' },
+          { symbol: 'BRITANNIA', companyName: 'Britannia Industries Limited', marketCap: 'LARGE_CAP', reason: 'Food products with strong distribution' }
+        ]
+      }
+    };
+    
+    // Select diverse stocks based on amount and current trends
+    const selectedStocks = [];
+    
+    // For smaller amounts, focus on large caps and established mid caps
+    if (amount < 50000) {
+      // Add 4-5 large cap stocks from different sectors
+      selectedStocks.push(
+        { symbol: 'TCS', companyName: 'Tata Consultancy Services Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'Leading IT services with strong digital capabilities' },
+        { symbol: 'HDFCBANK', companyName: 'HDFC Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Top private bank with digital focus' },
+        currentTrends['Healthcare & Pharma'].stocks[0],
+        currentTrends['FMCG & Consumer'].stocks[0],
+        currentTrends['Green Energy & EVs'].stocks[0]
+      );
+    } else {
+      // For larger amounts, include more diverse sectors and mid/small caps
+      const trendKeys = Object.keys(currentTrends);
+      
+      for (let i = 0; i < Math.min(trendKeys.length, 6); i++) {
+        const trend = currentTrends[trendKeys[i]];
+        // Add 1-2 stocks from each trending sector
+        selectedStocks.push(...trend.stocks.slice(0, amount > 100000 ? 2 : 1));
+      }
+      
+      // Add some stable large caps
+      selectedStocks.push(
+        { symbol: 'RELIANCE', companyName: 'Reliance Industries Limited', marketCap: 'LARGE_CAP', sector: 'Oil & Gas', reason: 'Diversified conglomerate with retail and telecom growth' },
+        { symbol: 'INFY', companyName: 'Infosys Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'Global IT services with AI and automation focus' }
+      );
+    }
+    
+    // Ensure diversity and remove duplicates
+    const uniqueStocks = selectedStocks
+      .filter((stock, index, self) => index === self.findIndex(s => s.symbol === stock.symbol))
+      .slice(0, 12);
+    
+    console.log(`✅ Enhanced research selected ${uniqueStocks.length} stocks across ${new Set(uniqueStocks.map(s => s.sector)).size} sectors`);
+    return uniqueStocks;
+  }
+  
+  private static async fallbackMarketResearch(): Promise<any[]> {
+    // This is now just a final backup - should rarely be used
+    console.log('⚠️ Using basic fallback research - this should be rare!');
+    return this.enhancedMarketResearch(50000);
   }
 
   private static identifyRiskFactors(historicalAnalysis: any, newsAnalysis: any): string[] {

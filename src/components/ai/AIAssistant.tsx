@@ -604,14 +604,7 @@ Present results in a clear table format with before/after comparison.
       response += `**Volatility:** ${tech.volatility.toFixed(1)}%\n\n`;
     }
     
-    // News Sentiment
-    if (analysis.news_sentiment.key_news.length > 0) {
-      response += `## 📰 Recent News Sentiment: ${analysis.news_sentiment.overall_sentiment}\n`;
-      analysis.news_sentiment.key_news.slice(0, 3).forEach((news, index) => {
-        response += `${index + 1}. **${news.sentiment}**: ${news.headline}\n`;
-      });
-      response += '\n';
-    }
+    // Skip news sentiment here - will be added at the end with web research
     
     // Risk Analysis
     response += `## ⚠️ Risk Assessment\n`;
@@ -622,16 +615,29 @@ Present results in a clear table format with before/after comparison.
     });
     response += '\n';
     
-    // Web Research Results
-    if (analysis.web_research && analysis.web_research.search_results.length > 0) {
-      response += `## 🌐 Market Research Sources\n`;
-      response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
+    // Combined News Sentiment and Web Research Results  
+    if (analysis.news_sentiment.key_news.length > 0 || (analysis.web_research && analysis.web_research.search_results.length > 0)) {
+      response += `## 📰 Recent News Sentiment: ${analysis.news_sentiment.overall_sentiment}\n`;
       
-      analysis.web_research.search_results.forEach((result, index) => {
-        response += `**${index + 1}. ${result.title}**\n`;
-        response += `${result.snippet}\n`;
-        response += `🔗 [Read more](${result.url})\n\n`;
-      });
+      // Add news articles first
+      if (analysis.news_sentiment.key_news.length > 0) {
+        analysis.news_sentiment.key_news.slice(0, 3).forEach((news, index) => {
+          response += `${index + 1}. **${news.sentiment}**: ${news.headline}\n`;
+        });
+        response += '\n';
+      }
+      
+      // Add web research results
+      if (analysis.web_research && analysis.web_research.search_results.length > 0) {
+        response += `## 🌐 Market Research Sources\n`;
+        response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
+        
+        analysis.web_research.search_results.forEach((result, index) => {
+          response += `**${index + 1}. ${result.title}**\n`;
+          response += `${result.snippet}\n`;
+          response += `🔗 [Read more](${result.url})\n\n`;
+        });
+      }
     }
     
     // Disclaimer

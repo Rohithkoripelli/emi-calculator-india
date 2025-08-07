@@ -401,43 +401,96 @@ const LoanMetricsCard: React.FC<{ metrics: LoanData[] }> = ({ metrics }) => (
 );
 
 const ComparisonTable: React.FC<{ data: ComparisonData[] }> = ({ data }) => (
-  <div className="my-4 lg:my-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border">
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border text-xs sm:text-sm">
-      <thead className="bg-gray-50 dark:bg-dark-card">
-        <tr>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Scenario
-          </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            EMI
-          </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Tenure
-          </th>
-          <th className="px-2 sm:px-3 lg:px-6 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Savings
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
-        {data.map((row, index) => (
-          <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'}>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-medium text-gray-900 dark:text-dark-text-primary break-words">
-              {row.scenario}
-            </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 dark:text-dark-text-primary font-semibold text-green-600 dark:text-green-400 break-words">
-              {row.emi || '-'}
-            </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm text-gray-900 dark:text-dark-text-primary break-words">
-              {row.tenure || '-'}
-            </td>
-            <td className="px-2 sm:px-3 lg:px-6 py-2 sm:py-3 lg:py-4 text-xs lg:text-sm font-semibold text-green-600 dark:text-green-400 break-words">
-              {row.savings || '-'}
-            </td>
+  <div className="my-6 lg:my-8 overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-border shadow-lg">
+    <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4 rounded-t-xl">
+      <h4 className="text-lg font-bold flex items-center gap-2">
+        <span className="text-xl">📊</span>
+        Loan Scenario Comparison
+      </h4>
+      <p className="text-sm opacity-90 mt-1">Compare different loan scenarios and potential savings</p>
+    </div>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+        <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-600/20 dark:to-emerald-600/20">
+          <tr>
+            <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span>📋</span>
+                <span>Scenario</span>
+              </div>
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span>💰</span>
+                <span>Monthly EMI</span>
+              </div>
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span>⏱️</span>
+                <span>Tenure</span>
+              </div>
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span>💵</span>
+                <span>Total Savings</span>
+              </div>
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
+          {data.map((row, index) => (
+            <tr key={index} className={`${index % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'} hover:bg-green-50 dark:hover:bg-green-600/10 transition-colors duration-200`}>
+              <td className="px-6 py-4 font-medium text-gray-900 dark:text-dark-text-primary">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-green-500' : 'bg-purple-500'}`}></div>
+                  <span className="font-semibold">{row.scenario}</span>
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                {row.emi ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300">
+                      {row.emi}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </td>
+              <td className="px-6 py-4 text-gray-900 dark:text-dark-text-primary">
+                {row.tenure ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2 py-1 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-600/20 dark:text-blue-300">
+                      {row.tenure}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </td>
+              <td className="px-6 py-4">
+                {row.savings ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-600/20 dark:text-emerald-300">
+                      🎯 {row.savings}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 p-3 rounded-b-xl">
+      <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+        💡 Choose the scenario that best fits your financial goals and repayment capacity
+      </p>
+    </div>
   </div>
 );
 
@@ -533,31 +586,40 @@ const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
   return <EnhancedTextContent text={text} />;
 };
 
-const StockRecommendationBadge: React.FC<{ recommendation: string }> = ({ recommendation }) => {
+const StockRecommendationBadge: React.FC<{ recommendation: string; confidence?: number }> = ({ recommendation, confidence }) => {
   const rec = recommendation.toUpperCase();
-  let bgColor = 'bg-gray-100';
-  let textColor = 'text-gray-700';
+  let bgColor = 'bg-gray-500';
+  let hoverColor = 'hover:bg-gray-600';
+  let textColor = 'text-white';
   let icon = '📊';
   
   if (rec.includes('BUY')) {
-    bgColor = 'bg-green-100 dark:bg-green-600/20';
-    textColor = 'text-green-700 dark:text-green-300';
-    icon = '📈';
+    bgColor = 'bg-gradient-to-r from-green-600 to-green-700';
+    hoverColor = 'hover:from-green-700 hover:to-green-800';
+    textColor = 'text-white';
+    icon = '🚀';
   } else if (rec.includes('SELL')) {
-    bgColor = 'bg-red-100 dark:bg-red-600/20';
-    textColor = 'text-red-700 dark:text-red-300';
+    bgColor = 'bg-gradient-to-r from-red-600 to-red-700';
+    hoverColor = 'hover:from-red-700 hover:to-red-800';
+    textColor = 'text-white';
     icon = '📉';
   } else if (rec.includes('HOLD')) {
-    bgColor = 'bg-yellow-100 dark:bg-yellow-600/20';
-    textColor = 'text-yellow-700 dark:text-yellow-300';
-    icon = '🔄';
+    bgColor = 'bg-gradient-to-r from-yellow-600 to-orange-600';
+    hoverColor = 'hover:from-yellow-700 hover:to-orange-700';
+    textColor = 'text-white';
+    icon = '⏸️';
   }
   
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${bgColor} ${textColor} border-2 border-current`}>
-      <span className="mr-2">{icon}</span>
-      {recommendation}
-    </span>
+    <div className={`inline-flex items-center px-6 py-4 rounded-2xl text-lg font-bold ${bgColor} ${hoverColor} ${textColor} shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-xl border-4 border-white dark:border-gray-800`}>
+      <span className="mr-3 text-2xl">{icon}</span>
+      <div className="flex flex-col">
+        <span className="text-xl">{recommendation}</span>
+        {confidence && (
+          <span className="text-sm opacity-90">{confidence}% Confidence</span>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -606,84 +668,155 @@ const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const WebResultsCard: React.FC<{ text: string }> = ({ text }) => {
-  // Extract web results from markdown text
-  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|$)/);
-  if (!webResultsMatch) return null;
+const NewsArticlesCard: React.FC<{ text: string }> = ({ text }) => {
+  // Extract news articles from different sections
+  const newsArticles: Array<{ title: string; snippet: string; url?: string; sentiment?: string }> = [];
   
-  const webResultsSection = webResultsMatch[0];
-  const results: Array<{ title: string; snippet: string; url: string }> = [];
-  
-  // Parse individual results
-  const resultMatches = webResultsSection.match(/\*\*(.*?)\*\*\n(.*?)\n🔗 \[Read more\]\((.*?)\)/g);
-  
-  if (resultMatches) {
-    resultMatches.forEach((match, index) => {
-      const titleMatch = match.match(/\*\*(.*?)\*\*/);
-      const snippetMatch = match.match(/\*\*.*?\*\*\n(.*?)\n🔗/s);
-      const urlMatch = match.match(/🔗 \[Read more\]\((.*?)\)/);
-      
-      if (titleMatch && snippetMatch && urlMatch) {
-        results.push({
-          title: titleMatch[1],
-          snippet: snippetMatch[1].trim(),
-          url: urlMatch[1]
-        });
-      }
-    });
+  // Extract from Recent News Sentiment section
+  const newsMatch = text.match(/## 📰 Recent News Sentiment[\s\S]*?(?=##|$)/);
+  if (newsMatch) {
+    const newsSection = newsMatch[0];
+    const articleMatches = newsSection.match(/\d+\. \*\*(.*?)\*\*: (.*?)(?=\n|$)/g);
+    
+    if (articleMatches) {
+      articleMatches.forEach(match => {
+        const titleMatch = match.match(/\*\*(.*?)\*\*:/);
+        const snippetMatch = match.match(/\*\*.*?\*\*: (.*?)$/);
+        
+        if (titleMatch && snippetMatch) {
+          const sentiment = titleMatch[1];
+          const headline = snippetMatch[1];
+          newsArticles.push({
+            title: headline,
+            snippet: `Market sentiment: ${sentiment}`,
+            sentiment: sentiment
+          });
+        }
+      });
+    }
   }
   
-  if (results.length === 0) return null;
+  // Extract from web research results
+  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|$)/);
+  if (webResultsMatch) {
+    const webResultsSection = webResultsMatch[0];
+    const resultMatches = webResultsSection.match(/\*\*(.*?)\*\*\n(.*?)\n🔗 \[Read more\]\((.*?)\)/g);
+    
+    if (resultMatches) {
+      resultMatches.forEach((match) => {
+        const titleMatch = match.match(/\*\*(.*?)\*\*/);
+        const snippetMatch = match.match(/\*\*.*?\*\*\n(.*?)\n🔗/s);
+        const urlMatch = match.match(/🔗 \[Read more\]\((.*?)\)/);
+        
+        if (titleMatch && snippetMatch && urlMatch) {
+          // Avoid duplicates by checking if we already have similar content
+          const isDuplicate = newsArticles.some(article => 
+            article.title.includes(titleMatch[1]) || titleMatch[1].includes(article.title)
+          );
+          
+          if (!isDuplicate) {
+            newsArticles.push({
+              title: titleMatch[1],
+              snippet: snippetMatch[1].trim(),
+              url: urlMatch[1]
+            });
+          }
+        }
+      });
+    }
+  }
+  
+  // Deduplicate and take only top 5
+  const uniqueArticles = newsArticles
+    .filter((article, index, self) => 
+      index === self.findIndex(a => a.title === article.title)
+    )
+    .slice(0, 5);
+  
+  if (uniqueArticles.length === 0) return null;
   
   return (
-    <div className="my-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
-          <span className="text-xl">🌐</span>
-          Market Research Sources
+    <div className="my-8">
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text-primary flex items-center gap-3">
+          <span className="text-2xl">📰</span>
+          Latest Market News & Analysis
         </h3>
-        <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
-          Based on comprehensive web research using {results.length} sources
+        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1">
+          Key news articles and market research findings
         </p>
       </div>
       
-      <div className="grid grid-cols-1 gap-4">
-        {results.map((result, index) => (
-          <div
-            key={index}
-            className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-lg transition-shadow duration-200 group"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold">
-                {index + 1}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 dark:text-dark-text-primary line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {result.title}
-                </h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {uniqueArticles.map((article, index) => {
+          const getSentimentColor = (sentiment?: string) => {
+            if (!sentiment) return 'bg-blue-50 dark:bg-blue-600/10 border-blue-200 dark:border-blue-600/30';
+            switch(sentiment.toUpperCase()) {
+              case 'POSITIVE': return 'bg-green-50 dark:bg-green-600/10 border-green-200 dark:border-green-600/30';
+              case 'NEGATIVE': return 'bg-red-50 dark:bg-red-600/10 border-red-200 dark:border-red-600/30';
+              case 'NEUTRAL': return 'bg-gray-50 dark:bg-gray-600/10 border-gray-200 dark:border-gray-600/30';
+              default: return 'bg-blue-50 dark:bg-blue-600/10 border-blue-200 dark:border-blue-600/30';
+            }
+          };
+          
+          const getSentimentIcon = (sentiment?: string) => {
+            if (!sentiment) return '📊';
+            switch(sentiment.toUpperCase()) {
+              case 'POSITIVE': return '📈';
+              case 'NEGATIVE': return '📉';
+              case 'NEUTRAL': return '📊';
+              default: return '📊';
+            }
+          };
+          
+          return (
+            <div
+              key={index}
+              className={`${getSentimentColor(article.sentiment)} border rounded-xl p-4 hover:shadow-lg transition-all duration-200 group cursor-pointer transform hover:scale-105`}
+              onClick={() => article.url && window.open(article.url, '_blank')}
+            >
+              <div className="flex flex-col h-full">
+                <div className="flex items-start gap-2 mb-3">
+                  <span className="text-lg flex-shrink-0">{getSentimentIcon(article.sentiment)}</span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-gray-900 dark:text-dark-text-primary text-sm leading-tight line-clamp-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {article.title}
+                    </h4>
+                  </div>
+                </div>
                 
-                <p className="mt-2 text-sm text-gray-600 dark:text-dark-text-secondary line-clamp-3">
-                  {result.snippet}
+                <p className="text-xs text-gray-600 dark:text-dark-text-secondary line-clamp-3 flex-1">
+                  {article.snippet}
                 </p>
                 
-                <div className="mt-3 flex items-center gap-2">
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-                  >
-                    <span>Read Full Article</span>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
+                {article.sentiment && (
+                  <div className="mt-2 pt-2 border-t border-current border-opacity-20">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      article.sentiment.toUpperCase() === 'POSITIVE' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300'
+                        : article.sentiment.toUpperCase() === 'NEGATIVE'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-600/20 dark:text-red-300'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-600/20 dark:text-gray-300'
+                    }`}>
+                      {article.sentiment}
+                    </span>
+                  </div>
+                )}
+                
+                {article.url && (
+                  <div className="mt-3 flex items-center justify-center">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300">
+                      <span>Read More</span>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -698,7 +831,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   while (i < lines.length) {
     const trimmedLine = lines[i].trim();
     
-    // Handle ASCII tables with dashes
+    // Handle ASCII tables with dashes (enhanced formatting)
     if (trimmedLine.includes('---') && trimmedLine.length > 10) {
       const headerLine = lines[i - 1]?.trim();
       if (headerLine) {
@@ -712,38 +845,85 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
         }
         
         if (tableRows.length > 0) {
-          // Create formatted table
+          // Create formatted table with enhanced styling
           const headers = headerLine.split(/\s{2,}|\t/).map(h => h.trim()).filter(h => h);
           const tableData = tableRows.map(row => 
             row.split(/\s{2,}|\t/).map(cell => cell.trim()).filter(cell => cell)
           );
           
           processedElements.push(
-            <div key={i} className="my-6 overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border shadow-sm">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
-                <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20">
-                  <tr>
-                    {headers.map((header, idx) => (
-                      <th key={idx} className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider border-r border-gray-200 dark:border-dark-border last:border-r-0">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
-                  {tableData.map((row, rowIdx) => (
-                    <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'}>
-                      {row.map((cell, cellIdx) => (
-                        <td key={cellIdx} className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm text-gray-900 dark:text-dark-text-primary border-r border-gray-100 dark:border-dark-border last:border-r-0">
-                          <span className={cell.includes('₹') ? 'font-semibold text-green-600 dark:text-green-400' : ''}>
-                            {cell}
-                          </span>
-                        </td>
+            <div key={i} className="my-8 overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-border shadow-lg">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-t-xl">
+                <h4 className="text-lg font-bold flex items-center gap-2">
+                  <span className="text-xl">📊</span>
+                  Investment Analysis Table
+                </h4>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-border">
+                  <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20">
+                    <tr>
+                      {headers.map((header, idx) => (
+                        <th key={idx} className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-dark-text-primary uppercase tracking-wider border-r border-gray-200 dark:border-dark-border last:border-r-0">
+                          <div className="flex items-center gap-2">
+                            {header.includes('Stock') && <span>🏢</span>}
+                            {header.includes('Price') && <span>💰</span>}
+                            {header.includes('Change') && <span>📈</span>}
+                            {header.includes('Volume') && <span>📊</span>}
+                            {header.includes('Recommendation') && <span>🎯</span>}
+                            <span>{header}</span>
+                          </div>
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white dark:bg-dark-surface divide-y divide-gray-200 dark:divide-dark-border">
+                    {tableData.map((row, rowIdx) => (
+                      <tr key={rowIdx} className={`${rowIdx % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-card'} hover:bg-blue-50 dark:hover:bg-blue-600/10 transition-colors duration-200`}>
+                        {row.map((cell, cellIdx) => {
+                          // Enhanced cell styling based on content
+                          let cellClass = 'px-6 py-4 text-sm text-gray-900 dark:text-dark-text-primary border-r border-gray-100 dark:border-dark-border last:border-r-0';
+                          let cellContent = cell;
+                          
+                          // Special formatting for different data types
+                          if (cell.includes('₹')) {
+                            cellClass += ' font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-600/10';
+                            cellContent = cell;
+                          } else if (cell.includes('%')) {
+                            const isPositive = cell.includes('+');
+                            cellClass += isPositive 
+                              ? ' font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-600/10'
+                              : ' font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-600/10';
+                          } else if (['BUY', 'SELL', 'HOLD'].some(action => cell.toUpperCase().includes(action))) {
+                            const action = cell.toUpperCase();
+                            if (action.includes('BUY')) {
+                              cellClass += ' font-bold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-600/20';
+                              cellContent = <span className="inline-flex items-center gap-1"><span>🚀</span>{cell}</span>;
+                            } else if (action.includes('SELL')) {
+                              cellClass += ' font-bold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-600/20';
+                              cellContent = <span className="inline-flex items-center gap-1"><span>📉</span>{cell}</span>;
+                            } else if (action.includes('HOLD')) {
+                              cellClass += ' font-bold text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-600/20';
+                              cellContent = <span className="inline-flex items-center gap-1"><span>⏸️</span>{cell}</span>;
+                            }
+                          } else if (cellIdx === 0) {
+                            // First column (usually company names) - make it stand out
+                            cellClass += ' font-semibold text-blue-700 dark:text-blue-300';
+                          }
+                          
+                          return (
+                            <td key={cellIdx} className={cellClass}>
+                              <div className="flex items-center">
+                                {cellContent}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
           
@@ -753,18 +933,35 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       }
     }
     
-    // Handle numbered lists (1. 2. etc.)
+    // Handle numbered lists (1. 2. etc.) with enhanced styling
     if (trimmedLine.match(/^\d+\.\s/)) {
       const number = trimmedLine.match(/^\d+/)?.[0];
       const content = trimmedLine.replace(/^\d+\.\s/, '');
       
+      // Determine icon based on content
+      let icon = '💡';
+      if (content.toLowerCase().includes('buy') || content.toLowerCase().includes('invest')) {
+        icon = '🚀';
+      } else if (content.toLowerCase().includes('sell') || content.toLowerCase().includes('avoid')) {
+        icon = '⚠️';
+      } else if (content.toLowerCase().includes('risk') || content.toLowerCase().includes('caution')) {
+        icon = '🛡️';
+      } else if (content.toLowerCase().includes('return') || content.toLowerCase().includes('profit')) {
+        icon = '📈';
+      } else if (content.toLowerCase().includes('diversif') || content.toLowerCase().includes('balance')) {
+        icon = '⚖️';
+      }
+      
       processedElements.push(
-        <div key={i} className="flex items-start space-x-2 lg:space-x-3 p-2 lg:p-3 bg-blue-50 dark:bg-blue-600/20 rounded-lg border-l-4 border-blue-400 dark:border-blue-500">
-          <span className="flex-shrink-0 w-5 h-5 lg:w-6 lg:h-6 bg-blue-500 dark:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs lg:text-sm font-bold">
-            {number}
-          </span>
-          <div className="flex-1">
-            <p className="text-gray-800 dark:text-dark-text-primary font-medium text-sm lg:text-base">{content}</p>
+        <div key={i} className="flex items-start space-x-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20 rounded-xl border-l-4 border-blue-500 dark:border-blue-400 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex-shrink-0 flex items-center justify-center">
+            <span className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
+              {number}
+            </span>
+            <span className="ml-2 text-lg">{icon}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-800 dark:text-dark-text-primary font-medium leading-relaxed">{content}</p>
           </div>
         </div>
       );
@@ -780,23 +977,65 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       );
     }
     
-    // Handle section headers (###)
+    // Handle section headers (###) with enhanced styling
     else if (trimmedLine.match(/^#{1,3}\s/)) {
       const content = trimmedLine.replace(/^#{1,3}\s/, '');
+      const level = (trimmedLine.match(/^#+/) || [''])[0].length;
+      
+      // Add contextual icons based on header content
+      let icon = '📋';
+      if (content.toLowerCase().includes('recommendation')) {
+        icon = '🎯';
+      } else if (content.toLowerCase().includes('analysis') || content.toLowerCase().includes('technical')) {
+        icon = '📊';
+      } else if (content.toLowerCase().includes('risk')) {
+        icon = '⚠️';
+      } else if (content.toLowerCase().includes('news') || content.toLowerCase().includes('sentiment')) {
+        icon = '📰';
+      } else if (content.toLowerCase().includes('market') || content.toLowerCase().includes('data')) {
+        icon = '💰';
+      } else if (content.toLowerCase().includes('research') || content.toLowerCase().includes('source')) {
+        icon = '🔍';
+      }
+      
+      const headerClass = level === 1 
+        ? 'text-xl lg:text-2xl font-bold text-gray-900 dark:text-dark-text-primary mt-6 lg:mt-8 mb-4 pb-3 border-b-2 border-gradient-to-r from-blue-500 to-indigo-500'
+        : level === 2
+        ? 'text-lg lg:text-xl font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-3 pb-2 border-b border-blue-300 dark:border-blue-600/40'
+        : 'text-base lg:text-lg font-semibold text-gray-800 dark:text-dark-text-primary mt-3 lg:mt-4 mb-2';
+      
       processedElements.push(
-        <h2 key={i} className="text-lg lg:text-xl font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-2 lg:mb-3 pb-2 border-b-2 border-blue-200 dark:border-blue-600/30">
-          {content}
-        </h2>
+        <div key={i} className={`${headerClass} flex items-center gap-3 group`}>
+          <span className="text-2xl group-hover:scale-110 transition-transform duration-200">{icon}</span>
+          <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            {content}
+          </span>
+        </div>
       );
     }
     
-    // Handle bullet points
+    // Handle bullet points with enhanced styling
     else if (trimmedLine.match(/^[•-]\s/)) {
       const content = trimmedLine.replace(/^[•-]\s/, '');
+      
+      // Determine appropriate icon based on content
+      let bulletIcon = '▶️';
+      if (content.toLowerCase().includes('advantage') || content.toLowerCase().includes('benefit')) {
+        bulletIcon = '✅';
+      } else if (content.toLowerCase().includes('risk') || content.toLowerCase().includes('disadvantage')) {
+        bulletIcon = '⚠️';
+      } else if (content.toLowerCase().includes('growth') || content.toLowerCase().includes('increase')) {
+        bulletIcon = '📈';
+      } else if (content.toLowerCase().includes('dividend') || content.toLowerCase().includes('income')) {
+        bulletIcon = '💰';
+      } else if (content.toLowerCase().includes('sector') || content.toLowerCase().includes('industry')) {
+        bulletIcon = '🏭';
+      }
+      
       processedElements.push(
-        <div key={i} className="flex items-start space-x-2 lg:space-x-3 ml-2 lg:ml-4">
-          <span className="text-blue-500 mt-1 font-bold text-sm lg:text-base">•</span>
-          <p className="text-gray-700 dark:text-dark-text-secondary leading-relaxed flex-1 text-sm lg:text-base">{content}</p>
+        <div key={i} className="flex items-start space-x-3 ml-4 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors duration-200">
+          <span className="text-lg mt-0.5 flex-shrink-0">{bulletIcon}</span>
+          <p className="text-gray-700 dark:text-dark-text-secondary leading-relaxed flex-1 font-medium">{content}</p>
         </div>
       );
     }
@@ -813,21 +1052,26 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       const actionMatch = trimmedLine.match(/Action:\s*(BUY|SELL|HOLD)/i);
       const recommendationMatch = trimmedLine.match(/Recommendation:\s*(BUY|SELL|HOLD)/i);
       
+      // Check for confidence in recommendations
+      const confidenceMatch = trimmedLine.match(/\((\d+)%\s*confidence\)/i);
+      const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : undefined;
+      
       if (buyMatch || actionMatch || recommendationMatch) {
         const recommendation = (buyMatch || actionMatch || recommendationMatch)?.[1] || '';
         const beforeText = trimmedLine.split(/Action:|Recommendation:/i)[0];
         const afterText = trimmedLine.split(/(BUY|SELL|HOLD)/i)[2] || '';
         
         processedElements.push(
-          <div key={i} className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/20 dark:to-indigo-600/20 rounded-lg border border-blue-200 dark:border-blue-600/30">
-            <div className="text-gray-700 dark:text-dark-text-secondary text-sm lg:text-base">
-              {beforeText && <span>{beforeText.replace(/\*\*/g, '').trim()}</span>}
-              {(beforeText || actionMatch || recommendationMatch) && <span className="font-semibold">Action: </span>}
-            </div>
-            <StockRecommendationBadge recommendation={recommendation} />
-            {afterText && (
-              <div className="text-gray-700 dark:text-dark-text-secondary text-sm lg:text-base">
-                {afterText.trim()}
+          <div key={i} className="flex flex-col items-center justify-center space-y-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/10 dark:to-indigo-600/10 rounded-2xl border-2 border-blue-200 dark:border-blue-600/30 my-6">
+            {beforeText && (
+              <div className="text-center text-gray-700 dark:text-dark-text-secondary text-lg font-medium">
+                {beforeText.replace(/\*\*/g, '').trim()}
+              </div>
+            )}
+            <StockRecommendationBadge recommendation={recommendation} confidence={confidence} />
+            {afterText && afterText.replace(/\([^)]*confidence\)/i, '').trim() && (
+              <div className="text-center text-gray-600 dark:text-dark-text-secondary text-base max-w-2xl">
+                {afterText.replace(/\([^)]*confidence\)/i, '').trim()}
               </div>
             )}
           </div>
@@ -889,8 +1133,8 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       {/* Savings Chart */}
       {savingsChartData && <SavingsChart data={savingsChartData} />}
       
-      {/* Web Results Card */}
-      <WebResultsCard text={formattedText} />
+      {/* News Articles Card */}
+      <NewsArticlesCard text={formattedText} />
       
       {/* Enhanced Text Formatting */}
       <EnhancedText text={formattedText} />
