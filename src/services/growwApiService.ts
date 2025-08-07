@@ -396,7 +396,8 @@ export class GrowwApiService {
         'AMBUJACEM': 550, 'SAIL': 120, 'NMDC': 240, 'HINDZINC': 520,
         'BHEL': 240, 'BEL': 320, 'RVNL': 580, 'MAZAGON': 4200, 'HAL': 4800,
         'DIXON': 12000, 'PERSISTENT': 6200, 'LTTS': 5800, 'MPHASIS': 3200,
-        'MINDTREE': 4800, 'NYKAA': 180, 'ZOMATO': 280, 'PAYTM': 920
+        'MINDTREE': 4800, 'NYKAA': 180, 'ZOMATO': 280, 'PAYTM': 920,
+        'IRFC': 127, 'IRCON': 280, 'RAILTEL': 450, 'IREDA': 145
       };
 
       const basePrice = priceEstimates[tradingSymbol] || this.generatePriceFromSector(companyInfo.name);
@@ -542,7 +543,8 @@ export class GrowwApiService {
         'AMBUJACEM': 550, 'SAIL': 120, 'NMDC': 240, 'HINDZINC': 520,
         'BHEL': 240, 'BEL': 320, 'RVNL': 580, 'MAZAGON': 4200, 'HAL': 4800,
         'DIXON': 12000, 'PERSISTENT': 6200, 'LTTS': 5800, 'MPHASIS': 3200,
-        'MINDTREE': 4800, 'NYKAA': 180, 'ZOMATO': 280, 'PAYTM': 920
+        'MINDTREE': 4800, 'NYKAA': 180, 'ZOMATO': 280, 'PAYTM': 920,
+        'IRFC': 127, 'IRCON': 280, 'RAILTEL': 450, 'IREDA': 145
       };
 
       const currentPrice = priceEstimates[tradingSymbol] || 1000;

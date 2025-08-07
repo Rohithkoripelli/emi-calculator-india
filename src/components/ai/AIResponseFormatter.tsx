@@ -606,6 +606,89 @@ const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+const WebResultsCard: React.FC<{ text: string }> = ({ text }) => {
+  // Extract web results from markdown text
+  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|$)/);
+  if (!webResultsMatch) return null;
+  
+  const webResultsSection = webResultsMatch[0];
+  const results: Array<{ title: string; snippet: string; url: string }> = [];
+  
+  // Parse individual results
+  const resultMatches = webResultsSection.match(/\*\*(.*?)\*\*\n(.*?)\n🔗 \[Read more\]\((.*?)\)/g);
+  
+  if (resultMatches) {
+    resultMatches.forEach((match, index) => {
+      const titleMatch = match.match(/\*\*(.*?)\*\*/);
+      const snippetMatch = match.match(/\*\*.*?\*\*\n(.*?)\n🔗/s);
+      const urlMatch = match.match(/🔗 \[Read more\]\((.*?)\)/);
+      
+      if (titleMatch && snippetMatch && urlMatch) {
+        results.push({
+          title: titleMatch[1],
+          snippet: snippetMatch[1].trim(),
+          url: urlMatch[1]
+        });
+      }
+    });
+  }
+  
+  if (results.length === 0) return null;
+  
+  return (
+    <div className="my-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
+          <span className="text-xl">🌐</span>
+          Market Research Sources
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
+          Based on comprehensive web research using {results.length} sources
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-4">
+        {results.map((result, index) => (
+          <div
+            key={index}
+            className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg p-4 hover:shadow-lg transition-shadow duration-200 group"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 text-sm font-semibold">
+                {index + 1}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-900 dark:text-dark-text-primary line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {result.title}
+                </h4>
+                
+                <p className="mt-2 text-sm text-gray-600 dark:text-dark-text-secondary line-clamp-3">
+                  {result.snippet}
+                </p>
+                
+                <div className="mt-3 flex items-center gap-2">
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                  >
+                    <span>Read Full Article</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   // Split text into lines and format each line
   const lines = text.split('\n').filter(line => line.trim());
@@ -805,6 +888,9 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       
       {/* Savings Chart */}
       {savingsChartData && <SavingsChart data={savingsChartData} />}
+      
+      {/* Web Results Card */}
+      <WebResultsCard text={formattedText} />
       
       {/* Enhanced Text Formatting */}
       <EnhancedText text={formattedText} />

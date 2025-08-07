@@ -1194,29 +1194,66 @@ export class InvestmentAnalysisService {
       };
     }
     
-    // Fallback to basic analysis if technical analysis not available
+    // Enhanced fallback analysis - use whatever technical data is available
     let action = 'HOLD';
     let confidence = 55;
+    let reasoning = [];
     
-    if (dayChange > 3) {
-      action = 'BUY';
-      confidence = 70;
-    } else if (dayChange < -3) {
-      action = 'SELL';
-      confidence = 70;
+    // If we have RSI data, use it even if full technical analysis failed
+    if (tech && tech.rsi !== undefined) {
+      if (tech.rsi > 80) {
+        action = 'SELL';
+        confidence = Math.min(85, 60 + (tech.rsi - 70));
+        reasoning.push(`Extremely overbought (RSI: ${tech.rsi.toFixed(1)}) - high correction risk`);
+      } else if (tech.rsi > 70) {
+        action = 'SELL';
+        confidence = Math.min(80, 60 + (tech.rsi - 70));
+        reasoning.push(`Overbought conditions (RSI: ${tech.rsi.toFixed(1)}) - potential correction`);
+      } else if (tech.rsi < 20) {
+        action = 'BUY';
+        confidence = Math.min(85, 70 + (30 - tech.rsi));
+        reasoning.push(`Severely oversold (RSI: ${tech.rsi.toFixed(1)}) - potential bounce`);
+      } else if (tech.rsi < 30) {
+        action = 'BUY';
+        confidence = Math.min(80, 70 + (30 - tech.rsi));
+        reasoning.push(`Oversold conditions (RSI: ${tech.rsi.toFixed(1)}) - potential bounce`);
+      } else {
+        reasoning.push(`RSI in neutral zone (${tech.rsi.toFixed(1)})`);
+      }
+    }
+    
+    // If no RSI-based decision made, use price action
+    if (action === 'HOLD') {
+      if (dayChange > 3) {
+        action = 'BUY';
+        confidence = 70;
+        reasoning.push(`Strong positive momentum (+${dayChange.toFixed(2)}%)`);
+      } else if (dayChange < -3) {
+        action = 'SELL';
+        confidence = 70;
+        reasoning.push(`Strong negative momentum (${dayChange.toFixed(2)}%)`);
+      } else {
+        reasoning.push(`Limited price movement (${dayChange.toFixed(2)}%)`);
+      }
+    }
+    
+    // Add trend information if available
+    if (tech && tech.trend) {
+      reasoning.push(`Technical trend: ${tech.trend}`);
+    }
+    
+    // Add final reasoning
+    if (reasoning.length === 0) {
+      reasoning.push('Analysis based on price action and available indicators');
     }
     
     return {
       action,
       confidence,
-      target_price: price * 1.10,
-      stop_loss: price * 0.90,
-      time_horizon: 'MEDIUM_TERM',
-      reasoning: [
-        `Price movement: ${dayChange.toFixed(2)}% today`,
-        'Analysis based on price action and momentum',
-        'Technical indicators not available - using basic analysis'
-      ]
+      target_price: action === 'BUY' ? price * 1.15 : action === 'SELL' ? price * 0.90 : price * 1.08,
+      stop_loss: action === 'BUY' ? price * 0.90 : action === 'SELL' ? price * 1.08 : price * 0.92,
+      time_horizon: tech && tech.volatility > 20 ? 'SHORT_TERM' : 'MEDIUM_TERM',
+      reasoning: reasoning
     };
   }
 
