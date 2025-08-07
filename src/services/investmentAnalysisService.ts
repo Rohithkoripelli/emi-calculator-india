@@ -1718,12 +1718,54 @@ export class InvestmentAnalysisService {
   }
 
   /**
+   * Test OpenAI API connection and functionality
+   */
+  static async testOpenAIConnection(): Promise<boolean> {
+    console.log('🧪 Testing OpenAI API Connection...');
+    
+    try {
+      // Test if API key is configured
+      const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        console.error('❌ OpenAI API key not found in environment variables');
+        console.error('Please set REACT_APP_OPENAI_API_KEY in your Vercel environment variables');
+        return false;
+      }
+      
+      console.log('✅ API key found, testing connection...');
+      
+      // Simple test call
+      const testResponse = await this.callOpenAI('Respond with "API connection successful" if you can read this message.');
+      
+      if (testResponse && testResponse.includes('API connection successful')) {
+        console.log('✅ OpenAI API connection test passed');
+        console.log('📊 Test response:', testResponse);
+        return true;
+      } else {
+        console.error('❌ OpenAI API test failed - unexpected response:', testResponse);
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ OpenAI API connection test failed:', error);
+      return false;
+    }
+  }
+
+  /**
    * Test the investment analysis service
    */
   static async testAnalysisService(): Promise<void> {
     console.log('🧪 Testing Investment Analysis Service...');
     
     try {
+      // First test OpenAI connection
+      console.log('0. Testing OpenAI API connection...');
+      const apiWorking = await this.testOpenAIConnection();
+      if (!apiWorking) {
+        console.error('❌ OpenAI API not working, investment analysis will use fallback methods');
+      }
+      
       // Test stock analysis
       console.log('1. Testing stock analysis...');
       const stockAnalysis = await this.analyzeStock('RELIANCE');
