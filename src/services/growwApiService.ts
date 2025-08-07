@@ -278,17 +278,37 @@ export class GrowwApiService {
         trend = 'BEARISH';
       }
       
-      // Generate recommendation
+      // Generate recommendation with improved logic
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
       let confidence = 50;
       
-      if (trend === 'BULLISH' && rsi < 70 && currentPrice > sma20) {
+      // RSI-based signals (primary indicator)
+      if (rsi < 30) {
+        // Oversold - potential BUY signal
         recommendation = 'BUY';
-        confidence = Math.min(85, 60 + Math.abs(priceChange30Days));
-      } else if (trend === 'BEARISH' && rsi > 30 && currentPrice < sma20) {
+        confidence = Math.min(85, 70 + (30 - rsi));
+      } else if (rsi > 70) {
+        // Overbought - potential SELL signal  
         recommendation = 'SELL';
-        confidence = Math.min(85, 60 + Math.abs(priceChange30Days));
+        confidence = Math.min(85, 60 + (rsi - 70));
+      } else {
+        // RSI in neutral zone - use trend and momentum
+        if (trend === 'BULLISH' && currentPrice > sma20 && priceChange30Days > 5) {
+          recommendation = 'BUY';
+          confidence = Math.min(80, 60 + Math.abs(priceChange30Days) / 2);
+        } else if (trend === 'BEARISH' && currentPrice < sma20 && priceChange30Days < -5) {
+          recommendation = 'SELL';
+          confidence = Math.min(80, 60 + Math.abs(priceChange30Days) / 2);
+        } else if (Math.abs(priceChange30Days) < 3 && volatility < 10) {
+          // Low volatility, sideways movement
+          recommendation = 'HOLD';
+          confidence = 65;
+        }
       }
+      
+      // Adjust confidence based on volatility
+      if (volatility > 25) confidence = Math.max(40, confidence - 15); // High volatility reduces confidence
+      if (volatility < 5) confidence = Math.min(90, confidence + 10);   // Low volatility increases confidence
       
       const analysis: TechnicalAnalysis = {
         trend,

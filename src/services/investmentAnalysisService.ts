@@ -1005,37 +1005,123 @@ export class InvestmentAnalysisService {
   private static generateRiskFactors(quote: any, technical: any, sentiment: any): string[] {
     const risks = [];
     
+    // Price volatility analysis
     if (Math.abs(quote.dayChangePercent) > 5) {
-      risks.push('High daily price volatility');
+      risks.push(`High daily volatility (${quote.dayChangePercent.toFixed(1)}%) - increased price swings`);
     }
     
-    if (technical && technical.rsi > 75) {
-      risks.push('Overbought conditions - potential correction');
+    // Technical risk factors
+    if (technical) {
+      if (technical.volatility > 25) {
+        risks.push(`Very high volatility (${technical.volatility.toFixed(1)}%) - significant price swings expected`);
+      } else if (technical.volatility > 15) {
+        risks.push(`Elevated volatility (${technical.volatility.toFixed(1)}%) - moderate risk of price fluctuations`);
+      }
+      
+      if (technical.rsi > 80) {
+        risks.push('Extremely overbought conditions - high correction risk');
+      } else if (technical.rsi > 70) {
+        risks.push('Overbought conditions - potential correction');
+      } else if (technical.rsi < 20) {
+        risks.push('Severely oversold - high rebound volatility expected');
+      } else if (technical.rsi < 30) {
+        risks.push('Oversold conditions - potential bounce with high volatility');
+      }
+      
+      // Trend-based risks
+      if (technical.trend === 'BEARISH' && technical.priceChange30Days < -15) {
+        risks.push('Strong downtrend - continued selling pressure possible');
+      }
+      
+      // Support/Resistance risks
+      const currentPrice = quote.currentPrice;
+      if (currentPrice > technical.resistance * 0.98) {
+        risks.push('Trading near resistance - potential reversal or breakout');
+      }
+      if (currentPrice < technical.support * 1.02) {
+        risks.push('Trading near support - risk of breakdown');
+      }
     }
     
-    if (sentiment.overall_sentiment === 'NEGATIVE') {
-      risks.push('Negative news sentiment affecting market perception');
+    // News sentiment risks
+    if (sentiment && sentiment.overall_sentiment === 'NEGATIVE') {
+      risks.push('Negative news sentiment - market perception risk');
+    } else if (sentiment && sentiment.overall_sentiment === 'MIXED') {
+      risks.push('Mixed market sentiment - uncertain direction');
     }
     
-    if (quote.currentPrice > (quote.week52High || quote.currentPrice * 1.5)) {
-      risks.push('Trading near 52-week high - limited upside');
+    // 52-week high/low risks
+    if (quote.week52High && quote.currentPrice > quote.week52High * 0.95) {
+      risks.push('Trading near 52-week high - limited upside potential');
+    }
+    if (quote.week52Low && quote.currentPrice < quote.week52Low * 1.10) {
+      risks.push('Trading near 52-week low - potential further downside');
     }
     
-    return risks.length > 0 ? risks : ['Standard market risks apply'];
+    // Volume-based risk
+    if (quote.volume < 100000) {
+      risks.push('Low trading volume - liquidity risk and wider spreads');
+    }
+    
+    return risks.length > 0 ? risks : ['Moderate market risk - standard equity investment risks apply'];
   }
 
   // Fallback methods when OpenAI is unavailable
   private static getFallbackRecommendation(data: any): any {
     const price = data.quote.currentPrice;
     const dayChange = data.quote.dayChangePercent;
+    const tech = data.technicalAnalysis;
     
+    // Use technical analysis recommendation if available
+    if (tech && tech.recommendation) {
+      const reasoning = [];
+      
+      // Build specific reasoning based on technical indicators
+      if (tech.rsi > 70) {
+        reasoning.push(`Overbought conditions (RSI: ${tech.rsi.toFixed(1)}) - potential correction`);
+      } else if (tech.rsi < 30) {
+        reasoning.push(`Oversold conditions (RSI: ${tech.rsi.toFixed(1)}) - potential bounce`);
+      } else {
+        reasoning.push(`RSI in neutral zone (${tech.rsi.toFixed(1)}) - momentum analysis required`);
+      }
+      
+      if (tech.trend === 'BULLISH') {
+        reasoning.push('Uptrend confirmed by moving averages');
+      } else if (tech.trend === 'BEARISH') {
+        reasoning.push('Downtrend indicated by technical indicators');
+      } else {
+        reasoning.push('Sideways consolidation pattern observed');
+      }
+      
+      if (Math.abs(tech.priceChange30Days) > 10) {
+        reasoning.push(`Strong ${tech.priceChange30Days > 0 ? 'positive' : 'negative'} momentum over 30 days`);
+      }
+      
+      // Calculate target and stop loss based on volatility
+      const volatilityMultiplier = Math.max(0.08, Math.min(0.20, tech.volatility / 100));
+      
+      return {
+        action: tech.recommendation,
+        confidence: tech.confidence,
+        target_price: tech.recommendation === 'BUY' ? price * (1 + volatilityMultiplier * 1.5) : 
+                     tech.recommendation === 'SELL' ? price * (1 - volatilityMultiplier * 1.2) : 
+                     price * 1.08,
+        stop_loss: tech.recommendation === 'BUY' ? price * (1 - volatilityMultiplier) : 
+                  tech.recommendation === 'SELL' ? price * (1 + volatilityMultiplier * 0.8) :
+                  price * 0.92,
+        time_horizon: tech.volatility > 20 ? 'SHORT_TERM' : tech.volatility > 10 ? 'MEDIUM_TERM' : 'LONG_TERM',
+        reasoning: reasoning
+      };
+    }
+    
+    // Fallback to basic analysis if technical analysis not available
     let action = 'HOLD';
-    let confidence = 60;
+    let confidence = 55;
     
-    if (dayChange > 2 && data.technicalAnalysis?.trend === 'BULLISH') {
+    if (dayChange > 3) {
       action = 'BUY';
-      confidence = 75;
-    } else if (dayChange < -2 && data.technicalAnalysis?.trend === 'BEARISH') {
+      confidence = 70;
+    } else if (dayChange < -3) {
       action = 'SELL';
       confidence = 70;
     }
@@ -1043,13 +1129,13 @@ export class InvestmentAnalysisService {
     return {
       action,
       confidence,
-      target_price: price * 1.12,
-      stop_loss: price * 0.92,
+      target_price: price * 1.10,
+      stop_loss: price * 0.90,
       time_horizon: 'MEDIUM_TERM',
       reasoning: [
-        `Current price momentum: ${dayChange > 0 ? 'Positive' : 'Negative'}`,
-        `Technical trend: ${data.technicalAnalysis?.trend || 'SIDEWAYS'}`,
-        'Market fundamentals and sector performance considered'
+        `Price movement: ${dayChange.toFixed(2)}% today`,
+        'Analysis based on price action and momentum',
+        'Technical indicators not available - using basic analysis'
       ]
     };
   }
