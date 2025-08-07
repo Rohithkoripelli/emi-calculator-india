@@ -1119,6 +1119,13 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   const comparisonData = extractTableData(formattedText);
   const savingsChartData = createSavingsChart(formattedText);
   
+  // Remove the news sections from the text to avoid duplication
+  // The NewsArticlesCard will handle displaying them
+  const textWithoutNews = formattedText
+    .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|$)/g, '') // Remove news sentiment section
+    .replace(/## 🌐 Market Research Sources[^#]*?(?=##|$)/g, '') // Remove web research section
+    .replace(/\n\n\n+/g, '\n\n'); // Clean up extra newlines
+  
   return (
     <div className="space-y-4">
       {/* Research Insights Card for investment analysis */}
@@ -1133,11 +1140,11 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       {/* Savings Chart */}
       {savingsChartData && <SavingsChart data={savingsChartData} />}
       
-      {/* News Articles Card */}
+      {/* News Articles Card - using original text to extract news */}
       <NewsArticlesCard text={formattedText} />
       
-      {/* Enhanced Text Formatting */}
-      <EnhancedText text={formattedText} />
+      {/* Enhanced Text Formatting - using cleaned text without news */}
+      <EnhancedText text={textWithoutNews} />
     </div>
   );
 };

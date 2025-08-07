@@ -615,25 +615,26 @@ Present results in a clear table format with before/after comparison.
     });
     response += '\n';
     
-    // Combined News Sentiment and Web Research Results  
+    // Only add the news sentiment and web research in the modern card format (handled by NewsArticlesCard component)
+    // This section now only adds the research data to be picked up by the NewsArticlesCard component
+    
     if (analysis.news_sentiment.key_news.length > 0 || (analysis.web_research && analysis.web_research.search_results.length > 0)) {
-      response += `## 📰 Recent News Sentiment: ${analysis.news_sentiment.overall_sentiment}\n`;
-      
-      // Add news articles first
+      // Add news sentiment data for the NewsArticlesCard to process
       if (analysis.news_sentiment.key_news.length > 0) {
+        response += `## 📰 Recent News Sentiment: ${analysis.news_sentiment.overall_sentiment}\n`;
         analysis.news_sentiment.key_news.slice(0, 3).forEach((news, index) => {
           response += `${index + 1}. **${news.sentiment}**: ${news.headline}\n`;
         });
         response += '\n';
       }
       
-      // Add web research results
+      // Add web research results for the NewsArticlesCard to process  
       if (analysis.web_research && analysis.web_research.search_results.length > 0) {
         response += `## 🌐 Market Research Sources\n`;
         response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
         
         analysis.web_research.search_results.forEach((result, index) => {
-          response += `**${index + 1}. ${result.title}**\n`;
+          response += `**${result.title}**\n`;
           response += `${result.snippet}\n`;
           response += `🔗 [Read more](${result.url})\n\n`;
         });
