@@ -344,7 +344,9 @@ export class InvestmentAnalysisService {
   private static async generateStockRecommendation(data: any): Promise<any> {
     try {
       const prompt = `
-        As a professional stock analyst, provide a comprehensive recommendation for this stock:
+        As a professional stock analyst, provide an OBJECTIVE recommendation for this stock based ONLY on the data provided. 
+        
+        CRITICAL: Your recommendation must be based on technical analysis, performance data, and market conditions - NOT on any implicit bias toward buying or selling.
         
         Company: ${data.companyInfo.name} (${data.quote.symbol})
         Current Price: ₹${data.quote.currentPrice}
@@ -354,6 +356,14 @@ export class InvestmentAnalysisService {
         Technical Analysis: ${data.technicalAnalysis ? JSON.stringify(data.technicalAnalysis) : 'Not available'}
         
         Recent News: ${data.stockNews.map((news: any) => `${news.headline} (${news.sentiment})`).join('; ')}
+        
+        ANALYSIS REQUIREMENTS:
+        - If day change is significantly negative (< -5%), consider SELL or HOLD
+        - If technical indicators show bearish trend, consider SELL or HOLD  
+        - If RSI > 70, stock may be overbought - consider SELL
+        - If RSI < 30, stock may be oversold - consider BUY
+        - If recent news is predominantly negative, factor this into recommendation
+        - Be conservative - prefer HOLD when data is mixed or insufficient
         
         Provide a JSON response with:
         {
@@ -1534,9 +1544,8 @@ export class InvestmentAnalysisService {
       }
     }
     
-    // If no RSI-based decision and no web research, use enhanced analysis
+    // Enhanced analysis based on actual performance data
     if (action === 'HOLD' && !webResearchRecommendation) {
-      // Use broader market context instead of just day change
       const currentHour = new Date().getHours();
       const marketFactors = [];
       
@@ -1546,21 +1555,73 @@ export class InvestmentAnalysisService {
         marketFactors.push('After-hours - consider volatility');
       }
       
-      // Instead of relying on potentially stale dayChange, use general market wisdom
+      // Use comprehensive analysis including technical data and performance
       if (price > 0) {
+        // Analyze based on technical indicators first
         if (tech?.support && price < tech.support * 1.02) {
           action = 'BUY';
           confidence = 70;
-          reasoning.push(`Stock near support levels - potential bounce opportunity`);
+          reasoning.push(`Stock trading near support levels (₹${tech.support.toFixed(2)}) - potential bounce opportunity`);
         } else if (tech?.resistance && price > tech.resistance * 0.98) {
           action = 'SELL';
           confidence = 70;
-          reasoning.push(`Stock near resistance levels - potential correction ahead`);
+          reasoning.push(`Stock near resistance levels (₹${tech.resistance.toFixed(2)}) - potential correction ahead`);
         } else {
-          // Use conservative market approach instead of showing 0.00%
-          action = 'BUY';
-          confidence = 65;
-          reasoning.push(`Long-term investment opportunity in established stock`);
+          // Use additional performance indicators
+          let performanceScore = 0;
+          
+          // Check if we have meaningful day change data
+          if (Math.abs(dayChange) > 0.01) {
+            if (dayChange > 5) {
+              performanceScore += 2;
+              reasoning.push(`Strong positive momentum (+${dayChange.toFixed(2)}%)`);
+            } else if (dayChange > 2) {
+              performanceScore += 1;
+              reasoning.push(`Positive momentum (+${dayChange.toFixed(2)}%)`);
+            } else if (dayChange < -5) {
+              performanceScore -= 2;
+              reasoning.push(`Strong negative momentum (${dayChange.toFixed(2)}%)`);
+            } else if (dayChange < -2) {
+              performanceScore -= 1;
+              reasoning.push(`Negative momentum (${dayChange.toFixed(2)}%)`);
+            }
+          }
+          
+          // Check volume indicators if available
+          if (tech?.volume && data.quote?.volume) {
+            const volumeRatio = data.quote.volume / tech.volume;
+            if (volumeRatio > 1.5) {
+              performanceScore += 1;
+              reasoning.push(`High volume activity - increased investor interest`);
+            } else if (volumeRatio < 0.5) {
+              performanceScore -= 1;
+              reasoning.push(`Low volume - limited market interest`);
+            }
+          }
+          
+          // Check trend indicators if available
+          if (tech?.trend) {
+            if (tech.trend === 'BULLISH') {
+              performanceScore += 1;
+              reasoning.push(`Technical trend analysis shows bullish pattern`);
+            } else if (tech.trend === 'BEARISH') {
+              performanceScore -= 1;
+              reasoning.push(`Technical trend analysis shows bearish pattern`);
+            }
+          }
+          
+          // Make recommendation based on performance score
+          if (performanceScore >= 2) {
+            action = 'BUY';
+            confidence = Math.min(75, 60 + (performanceScore * 5));
+          } else if (performanceScore <= -2) {
+            action = 'SELL';
+            confidence = Math.min(75, 60 + (Math.abs(performanceScore) * 5));
+          } else {
+            action = 'HOLD';
+            confidence = 55;
+            reasoning.push(`Mixed signals from technical indicators - neutral recommendation advised`);
+          }
         }
         
         reasoning.push(...marketFactors);
@@ -1614,15 +1675,21 @@ export class InvestmentAnalysisService {
         const content = (result.title + ' ' + result.snippet).toLowerCase();
         
         // Bullish indicators
-        const bullishMatches = content.match(/buy|bullish|positive|upside|target|upgrade|outperform|strong/g);
+        const bullishMatches = content.match(/buy|bullish|positive|upside|target|upgrade|outperform|strong|gain|rise|rally|growth/g);
         if (bullishMatches) {
           bullishIndicators += bullishMatches.length;
         }
         
-        // Bearish indicators
-        const bearishMatches = content.match(/sell|bearish|negative|downside|downgrade|underperform|weak/g);
+        // Bearish indicators - enhanced to catch more negative sentiment
+        const bearishMatches = content.match(/sell|bearish|negative|downside|downgrade|underperform|weak|fall|drop|decline|loss|plunge|crash|avoid|caution|risk/g);
         if (bearishMatches) {
           bearishIndicators += bearishMatches.length;
+        }
+        
+        // Performance-based indicators
+        const performanceMatches = content.match(/down\s+\d+%|fell\s+\d+%|dropped\s+\d+%|declined\s+\d+%|lost\s+\d+%/g);
+        if (performanceMatches && performanceMatches.length > 0) {
+          bearishIndicators += performanceMatches.length * 2; // Weight performance drops heavily
         }
         
         // Extract key factors
