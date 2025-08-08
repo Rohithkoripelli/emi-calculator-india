@@ -339,49 +339,324 @@ export class InvestmentAnalysisService {
   }
 
   /**
-   * Generate stock recommendation using OpenAI
+   * Collect comprehensive data for professional stock analysis
+   */
+  private static async collectComprehensiveStockData(symbol: string, basicData: any): Promise<any> {
+    console.log(`🔬 Collecting comprehensive data for ${symbol}...`);
+    
+    try {
+      const comprehensiveData = {
+        basic: basicData,
+        historicalPerformance: null,
+        webResearch: null,
+        technicalIndicators: null,
+        marketContext: null
+      };
+
+      // Parallel data collection for efficiency
+      const [historicalData, webResearch] = await Promise.all([
+        this.getHistoricalPerformanceData(symbol),
+        this.getComprehensiveWebResearch(symbol)
+      ]);
+
+      comprehensiveData.historicalPerformance = historicalData;
+      comprehensiveData.webResearch = webResearch;
+      comprehensiveData.technicalIndicators = basicData.technicalAnalysis;
+      comprehensiveData.marketContext = await this.getMarketContext();
+
+      console.log(`✅ Comprehensive data collection completed for ${symbol}`);
+      return comprehensiveData;
+
+    } catch (error) {
+      console.error(`❌ Error collecting comprehensive data for ${symbol}:`, error);
+      return { basic: basicData, error: 'Data collection failed' };
+    }
+  }
+
+  /**
+   * Get historical performance data with multiple timeframes
+   */
+  private static async getHistoricalPerformanceData(symbol: string): Promise<any> {
+    try {
+      console.log(`📊 Fetching historical data for ${symbol}...`);
+      
+      // Try to get historical data from Groww API (252 days = ~1 year of trading days)
+      const { GrowwApiService } = await import('./growwApiService');
+      const historicalData = await GrowwApiService.getHistoricalData(symbol, 252);
+      
+      if (!historicalData || historicalData.length === 0) {
+        return { error: 'Historical data not available' };
+      }
+
+      // Calculate performance metrics across different timeframes
+      const performance = this.calculatePerformanceMetrics(historicalData);
+      
+      return {
+        raw: historicalData,
+        performance,
+        dataPoints: historicalData.length,
+        lastUpdated: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error(`❌ Error fetching historical data for ${symbol}:`, error);
+      return { error: 'Failed to fetch historical data' };
+    }
+  }
+
+  /**
+   * Calculate comprehensive performance metrics
+   */
+  private static calculatePerformanceMetrics(historicalData: any[]): any {
+    if (!historicalData || historicalData.length < 2) {
+      return { error: 'Insufficient data for metrics' };
+    }
+
+    const latest = historicalData[historicalData.length - 1];
+    const latestPrice = latest.close;
+
+    // Calculate returns for different periods
+    const periods = [
+      { name: '1_month', days: 21 },
+      { name: '3_months', days: 63 },
+      { name: '6_months', days: 126 },
+      { name: '1_year', days: 252 }
+    ];
+
+    const returns: any = {};
+    const volatility: any = {};
+
+    periods.forEach(period => {
+      const startIndex = Math.max(0, historicalData.length - period.days);
+      if (startIndex < historicalData.length - 1) {
+        const startPrice = historicalData[startIndex].close;
+        const returnPct = ((latestPrice - startPrice) / startPrice) * 100;
+        returns[period.name] = returnPct;
+
+        // Calculate volatility for the period
+        const periodData = historicalData.slice(startIndex);
+        volatility[period.name] = this.calculateVolatility(periodData);
+      }
+    });
+
+    // Create trend analysis using existing function
+    const trendString = this.analyzeTrend(historicalData.slice(-50));
+    const trend_analysis = {
+      trend: trendString,
+      confidence: trendString === 'UNKNOWN' ? 0 : 70,
+      description: `Trend analysis based on recent price movements: ${trendString}`
+    };
+
+    return {
+      returns,
+      volatility,
+      current_price: latestPrice,
+      trend_analysis
+    };
+  }
+
+
+
+  /**
+   * Get comprehensive web research data
+   */
+  private static async getComprehensiveWebResearch(symbol: string): Promise<any> {
+    try {
+      console.log(`🌐 Starting comprehensive web research for ${symbol}...`);
+
+      const { WebSearch } = await import('../utils/webSearchUtil');
+      
+      const searchQueries = [
+        `${symbol} stock analysis 2025 recommendation buy sell hold`,
+        `${symbol} quarterly results earnings financial performance`,
+        `${symbol} news analyst upgrade downgrade target price`,
+        `${symbol} stock price performance returns YTD 2024 2025`,
+        `${symbol} sector analysis industry trends market outlook`
+      ];
+
+      const allResults: any[] = [];
+      
+      for (const query of searchQueries) {
+        try {
+          console.log(`🔍 Searching: "${query}"`);
+          const results = await WebSearch(query, 3);
+          if (results && results.length > 0) {
+            allResults.push(...results.map(r => ({ ...r, searchQuery: query })));
+          }
+          // Small delay to be respectful to search API
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Search failed for: ${query}`, error);
+        }
+      }
+
+      // Analyze all search results
+      const analysis = this.analyzeWebSearchResults(allResults, symbol);
+      
+      return {
+        results: allResults,
+        analysis,
+        total_results: allResults.length,
+        research_timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error(`❌ Comprehensive web research failed for ${symbol}:`, error);
+      return { error: 'Web research failed' };
+    }
+  }
+
+  /**
+   * Analyze web search results for insights
+   */
+  private static analyzeWebSearchResults(results: any[], symbol: string): any {
+    let positiveSignals = 0;
+    let negativeSignals = 0;
+    const keyInsights: string[] = [];
+    const performanceIndicators: string[] = [];
+
+    results.forEach(result => {
+      const content = (result.title + ' ' + result.snippet).toLowerCase();
+      
+      // Enhanced sentiment analysis
+      const bullishTerms = ['buy', 'bullish', 'upgrade', 'outperform', 'positive', 'strong', 'growth', 'rally', 'rise', 'gain'];
+      const bearishTerms = ['sell', 'bearish', 'downgrade', 'underperform', 'negative', 'weak', 'decline', 'fall', 'drop', 'loss'];
+      
+      bullishTerms.forEach(term => {
+        if (content.includes(term)) positiveSignals++;
+      });
+      
+      bearishTerms.forEach(term => {
+        if (content.includes(term)) negativeSignals++;
+      });
+
+      // Extract performance indicators
+      const performancePatterns = [
+        /up\s+(\d+\.?\d*)%/g,
+        /down\s+(\d+\.?\d*)%/g,
+        /gain\s+(\d+\.?\d*)%/g,
+        /loss\s+(\d+\.?\d*)%/g,
+        /fell\s+(\d+\.?\d*)%/g,
+        /rose\s+(\d+\.?\d*)%/g
+      ];
+
+      performancePatterns.forEach(pattern => {
+        const matches = content.match(pattern);
+        if (matches) {
+          performanceIndicators.push(...matches);
+        }
+      });
+
+      // Extract key insights
+      if (content.includes('target price') || content.includes('price target')) {
+        keyInsights.push('Analyst price targets mentioned');
+      }
+      if (content.includes('earnings') || content.includes('results')) {
+        keyInsights.push('Recent earnings/results coverage');
+      }
+      if (content.includes('dividend')) {
+        keyInsights.push('Dividend information available');
+      }
+    });
+
+    const sentiment = positiveSignals > negativeSignals ? 'POSITIVE' : 
+                     negativeSignals > positiveSignals ? 'NEGATIVE' : 'NEUTRAL';
+    
+    const sentimentStrength = Math.abs(positiveSignals - negativeSignals);
+
+    return {
+      sentiment,
+      sentiment_strength: sentimentStrength,
+      positive_signals: positiveSignals,
+      negative_signals: negativeSignals,
+      key_insights: Array.from(new Set(keyInsights)),
+      performance_indicators: Array.from(new Set(performanceIndicators)),
+      confidence: Math.min(100, (positiveSignals + negativeSignals) * 8)
+    };
+  }
+
+  /**
+   * Get market context information
+   */
+  private static async getMarketContext(): Promise<any> {
+    // For now, return basic market context
+    // This can be expanded to get real market indices data
+    return {
+      market_session: 'Regular',
+      timestamp: new Date().toISOString(),
+      note: 'Market context analysis can be expanded with real-time market data'
+    };
+  }
+
+  /**
+   * Generate professional stock recommendation using comprehensive data
    */
   private static async generateStockRecommendation(data: any): Promise<any> {
     try {
+      console.log(`🧠 Generating professional recommendation for ${data.quote?.symbol}...`);
+      
+      // Collect comprehensive data
+      const comprehensiveData = await this.collectComprehensiveStockData(data.quote?.symbol, data);
+      
       const prompt = `
-        As a professional stock analyst, provide an OBJECTIVE recommendation for this stock based ONLY on the data provided. 
-        
-        CRITICAL: Your recommendation must be based on technical analysis, performance data, and market conditions - NOT on any implicit bias toward buying or selling.
-        
-        Company: ${data.companyInfo.name} (${data.quote.symbol})
-        Current Price: ₹${data.quote.currentPrice}
-        Day Change: ${data.quote.dayChangePercent.toFixed(2)}%
-        Volume: ${data.quote.volume}
-        
-        Technical Analysis: ${data.technicalAnalysis ? JSON.stringify(data.technicalAnalysis) : 'Not available'}
-        
-        Recent News: ${data.stockNews.map((news: any) => `${news.headline} (${news.sentiment})`).join('; ')}
-        
-        ANALYSIS REQUIREMENTS:
-        - If day change is significantly negative (< -5%), consider SELL or HOLD
-        - If technical indicators show bearish trend, consider SELL or HOLD  
-        - If RSI > 70, stock may be overbought - consider SELL
-        - If RSI < 30, stock may be oversold - consider BUY
-        - If recent news is predominantly negative, factor this into recommendation
-        - Be conservative - prefer HOLD when data is mixed or insufficient
-        
-        Provide a JSON response with:
+        You are a senior financial analyst with 15+ years of experience in equity research and stock analysis. 
+        Analyze this Indian stock comprehensively and provide a professional investment recommendation.
+
+        COMPANY INFORMATION:
+        Name: ${data.companyInfo?.name || 'N/A'} (${data.quote?.symbol || 'N/A'})
+        Current Price: ₹${data.quote?.currentPrice || 'N/A'}
+        Day Change: ${data.quote?.dayChangePercent?.toFixed(2) || 'N/A'}%
+        Volume: ${data.quote?.volume || 'N/A'}
+        Market Cap: ${data.quote?.market_cap || 'N/A'}
+
+        HISTORICAL PERFORMANCE DATA:
+        ${JSON.stringify(comprehensiveData.historicalPerformance, null, 2)}
+
+        TECHNICAL ANALYSIS:
+        ${JSON.stringify(data.technicalAnalysis, null, 2)}
+
+        WEB RESEARCH ANALYSIS:
+        ${JSON.stringify(comprehensiveData.webResearch?.analysis, null, 2)}
+
+        RECENT NEWS & SENTIMENT:
+        ${data.stockNews?.map((news: any) => `- ${news.headline} (${news.sentiment})`).join('\n') || 'No recent news available'}
+
+        ANALYSIS INSTRUCTIONS:
+        1. Consider ALL timeframes: 1M, 3M, 6M, 1Y performance trends
+        2. Weight recent performance heavily but not exclusively
+        3. Factor in technical indicators (RSI, support/resistance, trend)
+        4. Consider market sentiment from web research and news
+        5. Account for volatility and risk factors
+        6. Be objective - ignore any implicit bias from user questions
+        7. If data shows consistent underperformance (6M+ decline), be cautious about BUY recommendations
+        8. If technical indicators are extreme (RSI >80 or <20), factor this significantly
+        9. Consider volume trends and market interest
+        10. Provide nuanced analysis - not all stocks are BUY or SELL
+
+        Think through your analysis step by step:
+        - What does the historical performance tell us?
+        - What do technical indicators suggest?
+        - What is the market sentiment?
+        - What are the key risks and opportunities?
+        - What would a prudent investor do?
+
+        Provide your recommendation in this exact JSON format:
         {
           "action": "BUY|SELL|HOLD",
           "confidence": number (0-100),
           "target_price": number or null,
           "stop_loss": number or null,
           "time_horizon": "SHORT_TERM|MEDIUM_TERM|LONG_TERM",
-          "reasoning": ["reason1", "reason2", "reason3"]
+          "reasoning": ["Primary analysis point 1", "Key factor 2", "Important consideration 3"]
         }
       `;
       
       const response = await this.callOpenAI(prompt);
-      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol || data.companyInfo?.symbol);
+      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol);
       
     } catch (error) {
-      console.error('❌ Error generating OpenAI recommendation:', error);
-      return await this.getFallbackRecommendation(data, data.quote?.symbol || data.companyInfo?.symbol);
+      console.error('❌ Error generating professional recommendation:', error);
+      return await this.getFallbackRecommendation(data, data.quote?.symbol);
     }
   }
 
@@ -1521,113 +1796,35 @@ export class InvestmentAnalysisService {
       }
     }
     
-    // CRITICAL: RSI-based decisions should override web research for extreme conditions
+    // RSI analysis as input factor (not override) - let AI make the final decision
     if (tech && tech.rsi !== undefined) {
-      if (tech.rsi > 80) {
-        // EXTREME overbought - always recommend SELL regardless of other factors
-        action = 'SELL';
-        confidence = Math.min(90, 70 + (tech.rsi - 80));
-        reasoning = [`🚨 EXTREMELY overbought (RSI: ${tech.rsi.toFixed(1)}) - immediate correction risk`];
-        // Override any previous web research recommendation
-        console.log(`⚠️ RSI ${tech.rsi.toFixed(1)} overriding web research - recommending SELL`);
-      } else if (tech.rsi > 70) {
-        action = 'SELL';
-        confidence = Math.min(85, 60 + (tech.rsi - 70));
-        reasoning.push(`Overbought conditions (RSI: ${tech.rsi.toFixed(1)}) - potential correction`);
-      } else if (tech.rsi < 20) {
-        action = 'BUY';
-        confidence = Math.min(85, 70 + (30 - tech.rsi));
-        reasoning.push(`Severely oversold (RSI: ${tech.rsi.toFixed(1)}) - potential bounce`);
+      if (tech.rsi > 70) {
+        reasoning.push(`Overbought conditions detected (RSI: ${tech.rsi.toFixed(1)}) - consider correction risk`);
       } else if (tech.rsi < 30) {
-        action = 'BUY';
-        confidence = Math.min(80, 70 + (30 - tech.rsi));
-        reasoning.push(`Oversold conditions (RSI: ${tech.rsi.toFixed(1)}) - potential bounce`);
+        reasoning.push(`Oversold conditions detected (RSI: ${tech.rsi.toFixed(1)}) - potential bounce opportunity`);
       } else {
-        reasoning.push(`RSI in neutral zone (${tech.rsi.toFixed(1)})`);
+        reasoning.push(`RSI in neutral zone (${tech.rsi.toFixed(1)}) - balanced momentum`);
       }
     }
     
-    // Enhanced analysis based on actual performance data
+    // Simplified fallback analysis when web research is unavailable
     if (action === 'HOLD' && !webResearchRecommendation) {
-      const currentHour = new Date().getHours();
-      const marketFactors = [];
-      
-      if (currentHour >= 9 && currentHour <= 16) {
-        marketFactors.push('Active market hours - higher liquidity');
-      } else {
-        marketFactors.push('After-hours - consider volatility');
-      }
-      
-      // Use comprehensive analysis including technical data and performance
+      // Use basic technical analysis for fallback
       if (price > 0) {
-        // Analyze based on technical indicators first
         if (tech?.support && price < tech.support * 1.02) {
           action = 'BUY';
-          confidence = 70;
-          reasoning.push(`Stock trading near support levels (₹${tech.support.toFixed(2)}) - potential bounce opportunity`);
+          confidence = 65;
+          reasoning.push(`Near support levels - potential opportunity`);
         } else if (tech?.resistance && price > tech.resistance * 0.98) {
           action = 'SELL';
-          confidence = 70;
-          reasoning.push(`Stock near resistance levels (₹${tech.resistance.toFixed(2)}) - potential correction ahead`);
+          confidence = 65;
+          reasoning.push(`Near resistance levels - consider profit taking`);
         } else {
-          // Use additional performance indicators
-          let performanceScore = 0;
-          
-          // Check if we have meaningful day change data
-          if (Math.abs(dayChange) > 0.01) {
-            if (dayChange > 5) {
-              performanceScore += 2;
-              reasoning.push(`Strong positive momentum (+${dayChange.toFixed(2)}%)`);
-            } else if (dayChange > 2) {
-              performanceScore += 1;
-              reasoning.push(`Positive momentum (+${dayChange.toFixed(2)}%)`);
-            } else if (dayChange < -5) {
-              performanceScore -= 2;
-              reasoning.push(`Strong negative momentum (${dayChange.toFixed(2)}%)`);
-            } else if (dayChange < -2) {
-              performanceScore -= 1;
-              reasoning.push(`Negative momentum (${dayChange.toFixed(2)}%)`);
-            }
-          }
-          
-          // Check volume indicators if available
-          if (tech?.volume && data.quote?.volume) {
-            const volumeRatio = data.quote.volume / tech.volume;
-            if (volumeRatio > 1.5) {
-              performanceScore += 1;
-              reasoning.push(`High volume activity - increased investor interest`);
-            } else if (volumeRatio < 0.5) {
-              performanceScore -= 1;
-              reasoning.push(`Low volume - limited market interest`);
-            }
-          }
-          
-          // Check trend indicators if available
-          if (tech?.trend) {
-            if (tech.trend === 'BULLISH') {
-              performanceScore += 1;
-              reasoning.push(`Technical trend analysis shows bullish pattern`);
-            } else if (tech.trend === 'BEARISH') {
-              performanceScore -= 1;
-              reasoning.push(`Technical trend analysis shows bearish pattern`);
-            }
-          }
-          
-          // Make recommendation based on performance score
-          if (performanceScore >= 2) {
-            action = 'BUY';
-            confidence = Math.min(75, 60 + (performanceScore * 5));
-          } else if (performanceScore <= -2) {
-            action = 'SELL';
-            confidence = Math.min(75, 60 + (Math.abs(performanceScore) * 5));
-          } else {
-            action = 'HOLD';
-            confidence = 55;
-            reasoning.push(`Mixed signals from technical indicators - neutral recommendation advised`);
-          }
+          // Conservative neutral stance
+          action = 'HOLD';
+          confidence = 60;
+          reasoning.push(`Balanced technical indicators - suggest holding position`);
         }
-        
-        reasoning.push(...marketFactors);
       }
     }
     
@@ -1736,32 +1933,19 @@ export class InvestmentAnalysisService {
       
       console.log(`📊 Web research analysis for ${symbol}: bullish=${bullishIndicators}, bearish=${bearishIndicators}`);
       
-      // Enhanced logic - require stronger evidence for BUY recommendations
-      if (bearishIndicators > bullishIndicators * 1.2) {
-        // More sensitive to bearish indicators
+      // Balanced logic for web research recommendations
+      if (bearishIndicators > bullishIndicators * 1.5) {
         recommendation = 'SELL';
         sentiment = 'Negative';
         reason = 'predominantly bearish market outlook';
-      } else if (bullishIndicators > bearishIndicators * 2.0 && bullishIndicators > 3) {
-        // Higher threshold for BUY - need strong bullish signals AND minimum indicators
+      } else if (bullishIndicators > bearishIndicators * 1.5) {
         recommendation = 'BUY';
         sentiment = 'Positive';
-        reason = 'strong bullish analyst sentiment';
-      } else if (bearishIndicators > 2) {
-        // If we have significant bearish indicators, lean toward SELL
-        recommendation = 'SELL';
-        sentiment = 'Negative';
-        reason = 'concerning market signals detected';
+        reason = 'predominantly bullish analyst sentiment';
       }
       
       console.log(`📊 Web research recommendation for ${symbol}: ${recommendation} (${reason})`);
-      
-      // CRITICAL: Override BUY recommendations for stocks with major performance issues
-      if (recommendation === 'BUY' && bearishIndicators >= 3) {
-        console.log(`⚠️ Overriding BUY recommendation due to significant bearish indicators (${bearishIndicators})`);
-        recommendation = 'HOLD';
-        reason = 'conflicting signals - bearish indicators present';
-      }
+      console.log(`📊 Indicators: bullish=${bullishIndicators}, bearish=${bearishIndicators}`);
       
       return {
         recommendation,
