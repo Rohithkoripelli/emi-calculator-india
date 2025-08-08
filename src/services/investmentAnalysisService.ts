@@ -1521,15 +1521,18 @@ export class InvestmentAnalysisService {
       }
     }
     
-    // If we have RSI data, use it even if full technical analysis failed
+    // CRITICAL: RSI-based decisions should override web research for extreme conditions
     if (tech && tech.rsi !== undefined) {
       if (tech.rsi > 80) {
+        // EXTREME overbought - always recommend SELL regardless of other factors
         action = 'SELL';
-        confidence = Math.min(85, 60 + (tech.rsi - 70));
-        reasoning.push(`Extremely overbought (RSI: ${tech.rsi.toFixed(1)}) - high correction risk`);
+        confidence = Math.min(90, 70 + (tech.rsi - 80));
+        reasoning = [`🚨 EXTREMELY overbought (RSI: ${tech.rsi.toFixed(1)}) - immediate correction risk`];
+        // Override any previous web research recommendation
+        console.log(`⚠️ RSI ${tech.rsi.toFixed(1)} overriding web research - recommending SELL`);
       } else if (tech.rsi > 70) {
         action = 'SELL';
-        confidence = Math.min(80, 60 + (tech.rsi - 70));
+        confidence = Math.min(85, 60 + (tech.rsi - 70));
         reasoning.push(`Overbought conditions (RSI: ${tech.rsi.toFixed(1)}) - potential correction`);
       } else if (tech.rsi < 20) {
         action = 'BUY';
@@ -1657,10 +1660,28 @@ export class InvestmentAnalysisService {
       // Import WebSearch utility
       const { WebSearch } = await import('../utils/webSearchUtil');
       
-      const query = `${symbol} stock analysis January 2025 buy sell recommendation price target`;
-      console.log(`🔍 Searching for: "${query}"`);
+      // Use more comprehensive search queries to get real performance data
+      const queries = [
+        `${symbol} stock price performance 2024 2025 decline fall drop analysis`,
+        `${symbol} stock recommendation buy sell 2025 analyst target price`,
+        `${symbol} share price down loss percentage 6 months yearly performance`
+      ];
       
-      const searchResults = await WebSearch(query, 3);
+      console.log(`🔍 Comprehensive stock research for ${symbol}...`);
+      
+      const allSearchResults = [];
+      for (const query of queries) {
+        try {
+          const results = await WebSearch(query, 2);
+          if (results && results.length > 0) {
+            allSearchResults.push(...results);
+          }
+        } catch (error) {
+          console.error(`Search failed for query: ${query}`, error);
+        }
+      }
+      
+      const searchResults = allSearchResults;
       
       if (!searchResults || searchResults.length === 0) {
         return null;
@@ -1686,10 +1707,18 @@ export class InvestmentAnalysisService {
           bearishIndicators += bearishMatches.length;
         }
         
-        // Performance-based indicators
-        const performanceMatches = content.match(/down\s+\d+%|fell\s+\d+%|dropped\s+\d+%|declined\s+\d+%|lost\s+\d+%/g);
+        // Enhanced performance-based indicators - look for actual declines
+        const performanceMatches = content.match(/down\s+\d+%|fell\s+\d+%|dropped\s+\d+%|declined\s+\d+%|lost\s+\d+%|plunge\s+\d+%|-\d+\.\d+%|negative\s+\d+%/g);
         if (performanceMatches && performanceMatches.length > 0) {
-          bearishIndicators += performanceMatches.length * 2; // Weight performance drops heavily
+          bearishIndicators += performanceMatches.length * 3; // Weight performance drops very heavily
+          keyFactors.push(`Significant price decline detected in recent reports`);
+        }
+        
+        // Look for specific high-percentage declines (20%+, 30%+, etc.)
+        const majorDeclineMatches = content.match(/down\s+[2-9]\d%|fell\s+[2-9]\d%|dropped\s+[2-9]\d%|declined\s+[2-9]\d%|lost\s+[2-9]\d%/g);
+        if (majorDeclineMatches && majorDeclineMatches.length > 0) {
+          bearishIndicators += majorDeclineMatches.length * 5; // Very heavy weight for major declines
+          keyFactors.push(`Major decline of 20%+ detected in market reports`);
         }
         
         // Extract key factors
@@ -1705,14 +1734,33 @@ export class InvestmentAnalysisService {
       let sentiment = 'Neutral';
       let reason = 'mixed market signals';
       
-      if (bullishIndicators > bearishIndicators * 1.5) {
-        recommendation = 'BUY';
-        sentiment = 'Positive';
-        reason = 'predominantly bullish analyst sentiment';
-      } else if (bearishIndicators > bullishIndicators * 1.5) {
+      console.log(`📊 Web research analysis for ${symbol}: bullish=${bullishIndicators}, bearish=${bearishIndicators}`);
+      
+      // Enhanced logic - require stronger evidence for BUY recommendations
+      if (bearishIndicators > bullishIndicators * 1.2) {
+        // More sensitive to bearish indicators
         recommendation = 'SELL';
         sentiment = 'Negative';
         reason = 'predominantly bearish market outlook';
+      } else if (bullishIndicators > bearishIndicators * 2.0 && bullishIndicators > 3) {
+        // Higher threshold for BUY - need strong bullish signals AND minimum indicators
+        recommendation = 'BUY';
+        sentiment = 'Positive';
+        reason = 'strong bullish analyst sentiment';
+      } else if (bearishIndicators > 2) {
+        // If we have significant bearish indicators, lean toward SELL
+        recommendation = 'SELL';
+        sentiment = 'Negative';
+        reason = 'concerning market signals detected';
+      }
+      
+      console.log(`📊 Web research recommendation for ${symbol}: ${recommendation} (${reason})`);
+      
+      // CRITICAL: Override BUY recommendations for stocks with major performance issues
+      if (recommendation === 'BUY' && bearishIndicators >= 3) {
+        console.log(`⚠️ Overriding BUY recommendation due to significant bearish indicators (${bearishIndicators})`);
+        recommendation = 'HOLD';
+        reason = 'conflicting signals - bearish indicators present';
       }
       
       return {
