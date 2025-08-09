@@ -233,7 +233,7 @@ export class GrowwApiService {
   /**
    * Perform technical analysis on historical data
    */
-  static performTechnicalAnalysis(candles: HistoricalCandle[]): TechnicalAnalysis | null {
+  static performTechnicalAnalysis(candles: HistoricalCandle[], tradingSymbol?: string): TechnicalAnalysis | null {
     if (!candles || candles.length < 20) {
       console.log('❌ Insufficient data for technical analysis');
       return null;
@@ -272,97 +272,151 @@ export class GrowwApiService {
       // Average volume
       const volumeAverage = volumes.reduce((sum, vol) => sum + vol, 0) / volumes.length;
       
-      // Enhanced trend analysis with multiple factors
+      // Professional-grade trend analysis with enhanced sensitivity
       let trend: 'BULLISH' | 'BEARISH' | 'SIDEWAYS' = 'SIDEWAYS';
       let trendStrength = 0;
       
-      // Price vs Moving Averages (40% weight)
-      if (currentPrice > sma20) trendStrength += 2;
-      if (currentPrice < sma20) trendStrength -= 2;
-      if (sma20 > sma50) trendStrength += 2;
-      if (sma20 < sma50) trendStrength -= 2;
-      
-      // Price momentum (30% weight)
-      if (priceChange30Days > 3) trendStrength += Math.min(3, Math.floor(priceChange30Days / 2));
-      if (priceChange30Days < -3) trendStrength -= Math.min(3, Math.floor(Math.abs(priceChange30Days) / 2));
-      
-      // RSI momentum (20% weight)
-      if (rsi > 55) trendStrength += 1;
-      if (rsi < 45) trendStrength -= 1;
-      if (rsi > 70) trendStrength += 1; // Overbought but strong
-      if (rsi < 30) trendStrength -= 1; // Oversold but weak
-      
-      // Volume confirmation (10% weight)
+      // Calculate additional metrics for professional analysis
+      const dailyChange = candles.length > 1 ? 
+        ((candles[candles.length - 1].close - candles[candles.length - 2].close) / candles[candles.length - 2].close) * 100 : 0;
       const recentVolume = volumes.slice(-5).reduce((a, b) => a + b, 0) / 5;
-      if (recentVolume > volumeAverage * 1.2) trendStrength += 1; // High volume supports trend
+      const volumeRatio = recentVolume / volumeAverage;
       
-      // Determine final trend based on strength
-      if (trendStrength >= 3) {
+      // 1. Moving Average Analysis (25% weight) - Professional approach
+      if (currentPrice > sma20) {
+        trendStrength += currentPrice > sma20 * 1.02 ? 3 : 2; // More bullish if price well above SMA20
+      } else {
+        trendStrength -= currentPrice < sma20 * 0.98 ? 3 : 2; // More bearish if price well below SMA20
+      }
+      
+      if (sma20 > sma50) {
+        trendStrength += sma20 > sma50 * 1.01 ? 2 : 1; // Golden cross momentum
+      } else {
+        trendStrength -= sma20 < sma50 * 0.99 ? 2 : 1; // Death cross momentum
+      }
+      
+      // 2. Daily Momentum Analysis (30% weight) - Critical for active trading
+      if (Math.abs(dailyChange) > 1) { // Significant daily move
+        if (dailyChange > 3) trendStrength += 4; // Very strong daily move
+        else if (dailyChange > 2) trendStrength += 3; // Strong daily move
+        else if (dailyChange > 1) trendStrength += 2; // Moderate daily move
+        else if (dailyChange < -3) trendStrength -= 4; // Very weak daily move
+        else if (dailyChange < -2) trendStrength -= 3; // Weak daily move
+        else if (dailyChange < -1) trendStrength -= 2; // Moderate daily weakness
+      }
+      
+      // 3. Medium-term Momentum Analysis (20% weight)
+      if (priceChange30Days > 10) trendStrength += 3;
+      else if (priceChange30Days > 5) trendStrength += 2;
+      else if (priceChange30Days > 2) trendStrength += 1;
+      else if (priceChange30Days < -10) trendStrength -= 3;
+      else if (priceChange30Days < -5) trendStrength -= 2;
+      else if (priceChange30Days < -2) trendStrength -= 1;
+      
+      // 4. RSI Analysis (15% weight) - Professional interpretation
+      if (rsi > 60 && dailyChange > 0) trendStrength += 2; // RSI rising with price
+      else if (rsi > 55) trendStrength += 1; // Mild bullish momentum
+      else if (rsi < 40 && dailyChange < 0) trendStrength -= 2; // RSI falling with price
+      else if (rsi < 45) trendStrength -= 1; // Mild bearish momentum
+      
+      // RSI extremes (momentum continuation vs reversal)
+      if (rsi > 80) trendStrength -= 1; // Extreme overbought - caution
+      else if (rsi > 75) trendStrength += 0; // Overbought but momentum may continue
+      else if (rsi < 20) trendStrength += 1; // Extreme oversold - potential bounce
+      else if (rsi < 25) trendStrength += 0; // Oversold but may continue down
+      
+      // 5. Volume Confirmation (10% weight) - Critical for validating moves
+      if (volumeRatio > 1.5 && dailyChange > 1) trendStrength += 2; // High volume + price up
+      else if (volumeRatio > 1.3 && dailyChange > 0.5) trendStrength += 1; // Good volume + price up
+      else if (volumeRatio > 1.5 && dailyChange < -1) trendStrength -= 2; // High volume + price down
+      else if (volumeRatio > 1.3 && dailyChange < -0.5) trendStrength -= 1; // Good volume + price down
+      else if (volumeRatio < 0.7) trendStrength -= 1; // Low volume questions trend
+      
+      // 6. Professional Trend Classification - More sensitive thresholds
+      if (trendStrength >= 7) {
         trend = 'BULLISH';
-      } else if (trendStrength <= -3) {
+      } else if (trendStrength >= 3) {
+        trend = 'BULLISH'; // Lower threshold for bullish
+      } else if (trendStrength <= -7) {
         trend = 'BEARISH';
+      } else if (trendStrength <= -3) {
+        trend = 'BEARISH'; // Lower threshold for bearish  
       } else {
         trend = 'SIDEWAYS';
       }
       
-      console.log(`📈 Trend Analysis: Score=${trendStrength}, Trend=${trend}`);
-      console.log(`   Price vs SMA20: ${currentPrice > sma20 ? 'Above' : 'Below'} | SMA20 vs SMA50: ${sma20 > sma50 ? 'Above' : 'Below'}`);
-      console.log(`   30D Change: ${priceChange30Days.toFixed(2)}% | RSI: ${rsi.toFixed(1)} | Volume: ${(recentVolume/volumeAverage*100).toFixed(0)}% of avg`);
+      console.log(`📊 Professional Trend Analysis: Score=${trendStrength}, Trend=${trend}`);
+      console.log(`   📊 Price Action: Current ₹${currentPrice.toFixed(2)} vs SMA20 ₹${sma20.toFixed(2)} (${currentPrice > sma20 ? '+' : ''}${((currentPrice/sma20-1)*100).toFixed(1)}%)`);
+      console.log(`   📊 Daily Move: ${dailyChange > 0 ? '+' : ''}${dailyChange.toFixed(2)}% | 30D: ${priceChange30Days > 0 ? '+' : ''}${priceChange30Days.toFixed(1)}%`);
+      console.log(`   📊 RSI: ${rsi.toFixed(1)} | Volume: ${(volumeRatio*100).toFixed(0)}% of avg`);
+      console.log(`   ⚖️ SMA Cross: ${sma20 > sma50 ? 'Golden' : 'Death'} (${((sma20/sma50-1)*100).toFixed(1)}%)`);
       
-      // Enhanced recommendation logic using multiple factors
+      // Professional-grade recommendation engine
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
       let confidence = 50;
       let recommendationScore = 0;
       
-      // RSI analysis (30% weight)
-      if (rsi < 25) {
-        recommendationScore += 3; // Strong oversold
-      } else if (rsi < 35) {
-        recommendationScore += 2; // Oversold
-      } else if (rsi > 75) {
-        recommendationScore -= 3; // Strong overbought
-      } else if (rsi > 65) {
-        recommendationScore -= 2; // Overbought
-      }
-      
-      // Trend alignment (40% weight)
+      // 1. Primary Trend Alignment (40% weight) - Most important factor
       if (trend === 'BULLISH') {
-        recommendationScore += Math.min(4, Math.max(2, Math.floor(trendStrength / 2)));
+        recommendationScore += Math.min(6, Math.max(3, Math.floor(trendStrength / 2)));
       } else if (trend === 'BEARISH') {
-        recommendationScore -= Math.min(4, Math.max(2, Math.floor(Math.abs(trendStrength) / 2)));
+        recommendationScore -= Math.min(6, Math.max(3, Math.floor(Math.abs(trendStrength) / 2)));
       }
       
-      // Price momentum (20% weight)
-      if (priceChange30Days > 15) recommendationScore += 2;
-      else if (priceChange30Days > 8) recommendationScore += 1;
-      else if (priceChange30Days < -15) recommendationScore -= 2;
-      else if (priceChange30Days < -8) recommendationScore -= 1;
+      // 2. Daily Momentum Confirmation (25% weight)
+      if (dailyChange > 2.5) recommendationScore += 3; // Strong daily momentum
+      else if (dailyChange > 1.5) recommendationScore += 2; // Good daily momentum
+      else if (dailyChange > 0.5) recommendationScore += 1; // Mild positive momentum
+      else if (dailyChange < -2.5) recommendationScore -= 3; // Strong daily weakness
+      else if (dailyChange < -1.5) recommendationScore -= 2; // Daily weakness
+      else if (dailyChange < -0.5) recommendationScore -= 1; // Mild negative momentum
       
-      // Support/Resistance proximity (10% weight)
-      const distanceFromSupport = ((currentPrice - support) / support) * 100;
-      const distanceFromResistance = ((resistance - currentPrice) / currentPrice) * 100;
+      // 3. RSI Context Analysis (20% weight) - Professional interpretation
+      if (rsi < 30 && dailyChange > 0) recommendationScore += 3; // Oversold bounce
+      else if (rsi < 40 && trend === 'BULLISH') recommendationScore += 2; // Oversold in uptrend
+      else if (rsi > 70 && dailyChange < 0) recommendationScore -= 3; // Overbought decline
+      else if (rsi > 60 && trend === 'BEARISH') recommendationScore -= 2; // Overbought in downtrend
+      else if (rsi > 55 && trend === 'BULLISH') recommendationScore += 1; // Momentum continuation
+      else if (rsi < 45 && trend === 'BEARISH') recommendationScore -= 1; // Weakness continuation
       
-      if (distanceFromSupport < 3 && distanceFromSupport > 0) recommendationScore += 1; // Near support
-      if (distanceFromResistance < 3 && distanceFromResistance > 0) recommendationScore -= 1; // Near resistance
+      // 4. Volume-Price Relationship (10% weight)
+      if (volumeRatio > 1.4 && dailyChange > 1) recommendationScore += 2; // Volume confirms strength
+      else if (volumeRatio > 1.4 && dailyChange < -1) recommendationScore -= 2; // Volume confirms weakness
+      else if (volumeRatio < 0.8) recommendationScore -= 1; // Low volume questions move
       
-      // Final recommendation
-      if (recommendationScore >= 4) {
+      // 5. Support/Resistance Analysis (5% weight) - Entry/exit optimization
+      const distanceFromSupport = support > 0 ? ((currentPrice - support) / support) * 100 : 0;
+      const distanceFromResistance = resistance > 0 ? ((resistance - currentPrice) / currentPrice) * 100 : 0;
+      
+      if (distanceFromSupport < 2 && distanceFromSupport > -1) recommendationScore += 1; // Near support
+      if (distanceFromResistance < 2 && distanceFromResistance > -1) recommendationScore -= 1; // Near resistance
+      
+      // Professional Decision Matrix
+      if (recommendationScore >= 6) {
         recommendation = 'BUY';
-        confidence = Math.min(85, 65 + recommendationScore * 3);
-      } else if (recommendationScore <= -4) {
+        confidence = Math.min(90, 70 + recommendationScore * 2);
+      } else if (recommendationScore >= 3) {
+        recommendation = 'BUY';
+        confidence = Math.min(80, 60 + recommendationScore * 3);
+      } else if (recommendationScore <= -6) {
         recommendation = 'SELL';
-        confidence = Math.min(85, 65 + Math.abs(recommendationScore) * 3);
-      } else if (Math.abs(priceChange30Days) < 5 && volatility < 15) {
-        // Low volatility, sideways movement
+        confidence = Math.min(90, 70 + Math.abs(recommendationScore) * 2);
+      } else if (recommendationScore <= -3) {
+        recommendation = 'SELL';
+        confidence = Math.min(80, 60 + Math.abs(recommendationScore) * 3);
+      } else if (Math.abs(recommendationScore) <= 1 && volatility < 10) {
+        // True sideways market with low volatility
         recommendation = 'HOLD';
-        confidence = Math.min(75, 55 + (15 - volatility));
+        confidence = Math.min(75, 55 + (10 - volatility));
       } else {
-        // Mixed signals - default to HOLD with moderate confidence
+        // Mixed signals or transition phase
         recommendation = 'HOLD';
-        confidence = 50 + Math.abs(recommendationScore) * 5;
+        confidence = 50 + Math.abs(recommendationScore) * 4;
       }
       
-      console.log(`📊 Technical Analysis Score: ${recommendationScore} → ${recommendation} (${confidence}% confidence)`);
+      console.log(`🎯 Professional Technical Score: ${recommendationScore} → ${recommendation} (${confidence.toFixed(0)}% confidence)`);
+      console.log(`   📈 Analysis Factors: Trend=${trend}(${trendStrength}), Daily=${dailyChange.toFixed(1)}%, RSI=${rsi.toFixed(0)}, Vol=${(volumeRatio*100).toFixed(0)}%`);
+      console.log(`   🔍 Key Levels: Support ₹${support.toFixed(2)} (${distanceFromSupport.toFixed(1)}% away) | Resistance ₹${resistance.toFixed(2)} (${distanceFromResistance.toFixed(1)}% away)`);
       
       // Adjust confidence based on volatility
       if (volatility > 25) confidence = Math.max(40, confidence - 15); // High volatility reduces confidence

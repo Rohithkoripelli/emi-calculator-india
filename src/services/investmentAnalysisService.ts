@@ -168,7 +168,7 @@ export class InvestmentAnalysisService {
       // Step 3: Get historical data and technical analysis
       const historicalData = await GrowwApiService.getHistoricalData(symbol, 30);
       const technicalAnalysis = historicalData ? 
-        GrowwApiService.performTechnicalAnalysis(historicalData) : null;
+        GrowwApiService.performTechnicalAnalysis(historicalData, symbol) : null;
       
       // Step 4: Conduct comprehensive web research for market analysis
       console.log(`🔍 Conducting comprehensive web research for ${symbol}...`);
@@ -2029,19 +2029,49 @@ export class InvestmentAnalysisService {
   private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string): Promise<any> {
     try {
       console.log(`📊 Parsing OpenAI recommendation response...`);
-      console.log(`📊 Response preview: ${response.substring(0, 200)}...`);
-      const parsed = JSON.parse(response);
+      console.log(`📊 Raw response preview: ${response.substring(0, 300)}...`);
+      
+      // Clean the response - remove markdown code blocks and extra whitespace
+      let cleanedResponse = response.trim();
+      
+      // Handle ```json wrapper
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/```\s*$/, '');
+        console.log(`🧹 Removed markdown wrapper from OpenAI response`);
+      }
+      
+      // Handle ``` wrapper without json
+      if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
+        console.log(`🧹 Removed generic markdown wrapper from OpenAI response`);
+      }
+      
+      console.log(`📊 Cleaned response preview: ${cleanedResponse.substring(0, 200)}...`);
+      
+      const parsed = JSON.parse(cleanedResponse);
       
       // Validate that the parsed response has required fields
       if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
         console.log(`✅ OpenAI recommendation parsed successfully: ${parsed.action} (${parsed.confidence}% confidence)`);
+        
+        // Log technical analysis if present
+        if (parsed.technical_analysis) {
+          console.log(`📈 Technical Analysis: ${parsed.technical_analysis.trend_direction || 'N/A'}`);
+        }
+        
+        // Log risk assessment if present
+        if (parsed.risk_assessment) {
+          console.log(`⚠️ Risk Level: ${parsed.risk_assessment.risk_level || 'N/A'}`);
+        }
+        
         return parsed;
       } else {
-        console.log(`⚠️ OpenAI response missing required fields, using fallback`);
+        console.log(`⚠️ OpenAI response missing required fields:`, parsed);
         return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);
       }
     } catch (error) {
       console.error(`❌ Error parsing OpenAI response:`, error);
+      console.error(`❌ Failed response text:`, response.substring(0, 500));
       console.log(`🔄 Using fallback recommendation for ${symbol}`);
       return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);
     }
