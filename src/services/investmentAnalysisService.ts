@@ -599,55 +599,73 @@ export class InvestmentAnalysisService {
       const comprehensiveData = await this.collectComprehensiveStockData(data.quote?.symbol, data);
       
       const prompt = `
-        You are a senior financial analyst with 15+ years of experience in equity research and stock analysis. 
-        Analyze this Indian stock comprehensively and provide a professional investment recommendation.
+        You are a senior financial analyst and portfolio manager with 20+ years of experience in Indian equity markets. 
+        You have access to comprehensive real-time market data, historical performance, technical indicators, and market sentiment.
+        
+        Analyze ${data.companyInfo?.name || 'Unknown Company'} (${data.quote?.symbol || 'N/A'}) like a professional stock broker and provide a detailed investment recommendation.
 
-        COMPANY INFORMATION:
-        Name: ${data.companyInfo?.name || 'N/A'} (${data.quote?.symbol || 'N/A'})
+        === REAL-TIME MARKET DATA ===
+        Company: ${data.companyInfo?.name || 'N/A'} (${data.quote?.symbol || 'N/A'})
         Current Price: ₹${data.quote?.currentPrice || 'N/A'}
-        Day Change: ${data.quote?.dayChangePercent?.toFixed(2) || 'N/A'}%
-        Volume: ${data.quote?.volume || 'N/A'}
-        Market Cap: ${data.quote?.market_cap || 'N/A'}
+        Day Change: ${data.quote?.dayChangePercent?.toFixed(2) || 'N/A'}% (₹${data.quote?.dayChange?.toFixed(2) || 'N/A'})
+        Volume: ${data.quote?.volume?.toLocaleString() || 'N/A'}
+        Market Cap: ${data.quote?.marketCap || 'N/A'}
+        52W High: ₹${data.quote?.week52High || 'N/A'} | 52W Low: ₹${data.quote?.week52Low || 'N/A'}
 
-        HISTORICAL PERFORMANCE DATA:
+        === HISTORICAL PERFORMANCE ANALYSIS ===
         ${JSON.stringify(comprehensiveData.historicalPerformance, null, 2)}
 
-        TECHNICAL ANALYSIS:
+        === TECHNICAL ANALYSIS DATA ===
         ${JSON.stringify(data.technicalAnalysis, null, 2)}
 
-        WEB RESEARCH ANALYSIS:
-        ${JSON.stringify(comprehensiveData.webResearch?.analysis, null, 2)}
+        === COMPREHENSIVE WEB RESEARCH ===
+        Market Sentiment: ${comprehensiveData.webResearch?.sentiment || 'N/A'}
+        Key Factors: ${comprehensiveData.webResearch?.keyFactors?.join(', ') || 'N/A'}
+        Analyst Outlook: ${comprehensiveData.webResearch?.reason || 'N/A'}
 
-        RECENT NEWS & SENTIMENT:
-        ${data.stockNews?.map((news: any) => `- ${news.headline} (${news.sentiment})`).join('\n') || 'No recent news available'}
+        === NEWS & MARKET SENTIMENT ===
+        ${data.stockNews?.map((news: any) => `• ${news.headline} [${news.sentiment}] - ${news.source}`).join('\n') || 'No recent news available'}
 
-        ANALYSIS INSTRUCTIONS:
-        1. Consider ALL timeframes: 1M, 3M, 6M, 1Y performance trends
-        2. Weight recent performance heavily but not exclusively
-        3. Factor in technical indicators (RSI, support/resistance, trend)
-        4. Consider market sentiment from web research and news
-        5. Account for volatility and risk factors
-        6. Be objective - ignore any implicit bias from user questions
-        7. If data shows consistent underperformance (6M+ decline), be cautious about BUY recommendations
-        8. If technical indicators are extreme (RSI >80 or <20), factor this significantly
-        9. Consider volume trends and market interest
-        10. Provide nuanced analysis - not all stocks are BUY or SELL
+        === PROFESSIONAL ANALYSIS REQUIREMENTS ===
+        As a senior analyst, provide a comprehensive analysis that includes:
 
-        Think through your analysis step by step:
-        - What does the historical performance tell us?
-        - What do technical indicators suggest?
-        - What is the market sentiment?
-        - What are the key risks and opportunities?
-        - What would a prudent investor do?
+        1. **TECHNICAL ANALYSIS**: Analyze RSI (${data.technicalAnalysis?.rsi}), moving averages, support (₹${data.technicalAnalysis?.support}) & resistance (₹${data.technicalAnalysis?.resistance}), volume trends, and price patterns. Be specific about what the technical indicators are telling us RIGHT NOW.
 
-        Provide your recommendation in this exact JSON format:
+        2. **TREND ANALYSIS**: Based on price action, moving averages, and momentum - determine if this is truly BULLISH/BEARISH/SIDEWAYS. Don't default to sideways - analyze the actual data.
+
+        3. **RISK ASSESSMENT**: Evaluate volatility (${data.technicalAnalysis?.volatility}%), market cap risk, liquidity risk, sector-specific risks, and current market conditions affecting this specific stock.
+
+        4. **PERFORMANCE CONTEXT**: How is this stock performing vs broader market? Is it outperforming or underperforming? What's the trajectory?
+
+        5. **ENTRY/EXIT STRATEGY**: Based on support/resistance levels and technical patterns, what are ideal entry points, profit targets, and stop-loss levels?
+
+        Think step-by-step like a professional trader:
+        • What story does the price action tell?
+        • Are technical indicators aligned or conflicting?
+        • What does market sentiment suggest?
+        • What are the immediate risks and opportunities?
+        • How does this fit in a diversified portfolio?
+
+        Provide your analysis in this exact JSON format:
         {
           "action": "BUY|SELL|HOLD",
           "confidence": number (0-100),
           "target_price": number or null,
           "stop_loss": number or null,
           "time_horizon": "SHORT_TERM|MEDIUM_TERM|LONG_TERM",
-          "reasoning": ["Primary analysis point 1", "Key factor 2", "Important consideration 3"]
+          "technical_analysis": {
+            "trend_direction": "BULLISH|BEARISH|SIDEWAYS with detailed explanation",
+            "key_levels": "Support at ₹X, Resistance at ₹Y, Critical levels",
+            "momentum_analysis": "RSI analysis, volume trends, price action",
+            "pattern_recognition": "Chart patterns, breakouts, consolidation areas"
+          },
+          "risk_assessment": {
+            "risk_level": "LOW|MODERATE|HIGH",
+            "key_risks": ["Specific risk 1", "Specific risk 2", "Specific risk 3"],
+            "volatility_analysis": "Current volatility vs historical, what it means",
+            "liquidity_risk": "Volume analysis and liquidity assessment"
+          },
+          "reasoning": ["Detailed technical point 1", "Market sentiment factor 2", "Risk-reward analysis 3", "Strategic consideration 4"]
         }
       `;
       
