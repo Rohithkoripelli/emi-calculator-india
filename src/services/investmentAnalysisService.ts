@@ -1869,12 +1869,22 @@ export class InvestmentAnalysisService {
       const allSearchResults = [];
       for (const query of queries) {
         try {
+          // Add delay between requests to avoid rate limiting
+          if (allSearchResults.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+          }
+          
           const results = await WebSearch(query, 2);
           if (results && results.length > 0) {
             allSearchResults.push(...results);
           }
         } catch (error) {
           console.error(`Search failed for query: ${query}`, error);
+          // If we get 429 error, don't try more queries
+          if (error instanceof Error && error.message && error.message.includes('429')) {
+            console.log(`🚫 Rate limited, stopping additional searches for ${symbol}`);
+            break;
+          }
         }
       }
       
@@ -2000,9 +2010,21 @@ export class InvestmentAnalysisService {
 
   private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string): Promise<any> {
     try {
+      console.log(`📊 Parsing OpenAI recommendation response...`);
+      console.log(`📊 Response preview: ${response.substring(0, 200)}...`);
       const parsed = JSON.parse(response);
-      return parsed;
+      
+      // Validate that the parsed response has required fields
+      if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
+        console.log(`✅ OpenAI recommendation parsed successfully: ${parsed.action} (${parsed.confidence}% confidence)`);
+        return parsed;
+      } else {
+        console.log(`⚠️ OpenAI response missing required fields, using fallback`);
+        return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);
+      }
     } catch (error) {
+      console.error(`❌ Error parsing OpenAI response:`, error);
+      console.log(`🔄 Using fallback recommendation for ${symbol}`);
       return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);
     }
   }
