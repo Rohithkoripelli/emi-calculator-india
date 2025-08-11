@@ -1,7 +1,10 @@
 /**
  * Groww API Service
  * Handles real-time stock data and historical analysis using Groww's API
+ * Features automated token management with TOTP-based authentication
  */
+
+import { GrowwTokenManager } from './growwTokenManager';
 
 interface GrowwQuoteResponse {
   status: string;
@@ -98,17 +101,30 @@ export class GrowwApiService {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   };
 
-  private static getAuthHeaders(): Record<string, string> {
-    const accessToken = process.env.GROWW_ACCESS_TOKEN || process.env.NEXT_PUBLIC_GROWW_ACCESS_TOKEN;
-    if (!accessToken) {
-      console.warn('⚠️ GROWW_ACCESS_TOKEN not found in environment variables');
+  private static async getAuthHeaders(): Promise<Record<string, string>> {
+    try {
+      const tokenManager = GrowwTokenManager.getInstance();
+      const accessToken = await tokenManager.getAccessToken();
+      
+      return {
+        ...this.HEADERS,
+        'Authorization': `Bearer ${accessToken}`
+      };
+    } catch (error) {
+      console.warn('⚠️ Failed to get Groww access token, using fallback:', error);
+      
+      // Fallback to environment variable if available
+      const fallbackToken = process.env.GROWW_ACCESS_TOKEN || process.env.NEXT_PUBLIC_GROWW_ACCESS_TOKEN;
+      if (fallbackToken) {
+        console.log('🔄 Using fallback token from environment');
+        return {
+          ...this.HEADERS,
+          'Authorization': `Bearer ${fallbackToken}`
+        };
+      }
+      
       return this.HEADERS;
     }
-    
-    return {
-      ...this.HEADERS,
-      'Authorization': `Bearer ${accessToken}`
-    };
   }
 
   /**

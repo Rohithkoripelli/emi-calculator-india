@@ -1,74 +1,146 @@
-# 🚀 Groww API Setup Guide
+# 🚀 Groww API Automated Token Management Setup
 
-## What You Need
+This guide helps you set up automated token generation for Groww API, eliminating the need to manually update tokens daily.
 
-Your Groww API credentials:
-- **API Key** 
-- **API Secret** 
+## 📋 Prerequisites
 
-## Step 1: Local Environment Setup
+1. **Groww Trading Account**: You need an active Groww trading account
+2. **API Access**: Enable API access in your Groww account
+3. **API Credentials**: Get your API Key and TOTP Secret
 
-1. **Add your credentials to the `.env` file** (already created for you):
+## 🔧 Step-by-Step Setup
 
-```bash
-# Open .env file in your project root
-REACT_APP_GROWW_API_KEY=your_actual_api_key_here
-REACT_APP_GROWW_API_SECRET=your_actual_api_secret_here
+### Step 1: Get Your API Credentials
+
+1. Visit [Groww API Dashboard](https://groww.in/trade-api/dashboard)
+2. Login with your Groww credentials
+3. Navigate to **API Keys** section
+4. Generate/copy your:
+   - **API Key** (starts with `eyJraWQi...`)
+   - **TOTP Secret** (Base32 string like `RIKJ6DLTOKBLXQTQFQPWQJGTPGSPXQNU`)
+
+### Step 2: Add Environment Variables
+
+#### For Local Development:
+Add to your `.env` file:
+```env
+REACT_APP_GROWW_API_KEY=eyJraWQiOiJaTUtjVXciLCJhbGciOiJFUzI1NiJ9...
+REACT_APP_GROWW_TOTP_SECRET=RIKJ6DLTOKBLXQTQFQPWQJGTPGSPXQNU
 ```
 
-2. **Replace the placeholder values** with your actual Groww API credentials.
+#### For Vercel Deployment:
+1. Go to your Vercel Dashboard
+2. Select your project
+3. Go to **Settings** → **Environment Variables**
+4. Add these variables for **Production**, **Preview**, and **Development**:
+   ```
+   REACT_APP_GROWW_API_KEY=your_api_key_here
+   REACT_APP_GROWW_TOTP_SECRET=your_totp_secret_here
+   ```
 
-## Step 2: Vercel Environment Variables Setup
+### Step 3: Test the Setup
 
-1. **Go to your Vercel dashboard** → Select your project → Settings → Environment Variables
+1. **Start your application**:
+   ```bash
+   npm start
+   ```
 
-2. **Add these two variables:**
+2. **Check browser console** for initialization messages:
+   ```
+   🚀 Initializing Groww API token management...
+   ✅ Groww API credentials found, setting up automated token management
+   🔐 Generated TOTP: 123456
+   ✅ Successfully obtained new Groww access token
+   ```
 
-| Variable Name | Value | Environment |
-|---------------|-------|-------------|
-| `REACT_APP_GROWW_API_KEY` | Your actual API key | Production, Preview, Development |
-| `REACT_APP_GROWW_API_SECRET` | Your actual API secret | Production, Preview, Development |
+3. **Test manually in console**:
+   ```javascript
+   // Test token generation
+   GrowwApiUtils.testTokenGeneration()
+   
+   // Check token status
+   GrowwApiUtils.getTokenStatus()
+   
+   // Force refresh token
+   GrowwApiUtils.refreshToken()
+   ```
 
-3. **Make sure to set them for all environments** (Production, Preview, Development)
+## 🤖 How It Works
 
-## Step 3: Deploy
+### Automated Token Generation
+- **TOTP Generation**: Creates time-based one-time passwords using your secret
+- **Token Request**: Calls Groww API with API Key + TOTP to get access token
+- **Auto Refresh**: Tokens are automatically refreshed every 10 hours (they expire after 11 hours)
+- **Fallback Support**: Falls back to manual tokens if automated generation fails
 
-Once environment variables are set in Vercel:
-
-```bash
-git add .
-git commit -m "Implement Groww API integration for accurate stock data"
-git push origin main
+### Token Lifecycle
+```
+App Startup → Generate TOTP → Request Token → Use Token → Auto Refresh (10hr) → Repeat
 ```
 
-Vercel will auto-deploy with your new environment variables.
+## 🔍 Troubleshooting
 
-## What You'll Get
+### Issue: "TOTP secret not configured"
+**Solution**: Ensure `REACT_APP_GROWW_TOTP_SECRET` is set correctly in environment variables.
 
-✅ **Professional Trading Platform Accuracy** - Same data quality as Groww app  
-✅ **Real-time Data** - Updates every 10 seconds  
-✅ **Low Latency** - Direct API calls to Groww servers  
-✅ **Bulk Data Loading** - Up to 50 instruments per request  
-✅ **Professional Market Depth** - Bid/ask prices, volumes, OHLC data  
+### Issue: "API key not configured"
+**Solution**: Ensure `REACT_APP_GROWW_API_KEY` is set correctly in environment variables.
 
-## Current Status
+### Issue: "Failed to get access token: 401"
+**Possible causes**:
+- Invalid API key
+- Invalid TOTP secret
+- API key expired or revoked
+- Time sync issues (TOTP is time-sensitive)
 
-- **Without API keys**: Shows yellow "⚠️ Basic Data Mode" banner, uses free APIs
-- **With API keys**: Shows green "🚀 Professional Grade Data" banner, uses Groww API
+**Solution**: 
+1. Verify credentials in Groww dashboard
+2. Ensure system time is accurate
+3. Regenerate API credentials if needed
 
-## Cost
+### Issue: "API call returned 403"
+**Solution**: Your API key may not have the required permissions. Contact Groww support.
 
-- **₹499 + taxes per month** for Groww API subscription
-- **Significant accuracy improvement** compared to free APIs
+## 📊 Testing Commands
 
-## Verification
+Use these commands in browser console:
 
-1. **Local testing**: Run `npm start` and check the banner color
-   - 🟡 Yellow = Using free APIs (basic accuracy)  
-   - 🟢 Green = Using Groww API (professional accuracy)
+```javascript
+// Test complete system
+await GrowwApiUtils.testTokenGeneration()
 
-2. **Production testing**: Check your deployed site for the same banner
+// Check current token status
+await GrowwApiUtils.getTokenStatus()
 
-## Need Help?
+// Force token refresh
+await GrowwApiUtils.refreshToken()
 
-The system automatically falls back to free APIs if Groww credentials are missing, so your site will always work. The banner will clearly show which data source is being used.
+// Update backend with fresh token
+await GrowwApiUtils.updateBackendToken()
+```
+
+## 🔒 Security Best Practices
+
+1. **Never commit credentials**: Keep API keys and TOTP secrets in environment variables only
+2. **Use different credentials**: Use separate API keys for development and production
+3. **Monitor usage**: Check Groww dashboard for API usage and any suspicious activity
+4. **Rotate credentials**: Periodically rotate your API credentials for security
+
+## 📚 Documentation References
+
+- [Groww API Python SDK](https://groww.in/trade-api/docs/python-sdk)
+- [Groww API cURL Examples](https://groww.in/trade-api/docs/curl)
+- [TOTP RFC 6238](https://tools.ietf.org/html/rfc6238)
+
+## 🎯 Benefits
+
+✅ **No more daily manual updates**  
+✅ **Automatic token refresh every 10 hours**  
+✅ **Fallback to manual tokens if needed**  
+✅ **Professional error handling and logging**  
+✅ **Easy testing and debugging tools**  
+✅ **Secure credential management**  
+
+---
+
+🚀 **You're all set!** Your Groww API tokens will now be generated and refreshed automatically, eliminating the daily 6 AM token expiry hassle.

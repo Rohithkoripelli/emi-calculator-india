@@ -16,6 +16,8 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.1",
     "openai": "^5.10.2",
