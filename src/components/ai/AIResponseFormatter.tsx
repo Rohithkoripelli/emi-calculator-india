@@ -1,7 +1,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Add CSS styles for financial tables
+// Add CSS styles for financial tables with proper dark mode support
 const tableStyles = `
 .financial-table table, .loan-comparison-table {
   border-collapse: separate !important;
@@ -12,6 +12,12 @@ const tableStyles = `
   overflow: hidden !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
   border: 1px solid #e5e7eb !important;
+}
+
+/* Dark mode table border */
+.dark .financial-table table, .dark .loan-comparison-table {
+  border: 1px solid #374151 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
 }
 
 .financial-table th, .loan-comparison-table th {
@@ -32,6 +38,7 @@ const tableStyles = `
   border-right: none !important;
 }
 
+/* Light mode table cells */
 .financial-table td, .loan-comparison-table td {
   text-align: left !important;
   vertical-align: middle !important;
@@ -41,25 +48,41 @@ const tableStyles = `
   border-right: 1px solid #e5e7eb !important;
   border-bottom: 1px solid #e5e7eb !important;
   background-color: white !important;
+  color: #1f2937 !important;
+}
+
+/* Dark mode table cells */
+.dark .financial-table td, .dark .loan-comparison-table td {
+  border-right: 1px solid #4b5563 !important;
+  border-bottom: 1px solid #4b5563 !important;
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
 }
 
 .financial-table td:last-child, .loan-comparison-table td:last-child {
   border-right: none !important;
 }
 
+/* Light mode alternating rows */
 .financial-table tr:nth-child(even) td, .loan-comparison-table tbody tr:nth-child(even) td {
   background-color: #f9fafb !important;
 }
 
+/* Dark mode alternating rows */
+.dark .financial-table tr:nth-child(even) td, .dark .loan-comparison-table tbody tr:nth-child(even) td {
+  background-color: #374151 !important;
+}
+
+/* Light mode hover */
 .financial-table tr:hover td, .loan-comparison-table tbody tr:hover td {
   background-color: #eff6ff !important;
   transition: background-color 0.2s ease !important;
 }
 
-/* Currency formatting */
-.financial-table td:contains("₹"), .loan-comparison-table td:contains("₹") {
-  font-weight: 600 !important;
-  color: #059669 !important;
+/* Dark mode hover */
+.dark .financial-table tr:hover td, .dark .loan-comparison-table tbody tr:hover td {
+  background-color: #1e40af !important;
+  transition: background-color 0.2s ease !important;
 }
 
 /* Right align numeric columns */
@@ -75,6 +98,7 @@ const tableStyles = `
   text-align: right !important;
 }
 
+/* Currency formatting - Light mode */
 .financial-table .currency-cell {
   color: #10b981 !important;
   font-weight: 600 !important;
@@ -83,14 +107,60 @@ const tableStyles = `
   border-radius: 4px !important;
 }
 
+/* Currency formatting - Dark mode */
+.dark .financial-table .currency-cell {
+  color: #34d399 !important;
+  background-color: rgba(52, 211, 153, 0.2) !important;
+}
+
+/* Percentage formatting - Light mode */
 .financial-table .percentage-cell {
   color: #3b82f6 !important;
   font-weight: 500 !important;
 }
 
+/* Percentage formatting - Dark mode */
+.dark .financial-table .percentage-cell {
+  color: #60a5fa !important;
+}
+
+/* Duration formatting - Light mode */
 .financial-table .duration-cell {
   color: #8b5cf6 !important;
   font-weight: 500 !important;
+}
+
+/* Duration formatting - Dark mode */
+.dark .financial-table .duration-cell {
+  color: #a78bfa !important;
+}
+
+/* Enhanced color-coded spans for better contrast */
+.loan-comparison-table span.font-semibold.text-green-600 {
+  color: #059669 !important;
+  font-weight: 600 !important;
+}
+
+.dark .loan-comparison-table span.font-semibold.text-green-600 {
+  color: #34d399 !important;
+}
+
+.loan-comparison-table span.font-medium.text-blue-600 {
+  color: #2563eb !important;
+  font-weight: 500 !important;
+}
+
+.dark .loan-comparison-table span.font-medium.text-blue-600 {
+  color: #60a5fa !important;
+}
+
+.loan-comparison-table span.font-medium.text-purple-600 {
+  color: #7c3aed !important;
+  font-weight: 500 !important;
+}
+
+.dark .loan-comparison-table span.font-medium.text-purple-600 {
+  color: #a78bfa !important;
 }
 
 /* Responsive table handling */
@@ -747,11 +817,11 @@ const convertPipeTableToHTML = (text: string): string => {
         
         // Apply special formatting based on content
         if (cellValue.includes('₹')) {
-          cellValue = `<span class="font-semibold text-green-600 dark:text-green-400">${cellValue}</span>`;
+          cellValue = `<span class="font-semibold text-green-600">${cellValue}</span>`;
         } else if (cellValue.includes('%')) {
-          cellValue = `<span class="font-medium text-blue-600 dark:text-blue-400">${cellValue}</span>`;
+          cellValue = `<span class="font-medium text-blue-600">${cellValue}</span>`;
         } else if (cellValue.match(/\d+\s*(years?|months?)/i)) {
-          cellValue = `<span class="font-medium text-purple-600 dark:text-purple-400">${cellValue}</span>`;
+          cellValue = `<span class="font-medium text-purple-600">${cellValue}</span>`;
         }
         
         htmlTable += `<td>${cellValue}</td>`;
