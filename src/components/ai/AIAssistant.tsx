@@ -451,6 +451,8 @@ Present results in a clear table format with before/after comparison.
 - NEVER use asterisks (**) for bold text - just write clear, descriptive text
 - Use clean, plain text without any markdown artifacts or symbols
 - Write section headers as simple text: "Scenario 1: Increase EMI" not "**Scenario 1: Increase EMI**"
+- ALWAYS preserve exact decimal values - NEVER round interest rates or percentages
+- When mentioning interest rates, use the EXACT value provided (e.g., 7.45% not 7% or 8%)
 - Perform ALL calculations in the background - users should only see final results
 - Explain calculations in simple, conversational language without revealing formulas
 - Use practical examples and relatable scenarios
@@ -487,12 +489,14 @@ Present results in a clear table format with before/after comparison.
 
 **USER'S LOAN DETAILS (Use ONLY for loan-specific questions):**
 - Principal: ₹${loanData.principal.toLocaleString('en-IN')}
-- Interest Rate: ${loanData.interestRate}% per annum (${(monthlyRate * 100).toFixed(4)}% monthly)
+- Interest Rate: EXACTLY ${loanData.interestRate}% per annum (NEVER round this - use exact value ${loanData.interestRate}%)
 - Current EMI: ₹${currentEMI.toLocaleString('en-IN')}
 - Tenure: ${tenureMonths} months (${loanData.term} ${loanData.termUnit})
 - Start Date: ${loanStartFormatted}
 - Completion Date: ${completionFormatted}
 - Loan Type: ${loanData.loanType.charAt(0).toUpperCase() + loanData.loanType.slice(1)}
+
+**CRITICAL: When referring to the user's interest rate, ALWAYS use the EXACT value ${loanData.interestRate}% - NEVER round to ${Math.round(loanData.interestRate)}% or any other value.**
 
 **INTELLIGENT CONTEXT USAGE:**
 - If the question is about general financial advice, tax benefits, or investment strategies → Don't use loan details
