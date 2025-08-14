@@ -3,21 +3,72 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 
 // Add CSS styles for financial tables
 const tableStyles = `
-.financial-table table {
+.financial-table table, .loan-comparison-table {
   border-collapse: separate !important;
   border-spacing: 0 !important;
+  width: 100% !important;
+  margin: 20px 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #e5e7eb !important;
 }
 
-.financial-table th {
+.financial-table th, .loan-comparison-table th {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%) !important;
+  color: white !important;
   text-align: left !important;
   vertical-align: middle !important;
   position: relative !important;
+  padding: 16px 12px !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
-.financial-table td {
+.financial-table th:last-child, .loan-comparison-table th:last-child {
+  border-right: none !important;
+}
+
+.financial-table td, .loan-comparison-table td {
   text-align: left !important;
   vertical-align: middle !important;
   position: relative !important;
+  padding: 16px 12px !important;
+  font-size: 14px !important;
+  border-right: 1px solid #e5e7eb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background-color: white !important;
+}
+
+.financial-table td:last-child, .loan-comparison-table td:last-child {
+  border-right: none !important;
+}
+
+.financial-table tr:nth-child(even) td, .loan-comparison-table tbody tr:nth-child(even) td {
+  background-color: #f9fafb !important;
+}
+
+.financial-table tr:hover td, .loan-comparison-table tbody tr:hover td {
+  background-color: #eff6ff !important;
+  transition: background-color 0.2s ease !important;
+}
+
+/* Currency formatting */
+.financial-table td:contains("₹"), .loan-comparison-table td:contains("₹") {
+  font-weight: 600 !important;
+  color: #059669 !important;
+}
+
+/* Right align numeric columns */
+.loan-comparison-table td:nth-child(2),
+.loan-comparison-table td:nth-child(3),
+.loan-comparison-table td:nth-child(4),
+.loan-comparison-table td:nth-child(7) {
+  text-align: right !important;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
 }
 
 .financial-table td:has(span.font-mono) {
@@ -40,6 +91,24 @@ const tableStyles = `
 .financial-table .duration-cell {
   color: #8b5cf6 !important;
   font-weight: 500 !important;
+}
+
+/* Responsive table handling */
+@media (max-width: 768px) {
+  .financial-table table, .loan-comparison-table {
+    font-size: 12px !important;
+    margin: 16px 0 !important;
+  }
+  
+  .financial-table th, .loan-comparison-table th {
+    padding: 12px 8px !important;
+    font-size: 10px !important;
+  }
+  
+  .financial-table td, .loan-comparison-table td {
+    padding: 12px 8px !important;
+    font-size: 12px !important;
+  }
 }
 `;
 
@@ -110,6 +179,9 @@ const removeFormulasAndCalculations = (text: string): string => {
 const formatFinancialText = (text: string): string => {
   // First remove any mathematical formulas and calculations
   let formattedText = removeFormulasAndCalculations(text);
+  
+  // Convert pipe-separated tables to HTML tables
+  formattedText = convertPipeTableToHTML(formattedText);
   
   // Fix interest rate formatting - add % symbol if missing
   formattedText = formattedText.replace(/interest rate of (\d+(?:\.\d+)?)\b(?![%])/gi, 'interest rate of $1%');
@@ -625,13 +697,87 @@ const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
   </div>
 );
 
+const convertPipeTableToHTML = (text: string): string => {
+  // Find pipe-separated tables and convert them to HTML
+  let convertedText = text;
+  
+  // Pattern to match pipe-separated tables with header row and separator
+  const tablePattern = /(\|[^|\n]+\|[^\n]*\n\s*\|[-:\s|]+\|\s*\n(?:\s*\|[^|\n]*\|[^\n]*\n?)*)/g;
+  
+  convertedText = convertedText.replace(tablePattern, (match) => {
+    const lines = match.trim().split('\n').map(line => line.trim());
+    
+    if (lines.length < 3) return match; // Need at least header, separator, and one data row
+    
+    const headerLine = lines[0];
+    const separatorLine = lines[1];
+    const dataLines = lines.slice(2);
+    
+    // Parse header
+    const headers = headerLine.split('|')
+      .map(cell => cell.trim())
+      .filter(cell => cell.length > 0);
+    
+    // Parse data rows
+    const rows = dataLines.map(line => 
+      line.split('|')
+        .map(cell => cell.trim())
+        .filter(cell => cell.length > 0)
+    ).filter(row => row.length > 0);
+    
+    if (headers.length === 0 || rows.length === 0) return match;
+    
+    // Generate HTML table
+    let htmlTable = '<table class="loan-comparison-table">';
+    
+    // Add header
+    htmlTable += '<thead><tr>';
+    headers.forEach(header => {
+      htmlTable += `<th>${header}</th>`;
+    });
+    htmlTable += '</tr></thead>';
+    
+    // Add body
+    htmlTable += '<tbody>';
+    rows.forEach(row => {
+      htmlTable += '<tr>';
+      // Ensure we have the same number of cells as headers
+      for (let i = 0; i < headers.length; i++) {
+        let cellValue = row[i] || '';
+        
+        // Apply special formatting based on content
+        if (cellValue.includes('₹')) {
+          cellValue = `<span class="font-semibold text-green-600 dark:text-green-400">${cellValue}</span>`;
+        } else if (cellValue.includes('%')) {
+          cellValue = `<span class="font-medium text-blue-600 dark:text-blue-400">${cellValue}</span>`;
+        } else if (cellValue.match(/\d+\s*(years?|months?)/i)) {
+          cellValue = `<span class="font-medium text-purple-600 dark:text-purple-400">${cellValue}</span>`;
+        }
+        
+        htmlTable += `<td>${cellValue}</td>`;
+      }
+      htmlTable += '</tr>';
+    });
+    htmlTable += '</tbody></table>';
+    
+    return htmlTable;
+  });
+  
+  return convertedText;
+};
+
 const processHTMLTable = (htmlTable: string): string => {
   // Clean up and enhance HTML table formatting
   let processedTable = htmlTable;
   
   // Fix table structure by ensuring proper CSS classes
   processedTable = processedTable.replace(
-    /<table[^>]*>/gi,
+    /<table[^>]*class="([^"]*)"[^>]*>/gi,
+    '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-lg $1">'
+  );
+  
+  processedTable = processedTable.replace(
+    /<table(?![^>]*class=)[^>]*>/gi,
     '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-lg">'
   );
   
