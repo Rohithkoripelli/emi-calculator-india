@@ -12,6 +12,7 @@ import { CapitalGainsCalculator } from '../calculators/CapitalGainsCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { GrowwApiTester } from '../testing/GrowwApiTester';
 import { NavigationItem } from '../../types';
 import { parseURLParams } from '../../utils/exportUtils';
 
@@ -66,6 +67,12 @@ const additionalCalculators: NavigationItem[] = [
     name: 'Gratuity',
     icon: '💼',
     description: 'Employee Benefits'
+  },
+  {
+    id: 'groww-api-test',
+    name: 'API Testing',
+    icon: '🧪',
+    description: 'Test Groww API System'
   }
 ];
 
@@ -110,6 +117,8 @@ export const ImprovedMainLayout: React.FC = () => {
         return <CreditCardCalculator />;
       case 'gratuity':
         return <GratuityCalculator />;
+      case 'groww-api-test':
+        return <GrowwApiTester />;
       default:
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
     }

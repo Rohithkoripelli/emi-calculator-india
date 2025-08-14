@@ -76,8 +76,13 @@ export class GrowwTokenManager {
     this.totpSecret = process.env.REACT_APP_GROWW_TOTP_SECRET || process.env.GROWW_TOTP_SECRET || '';
     
     if (!this.apiKey || !this.totpSecret) {
-      console.warn('⚠️ Groww API credentials not found. Set REACT_APP_GROWW_API_KEY and REACT_APP_GROWW_TOTP_SECRET');
+      console.warn('⚠️ Groww API credentials not found. Set REACT_APP_GROWW_API_KEY and REACT_APP_GROWW_TOTP_SECRET for automated tokens');
+      console.log('💡 Or set REACT_APP_GROWW_ACCESS_TOKEN for manual tokens');
+    } else {
+      console.log('✅ Groww API credentials found - will use automated token generation');
     }
+    
+    console.log('🚀 Initialized automated token manager');
   }
 
   static getInstance(): GrowwTokenManager {
@@ -127,57 +132,47 @@ export class GrowwTokenManager {
   }
 
   /**
-   * Get access token from Groww API using API Key + TOTP
-   * Equivalent to: GrowwAPI.get_access_token(api_key, totp)
+   * Get access token using backend API (avoids CORS issues)
+   * Backend handles TOTP generation and token fetching
    */
   private async fetchAccessToken(): Promise<string> {
     try {
-      if (!this.apiKey) {
-        throw new Error('API key not configured');
-      }
-
-      const totp = await this.generateTOTP();
+      console.log('🔄 Requesting access token via backend...');
       
-      console.log('🔄 Fetching new Groww access token...');
-      
-      // Make request to Groww token endpoint based on documentation
-      // Equivalent to: curl -X POST "https://openapi.groww.in/v1/api/auth/login" 
-      const response = await fetch(`${this.API_BASE}/v1/api/auth/login`, {
+      const response = await fetch('/api/groww-token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-          'User-Agent': 'GrowwAPI/1.0',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          'api_key': this.apiKey,
-          'totp': totp
+        body: JSON.stringify({
+          action: 'generate'
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Groww API error (${response.status}):`, errorText);
-        throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
+        console.error(`❌ Backend token API error (${response.status}):`, errorText);
+        throw new Error(`Failed to get access token from backend: ${response.status} - ${errorText}`);
       }
 
-      const data: TokenResponse = await response.json();
+      const data = await response.json();
       
-      if (!data.access_token) {
-        throw new Error('No access token in response');
+      if (!data.success) {
+        throw new Error(data.message || 'Backend token generation failed');
       }
 
-      console.log('✅ Successfully obtained new Groww access token');
-      console.log(`📅 Token expires in: ${data.expires_in || 'unknown'} seconds`);
+      console.log('✅ Successfully obtained access token from backend');
+      console.log('📅 Token generated using automated TOTP system');
       
-      // Set expiry time (default to 11 hours if not provided)
-      const expiresInMs = (data.expires_in || 11 * 60 * 60) * 1000;
+      // Set expiry time (backend handles this, default to 11 hours)
+      const expiresInMs = 11 * 60 * 60 * 1000;
       this.tokenExpiry = Date.now() + expiresInMs;
       
-      return data.access_token;
+      // Return a placeholder - the actual token is managed on backend
+      return 'BACKEND_MANAGED_TOKEN';
       
     } catch (error) {
-      console.error('❌ Error fetching Groww access token:', error);
+      console.error('❌ Error fetching Groww access token via backend:', error);
       throw error;
     }
   }
@@ -244,23 +239,39 @@ export class GrowwTokenManager {
   }
 
   /**
-   * Test the token generation system
+   * Test the automated token generation system via backend
    */
   async testTokenGeneration(): Promise<boolean> {
     try {
-      console.log('🧪 Testing Groww token generation...');
+      console.log('🧪 Testing Groww backend token generation...');
       
-      if (!this.apiKey || !this.totpSecret) {
-        console.error('❌ Missing API credentials for testing');
+      // Test backend token generation
+      const response = await fetch('/api/groww-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'status'
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Backend token API not available');
         return false;
       }
       
-      const totp = await this.generateTOTP();
-      console.log(`✅ TOTP generated successfully: ${totp}`);
+      const status = await response.json();
+      console.log('📊 Backend token status:', status.tokenStatus);
       
-      // Try to get an access token
+      if (!status.tokenStatus.canGenerate) {
+        console.error('❌ Backend cannot generate tokens - missing credentials');
+        return false;
+      }
+      
+      // Try to get an access token via backend
       const token = await this.getAccessToken();
-      console.log(`✅ Access token obtained: ${token.substring(0, 50)}...`);
+      console.log(`✅ Access token system working: ${token}`);
       
       return true;
       

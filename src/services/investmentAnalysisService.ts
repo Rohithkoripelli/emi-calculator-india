@@ -6,6 +6,7 @@
 import { GrowwApiService, StockQuote, HistoricalCandle, TechnicalAnalysis } from './growwApiService';
 import { NewsSearchService, TrendingStock, StockNews, MarketTrends } from './newsSearchService';
 import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
+import LoanCalculationService, { LoanDetails, PrepaymentScenario, TaxBenefit } from './loanCalculationService';
 
 interface StockAnalysisReport {
   stock_info: {
@@ -2158,6 +2159,192 @@ export class InvestmentAnalysisService {
     } catch (error) {
       console.error('❌ Investment Analysis Service test failed:', error);
     }
+  }
+  /**
+   * Analyze loan scenarios with accurate calculations
+   */
+  static analyzeLoanScenario(loanDetails: LoanDetails): {
+    analysis: any;
+    tableHTML: string;
+  } {
+    const errors = LoanCalculationService.validateLoanDetails(loanDetails);
+    if (errors.length > 0) {
+      throw new Error(`Invalid loan parameters: ${errors.join(', ')}`);
+    }
+
+    const result = LoanCalculationService.generateFormattedAmortizationTable(
+      loanDetails,
+      false, // Don't show full schedule for better UX
+      24     // Show sample of 24 rows
+    );
+
+    return {
+      analysis: {
+        summary: result.summary,
+        principal: loanDetails.principal,
+        rate: loanDetails.annualInterestRate,
+        tenure: loanDetails.tenureMonths,
+        emi: result.summary.monthlyEMI,
+        totalInterest: result.summary.totalInterest,
+        totalAmount: result.summary.totalAmount
+      },
+      tableHTML: result.tableHTML
+    };
+  }
+
+  /**
+   * Calculate prepayment scenarios
+   */
+  static calculatePrepaymentScenario(
+    loanDetails: LoanDetails,
+    prepaymentAmount: number,
+    prepaymentMonth: number,
+    reduceEMI: boolean = false
+  ): {
+    scenario: PrepaymentScenario;
+    tableHTML: string;
+  } {
+    const scenario = LoanCalculationService.calculatePrepaymentScenario(
+      loanDetails,
+      prepaymentAmount,
+      prepaymentMonth,
+      reduceEMI
+    );
+
+    // Generate comparison table
+    const tableHTML = `
+      <div class="prepayment-comparison-container">
+        <table class="enhanced-ai-table comparison-table">
+          <thead>
+            <tr>
+              <th class="table-header">Scenario</th>
+              <th class="table-header">Monthly EMI</th>
+              <th class="table-header">Total Interest</th>
+              <th class="table-header">Total Amount</th>
+              <th class="table-header">Savings</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="table-cell">Original Loan</td>
+              <td class="table-cell numeric currency-value">₹${scenario.originalLoan.monthlyEMI.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${scenario.originalLoan.totalInterest.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${scenario.originalLoan.totalAmount.toLocaleString('en-IN')}</td>
+              <td class="table-cell">-</td>
+            </tr>
+            <tr>
+              <td class="table-cell">After ₹${prepaymentAmount.toLocaleString('en-IN')} Prepayment</td>
+              <td class="table-cell numeric currency-value">₹${scenario.afterPrepayment.monthlyEMI.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${scenario.afterPrepayment.totalInterest.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${(scenario.afterPrepayment.totalAmount + prepaymentAmount).toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${scenario.savings.interestSaved.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="savings-summary">
+          <div class="savings-card">
+            <div class="savings-label">Interest Saved</div>
+            <div class="savings-value currency-value">₹${scenario.savings.interestSaved.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="savings-card">
+            <div class="savings-label">Tenure Reduced</div>
+            <div class="savings-value duration-value">${scenario.savings.tenureReduced} months</div>
+          </div>
+          <div class="savings-card">
+            <div class="savings-label">Total Savings</div>
+            <div class="savings-value currency-value">₹${scenario.savings.totalSavings.toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    return {
+      scenario,
+      tableHTML
+    };
+  }
+
+  /**
+   * Calculate home loan tax benefits
+   */
+  static calculateHomeLoanTaxBenefits(
+    loanDetails: LoanDetails,
+    taxBracket: number,
+    isFirstTimeHomeBuyer: boolean = false,
+    jointOwnership: boolean = false
+  ): {
+    benefits: TaxBenefit;
+    tableHTML: string;
+  } {
+    const benefits = LoanCalculationService.calculateHomeLoanTaxBenefits(
+      loanDetails,
+      taxBracket,
+      isFirstTimeHomeBuyer,
+      jointOwnership
+    );
+
+    // Generate tax benefits table
+    const tableHTML = `
+      <div class="tax-benefits-container">
+        <table class="enhanced-ai-table tax-table">
+          <thead>
+            <tr>
+              <th class="table-header">Tax Benefit Category</th>
+              <th class="table-header">Section</th>
+              <th class="table-header">Annual Limit</th>
+              <th class="table-header">Your Deduction</th>
+              <th class="table-header">Tax Saved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="table-cell">Principal Repayment</td>
+              <td class="table-cell">80C</td>
+              <td class="table-cell numeric currency-value">₹${(150000 * (jointOwnership ? 2 : 1)).toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${benefits.principalDeduction.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${(benefits.principalDeduction * taxBracket / 100).toLocaleString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td class="table-cell">Interest Payment</td>
+              <td class="table-cell">24</td>
+              <td class="table-cell numeric currency-value">₹${(200000 * (jointOwnership ? 2 : 1)).toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${benefits.interestDeduction.toLocaleString('en-IN')}</td>
+              <td class="table-cell numeric currency-value">₹${(benefits.interestDeduction * taxBracket / 100).toLocaleString('en-IN')}</td>
+            </tr>
+            ${isFirstTimeHomeBuyer ? `
+            <tr>
+              <td class="table-cell">First-time Buyer</td>
+              <td class="table-cell">80EE</td>
+              <td class="table-cell numeric currency-value">₹50,000</td>
+              <td class="table-cell numeric currency-value">₹50,000</td>
+              <td class="table-cell numeric currency-value">₹${(50000 * taxBracket / 100).toLocaleString('en-IN')}</td>
+            </tr>
+            ` : ''}
+          </tbody>
+        </table>
+        
+        <div class="tax-summary">
+          <div class="summary-card">
+            <div class="summary-label">Total Tax Deduction</div>
+            <div class="summary-value currency-value">₹${benefits.totalDeduction.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Annual Tax Saved</div>
+            <div class="summary-value currency-value">₹${benefits.taxSaved.toLocaleString('en-IN')}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Effective Interest Rate</div>
+            <div class="summary-value percentage-value">${benefits.effectiveInterestRate.toFixed(2)}%</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    return {
+      benefits,
+      tableHTML
+    };
   }
 }
 

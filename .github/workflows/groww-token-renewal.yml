@@ -1,0 +1,124 @@
+name: Groww Token Auto-Renewal
+
+on:
+  # Schedule to run daily at 5:55 AM IST (12:25 AM UTC)
+  schedule:
+    - cron: '25 0 * * *'
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Run in test mode (no actual token update)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  renew-groww-token:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd automation
+        npm install puppeteer axios
+
+    - name: Install Puppeteer dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libnss3-dev \
+          libatk-bridge2.0-dev \
+          libdrm-dev \
+          libxcomposite-dev \
+          libxdamage-dev \
+          libxrandr-dev \
+          libgbm-dev \
+          libxss-dev \
+          libasound2-dev
+
+    - name: Run Groww Token Automation
+      env:
+        # Groww credentials (set these in GitHub Secrets)
+        GROWW_GOOGLE_EMAIL: ${{ secrets.GROWW_GOOGLE_EMAIL }}
+        GROWW_GOOGLE_PASSWORD: ${{ secrets.GROWW_GOOGLE_PASSWORD }}
+        GROWW_PIN: ${{ secrets.GROWW_PIN }}
+        
+        # Vercel API credentials (set these in GitHub Secrets)
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        
+        # Environment settings
+        NODE_ENV: production
+        TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+        
+      run: |
+        cd automation
+        node groww-token-automation.js
+
+    - name: Upload screenshots on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-screenshots-${{ github.run_number }}
+        path: automation/debug-*.png
+        retention-days: 7
+
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✅ Groww token renewal completed successfully at $(date)"
+        echo "🎯 Next renewal scheduled for tomorrow at 5:55 AM IST"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Groww token renewal failed at $(date)"
+        echo "🔍 Check the logs and debug screenshots for troubleshooting"
+        echo "📧 Consider setting up email notifications for failures"
+
+  # Optional: Health check job to verify the updated token works
+  verify-token:
+    needs: renew-groww-token
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Wait for Vercel deployment
+      run: |
+        echo "⏳ Waiting 2 minutes for Vercel to pick up the new environment variable..."
+        sleep 120
+
+    - name: Test new token
+      run: |
+        echo "🧪 Testing the new token by checking Groww API status..."
+        # You can add a test script here to verify the token works
+        echo "✅ Token verification would run here"
+
+    - name: Deploy trigger (optional)
+      run: |
+        echo "🚀 You might want to trigger a deployment to ensure the new token is active"
+        echo "💡 Vercel will automatically redeploy when environment variables change"

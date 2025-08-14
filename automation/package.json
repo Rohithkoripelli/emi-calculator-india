@@ -1,0 +1,33 @@
+{
+  "name": "groww-token-automation",
+  "version": "1.0.0",
+  "description": "Automated daily renewal of Groww API access tokens",
+  "main": "groww-token-automation.js",
+  "scripts": {
+    "start": "node groww-token-automation.js",
+    "test": "node test-automation.js",
+    "dev": "NODE_ENV=development node groww-token-automation.js",
+    "setup": "node setup-security.js",
+    "test:config": "node test-automation.js config",
+    "test:vercel": "node test-automation.js vercel", 
+    "test:browser": "node test-automation.js browser",
+    "test:dryrun": "node test-automation.js dryrun"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "automation",
+    "rpa",
+    "groww",
+    "token",
+    "puppeteer",
+    "trading"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

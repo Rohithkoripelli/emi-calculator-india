@@ -2,6 +2,50 @@
 // This eliminates ALL CORS issues by handling everything server-side
 
 const crypto = require('crypto');
+const https = require('https');
+const { URL } = require('url');
+
+// Custom fetch implementation using Node.js https module
+function customFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const requestOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 443,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: options.method || 'GET',
+      headers: options.headers || {}
+    };
+
+    const req = https.request(requestOptions, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          statusText: res.statusMessage,
+          text: () => Promise.resolve(data),
+          json: () => Promise.resolve(JSON.parse(data))
+        });
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
+
+// Use native fetch if available, otherwise use custom implementation
+const fetchImplementation = typeof fetch !== 'undefined' ? fetch : customFetch;
 
 // TOTP implementation
 function generateTOTP(secret, timeStep = 30, digits = 6) {
@@ -159,35 +203,89 @@ function generateHistoricalData(tradingSymbol, days = 30) {
   return candles;
 }
 
-// Get access token - Use direct access token for live data
+// Get access token - Try automated generation first, fallback to manual
 async function getAccessToken() {
-  // Check for direct access token first (recommended approach)  
-  const accessToken = process.env.GROWW_ACCESS_TOKEN;
+  // Try automated token generation first
+  const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
+  const totpSecret = process.env.REACT_APP_GROWW_TOTP_SECRET || process.env.GROWW_TOTP_SECRET;
+  
+  if (apiKey && totpSecret) {
+    try {
+      console.log('🔄 Attempting automated token generation using API Key + TOTP...');
+      
+      const totp = generateTOTP(totpSecret);
+      console.log(`🔐 Generated TOTP: ${totp}`);
+      
+      // Try authentication endpoints on same domain as working data endpoints
+      const authEndpoints = [
+        'https://api.groww.in/v1/auth/login',
+        'https://api.groww.in/v1/api/auth/login',
+        'https://api.groww.in/auth/login',
+        'https://api.groww.in/v1/login',
+        'https://api.groww.in/login'
+      ];
+      
+      for (const endpoint of authEndpoints) {
+        try {
+          console.log(`🔄 Trying auth endpoint: ${endpoint}`);
+          
+          const response = await customFetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+              'User-Agent': 'GrowwAPI/1.0',
+            },
+            body: `api_key=${encodeURIComponent(apiKey)}&totp=${encodeURIComponent(totp)}`
+          });
+          
+          console.log(`Auth response status: ${response.status}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.access_token) {
+              console.log('✅ Successfully generated automated access token');
+              return data.access_token;
+            }
+          }
+          
+          const errorText = await response.text();
+          console.log(`Auth failed for ${endpoint}: ${response.status} - ${errorText.substring(0, 200)}...`);
+          
+        } catch (error) {
+          console.log(`Network error for ${endpoint}:`, error.message);
+        }
+      }
+      
+      console.warn('⚠️ All authentication endpoints failed');
+      
+    } catch (error) {
+      console.error('❌ Error in automated token generation:', error);
+    }
+  }
+  
+  // Fallback to manual token
+  const accessToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
   if (accessToken) {
-    console.log('✅ Using direct access token for live data');
+    console.log('✅ Using manual access token as fallback');
     return accessToken;
   }
   
-  // Fallback: If user is still using JWT approach, explain the issue
-  const apiKey = process.env.GROWW_API_KEY;
-  if (apiKey && apiKey.startsWith('eyJ')) {
-    console.log('⚠️ JWT token detected but not suitable for live data access');
-    console.log('💡 Please generate a proper Access Token from https://groww.in/user/profile/trading-apis');
-    console.log('💡 Set GROWW_ACCESS_TOKEN environment variable instead of GROWW_API_KEY');
-    throw new Error('Please use GROWW_ACCESS_TOKEN for live data access instead of JWT token');
-  }
+  // No token available
+  console.error('⚠️ No access token available');
+  console.log('💡 For automated tokens: Set REACT_APP_GROWW_API_KEY and REACT_APP_GROWW_TOTP_SECRET');
+  console.log('💡 For manual tokens: Set REACT_APP_GROWW_ACCESS_TOKEN');
+  console.log('💡 Get credentials from: https://groww.in/user/profile/trading-apis');
   
-  throw new Error('No valid access token found. Set GROWW_ACCESS_TOKEN environment variable.');
+  throw new Error('No access token available. Set up API Key + TOTP Secret or manual access token.');
 }
 
 // Fetch data from Groww API
 async function fetchGrowwData(endpoint, params, token) {
-  // Try different possible data endpoints
+  // Use confirmed working data endpoints from documentation
   const baseUrls = [
     'https://api.groww.in/v1/live-data',
-    'https://groww.in/v1/api/live-data',
-    'https://backend.groww.in/v1/live-data',
-    'https://groww.in/api/v1/live-data'
+    'https://api.groww.in/v1'
   ];
   
   let lastError;
@@ -197,7 +295,7 @@ async function fetchGrowwData(endpoint, params, token) {
       const url = `${baseUrl}/${endpoint}?${params.toString()}`;
       console.log(`Trying data endpoint: ${url}`);
       
-      const response = await fetch(url, {
+      const response = await fetchImplementation(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

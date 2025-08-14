@@ -1,48 +1,114 @@
 /**
- * Groww API Utilities
- * Helper functions for testing and managing Groww API integration
+ * Groww API Utilities - Enhanced token management and status monitoring
+ * Provides comprehensive token status tracking and user guidance
  */
 
-import { GrowwTokenManager } from './growwTokenManager';
+interface TokenStatus {
+  hasManualToken: boolean;
+  hasCachedToken: boolean;
+  hasCredentials: boolean;
+  cacheExpiry: string | null;
+  canGenerate: boolean;
+}
+
+interface TokenResponse {
+  success: boolean;
+  tokenStatus?: TokenStatus;
+  hasToken?: boolean;
+  tokenPreview?: string;
+  source?: 'manual' | 'automated';
+  error?: string;
+  message?: string;
+}
 
 export class GrowwApiUtils {
+  private static refreshInterval: NodeJS.Timeout | null = null;
+
   /**
-   * Test the automated token generation system
+   * Check the current status of Groww API tokens via backend
    */
-  static async testTokenGeneration(): Promise<void> {
+  static async checkTokenStatus(): Promise<TokenStatus | null> {
     try {
-      console.log('🧪 Testing Groww API automated token generation...');
-      
-      const tokenManager = GrowwTokenManager.getInstance();
-      
-      // Check current token status
-      const tokenInfo = tokenManager.getTokenInfo();
-      console.log('📊 Current token status:', {
-        hasToken: tokenInfo.hasToken,
-        isValid: tokenInfo.isValid,
-        expiresAt: tokenInfo.expiresAt?.toLocaleString() || 'Unknown'
+      const response = await fetch('/api/groww-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'status'
+        })
       });
-      
-      // Test token generation
-      const success = await tokenManager.testTokenGeneration();
-      
-      if (success) {
-        console.log('✅ Token generation test passed!');
-        
-        // Get the token and display info
-        const token = await tokenManager.getAccessToken();
-        console.log('🔐 Generated token:', token.substring(0, 100) + '...');
-        
-        // Test with actual API call
-        await this.testApiCall(token);
-        
-      } else {
-        console.error('❌ Token generation test failed');
+
+      if (!response.ok) {
+        console.error('❌ Failed to check token status:', response.status);
+        return null;
       }
-      
+
+      const data: TokenResponse = await response.json();
+      return data.tokenStatus || null;
+
     } catch (error) {
-      console.error('❌ Error testing token generation:', error);
+      console.error('❌ Error checking token status:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Test the complete token generation system
+   */
+  static async testTokenGeneration(): Promise<boolean> {
+    try {
+      console.log('🧪 Testing Groww API token system...');
+      
+      // Check status first
+      const status = await this.checkTokenStatus();
+      if (!status) {
+        console.error('❌ Unable to check token status');
+        return false;
+      }
+
+      console.log('📊 Token Status:', {
+        hasManualToken: status.hasManualToken,
+        hasCredentials: status.hasCredentials,
+        canGenerate: status.canGenerate
+      });
+
+      // Try to get a token via backend
+      const response = await fetch('/api/groww-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'get'
+        })
+      });
+
+      if (response.ok) {
+        const data: TokenResponse = await response.json();
+        if (data.success && data.hasToken) {
+          console.log(`✅ Token system working (${data.source} source)`);
+          return true;
+        }
+      }
+
+      // Provide guidance based on status
+      if (!status.hasManualToken && !status.hasCredentials) {
+        console.warn('⚠️ No Groww API credentials configured');
+        this.displaySetupInstructions();
+      } else if (status.hasCredentials && !status.canGenerate) {
+        console.warn('⚠️ Automated token generation configured but not working');
+        console.log('💡 This is expected - Groww uses proprietary authentication endpoints');
+        console.log('💡 Recommended: Use manual token management instead');
+        this.displaySetupInstructions();
+      }
+
+      return false;
+
+    } catch (error) {
+      console.error('❌ Token generation test failed:', error);
       this.displaySetupInstructions();
+      return false;
     }
   }
 
@@ -82,45 +148,67 @@ export class GrowwApiUtils {
     console.log(`
 🔧 GROWW API SETUP INSTRUCTIONS:
 
-1. Add environment variables to your .env file or Vercel settings:
-   
+🎯 RECOMMENDED APPROACH (Manual Token Management):
+1. Visit: https://groww.in/user/profile/trading-apis
+2. Generate a new access token (valid for 24 hours)
+3. Add to Vercel environment variables:
+   REACT_APP_GROWW_ACCESS_TOKEN=your_access_token_here
+4. Set daily reminder to renew token at 6 AM IST
+
+🔬 ALTERNATIVE APPROACH (Automated - Limited):
+1. Add to Vercel environment variables:
    REACT_APP_GROWW_API_KEY=your_api_key_here
    REACT_APP_GROWW_TOTP_SECRET=your_totp_secret_here
+   
+2. Note: Automated approach has limitations due to proprietary endpoints
 
-2. Your API Key should look like:
-   eyJraWQiOiJaTUtjVXciLCJhbGciOiJFUzI1NiJ9...
+⚠️  IMPORTANT:
+- Python SDK works because it uses internal Groww endpoints
+- Public authentication endpoints are not available
+- Manual token management is the most reliable approach
 
-3. Your TOTP Secret should be the base32 string like:
-   RIKJ6DLTOKBLXQTQFQPWQJGTPGSPXQNU
-
-4. You can find these in your Groww API dashboard:
-   https://groww.in/trade-api/dashboard
-
-5. Test the setup by calling:
-   GrowwApiUtils.testTokenGeneration()
-
-📚 Documentation:
+📚 Resources:
+   - Get credentials: https://groww.in/user/profile/trading-apis
+   - Setup guide: ./GROWW_API_SETUP.md
    - Python SDK: https://groww.in/trade-api/docs/python-sdk
-   - API Docs: https://groww.in/trade-api/docs/curl
 `);
   }
 
   /**
-   * Get current token status for debugging
+   * Get current token status for debugging via backend API
    */
   static async getTokenStatus(): Promise<void> {
     try {
-      const tokenManager = GrowwTokenManager.getInstance();
-      const tokenInfo = tokenManager.getTokenInfo();
+      const status = await this.checkTokenStatus();
+      
+      if (!status) {
+        console.log('❌ Unable to check token status');
+        return;
+      }
       
       console.log('📊 Groww API Token Status:');
-      console.log('  Has Token:', tokenInfo.hasToken ? '✅ Yes' : '❌ No');
-      console.log('  Is Valid:', tokenInfo.isValid ? '✅ Valid' : '⚠️ Invalid/Expired');
-      console.log('  Expires At:', tokenInfo.expiresAt?.toLocaleString() || 'Unknown');
+      console.log('  Has Manual Token:', status.hasManualToken ? '✅ Yes' : '❌ No');
+      console.log('  Has Cached Token:', status.hasCachedToken ? '✅ Yes' : '❌ No');
+      console.log('  Has Credentials:', status.hasCredentials ? '✅ Yes' : '❌ No');
+      console.log('  Can Generate:', status.canGenerate ? '✅ Yes' : '❌ No');
+      console.log('  Cache Expiry:', status.cacheExpiry || 'None');
       
-      if (tokenInfo.hasToken && tokenInfo.isValid) {
-        const token = await tokenManager.getAccessToken();
-        console.log('  Token Preview:', token.substring(0, 50) + '...');
+      // Try to get token info
+      const response = await fetch('/api/groww-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'get' })
+      });
+
+      if (response.ok) {
+        const data: TokenResponse = await response.json();
+        if (data.success && data.hasToken) {
+          console.log('  Token Available:', '✅ Yes');
+          console.log('  Token Source:', data.source || 'Unknown');
+          console.log('  Token Preview:', data.tokenPreview || 'Hidden');
+        }
       }
       
     } catch (error) {
@@ -129,77 +217,83 @@ export class GrowwApiUtils {
   }
 
   /**
-   * Force refresh the token
+   * Force refresh the token via backend
    */
-  static async refreshToken(): Promise<void> {
+  static async refreshToken(): Promise<boolean> {
     try {
-      console.log('🔄 Forcing token refresh...');
+      console.log('🔄 Forcing token refresh via backend...');
       
-      const tokenManager = GrowwTokenManager.getInstance();
-      tokenManager.clearToken();
-      
-      const newToken = await tokenManager.getAccessToken();
-      console.log('✅ Token refreshed successfully');
-      console.log('🔐 New token:', newToken.substring(0, 50) + '...');
-      
-    } catch (error) {
-      console.error('❌ Error refreshing token:', error);
-    }
-  }
-
-  /**
-   * Update backend with fresh token (for your backend API)
-   */
-  static async updateBackendToken(): Promise<void> {
-    try {
-      console.log('🔄 Updating backend with fresh token...');
-      
-      const tokenManager = GrowwTokenManager.getInstance();
-      const token = await tokenManager.getAccessToken();
-      
-      // Send token to your backend endpoint
-      const response = await fetch('/api/update-groww-token', {
+      const response = await fetch('/api/groww-token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          access_token: token,
-          updated_at: new Date().toISOString()
-        })
+        body: JSON.stringify({ action: 'generate' })
       });
 
       if (response.ok) {
-        console.log('✅ Backend token updated successfully');
-      } else {
-        console.warn('⚠️ Backend token update failed:', response.status);
+        const data: TokenResponse = await response.json();
+        if (data.success) {
+          console.log('✅ Token refreshed successfully');
+          return true;
+        }
       }
+
+      console.error('❌ Token refresh failed');
+      return false;
       
     } catch (error) {
-      console.error('❌ Error updating backend token:', error);
+      console.error('❌ Error refreshing token:', error);
+      return false;
     }
   }
 
   /**
-   * Setup automated token refresh (call this on app startup)
+   * Setup automated token monitoring (call this on app startup)
    */
   static setupAutomatedRefresh(): void {
-    console.log('⏰ Setting up automated token refresh...');
+    console.log('⏰ Setting up Groww token monitoring...');
     
-    // Refresh token every 10 hours (tokens expire after 11 hours)
-    const refreshInterval = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
-    
-    setInterval(async () => {
+    // Clear any existing interval
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+
+    // Check token status every hour and provide guidance
+    this.refreshInterval = setInterval(async () => {
       try {
-        console.log('⏰ Automated token refresh triggered');
-        await this.refreshToken();
-        await this.updateBackendToken();
+        const status = await this.checkTokenStatus();
+        
+        if (!status) {
+          console.warn('⚠️ Unable to check Groww token status');
+          return;
+        }
+
+        if (!status.hasManualToken && !status.hasCachedToken) {
+          console.warn('⚠️ No Groww access token available');
+          console.log('💡 Please set REACT_APP_GROWW_ACCESS_TOKEN');
+          console.log('🔗 Get token at: https://groww.in/user/profile/trading-apis');
+        } else {
+          console.log('✅ Groww token status: OK');
+        }
+
       } catch (error) {
-        console.error('❌ Automated token refresh failed:', error);
+        console.error('❌ Error in token monitoring:', error);
       }
-    }, refreshInterval);
+    }, 60 * 60 * 1000); // Check every hour
     
-    console.log(`✅ Automated refresh scheduled every ${refreshInterval / (60 * 60 * 1000)} hours`);
+    console.log('✅ Token monitoring scheduled (checks every hour)');
+  }
+
+  /**
+   * Clear automated monitoring
+   */
+  static clearAutomatedRefresh(): void {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+      this.refreshInterval = null;
+      console.log('🛑 Stopped Groww token monitoring');
+    }
   }
 }
 

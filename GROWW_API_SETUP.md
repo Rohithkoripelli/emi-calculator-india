@@ -1,146 +1,44 @@
-# 🚀 Groww API Automated Token Management Setup
+# Groww API Setup Guide
 
-This guide helps you set up automated token generation for Groww API, eliminating the need to manually update tokens daily.
+## Current Status & Solutions
 
-## 📋 Prerequisites
+### The Challenge
+The Groww API requires daily token renewal. While the Python SDK (`GrowwAPI.get_access_token()`) works for automated token generation, it uses proprietary/internal endpoints that are not publicly documented or accessible via standard HTTP requests.
 
-1. **Groww Trading Account**: You need an active Groww trading account
-2. **API Access**: Enable API access in your Groww account
-3. **API Credentials**: Get your API Key and TOTP Secret
+### Available Solutions
 
-## 🔧 Step-by-Step Setup
+#### Solution 1: Manual Token Management (Recommended)
+This is the most reliable approach currently available:
 
-### Step 1: Get Your API Credentials
+1. **Get your Access Token**:
+   - Visit https://groww.in/user/profile/trading-apis
+   - Generate a new access token (valid for 24 hours)
+   - Copy the token
 
-1. Visit [Groww API Dashboard](https://groww.in/trade-api/dashboard)
-2. Login with your Groww credentials
-3. Navigate to **API Keys** section
-4. Generate/copy your:
-   - **API Key** (starts with `eyJraWQi...`)
-   - **TOTP Secret** (Base32 string like `RIKJ6DLTOKBLXQTQFQPWQJGTPGSPXQNU`)
-
-### Step 2: Add Environment Variables
-
-#### For Local Development:
-Add to your `.env` file:
-```env
-REACT_APP_GROWW_API_KEY=eyJraWQiOiJaTUtjVXciLCJhbGciOiJFUzI1NiJ9...
-REACT_APP_GROWW_TOTP_SECRET=RIKJ6DLTOKBLXQTQFQPWQJGTPGSPXQNU
-```
-
-#### For Vercel Deployment:
-1. Go to your Vercel Dashboard
-2. Select your project
-3. Go to **Settings** → **Environment Variables**
-4. Add these variables for **Production**, **Preview**, and **Development**:
-   ```
-   REACT_APP_GROWW_API_KEY=your_api_key_here
-   REACT_APP_GROWW_TOTP_SECRET=your_totp_secret_here
-   ```
-
-### Step 3: Test the Setup
-
-1. **Start your application**:
+2. **Set Environment Variables**:
    ```bash
-   npm start
+   # In Vercel Dashboard
+   REACT_APP_GROWW_ACCESS_TOKEN=your_access_token_here
    ```
 
-2. **Check browser console** for initialization messages:
-   ```
-   🚀 Initializing Groww API token management...
-   ✅ Groww API credentials found, setting up automated token management
-   🔐 Generated TOTP: 123456
-   ✅ Successfully obtained new Groww access token
-   ```
+3. **Daily Renewal Process**:
+   - Set a daily reminder at 6 AM IST
+   - Visit the trading APIs page
+   - Generate new token
+   - Update Vercel environment variable
+   - Restart your app (optional - it will auto-detect new token)
 
-3. **Test manually in console**:
-   ```javascript
-   // Test token generation
-   GrowwApiUtils.testTokenGeneration()
-   
-   // Check token status
-   GrowwApiUtils.getTokenStatus()
-   
-   // Force refresh token
-   GrowwApiUtils.refreshToken()
-   ```
+#### Solution 2: Hybrid Approach (Currently Implemented)
+Our system tries automated generation first, then falls back to manual tokens with comprehensive error reporting.
 
-## 🤖 How It Works
+### Summary
 
-### Automated Token Generation
-- **TOTP Generation**: Creates time-based one-time passwords using your secret
-- **Token Request**: Calls Groww API with API Key + TOTP to get access token
-- **Auto Refresh**: Tokens are automatically refreshed every 10 hours (they expire after 11 hours)
-- **Fallback Support**: Falls back to manual tokens if automated generation fails
+While full automation isn't currently possible due to Groww's proprietary authentication system, our implementation provides:
 
-### Token Lifecycle
-```
-App Startup → Generate TOTP → Request Token → Use Token → Auto Refresh (10hr) → Repeat
-```
+- **Robust fallback systems**
+- **Clear error messages and guidance**  
+- **Monitoring and alerting capabilities**
+- **Easy manual token management**
+- **Future-ready architecture for when automation becomes available**
 
-## 🔍 Troubleshooting
-
-### Issue: "TOTP secret not configured"
-**Solution**: Ensure `REACT_APP_GROWW_TOTP_SECRET` is set correctly in environment variables.
-
-### Issue: "API key not configured"
-**Solution**: Ensure `REACT_APP_GROWW_API_KEY` is set correctly in environment variables.
-
-### Issue: "Failed to get access token: 401"
-**Possible causes**:
-- Invalid API key
-- Invalid TOTP secret
-- API key expired or revoked
-- Time sync issues (TOTP is time-sensitive)
-
-**Solution**: 
-1. Verify credentials in Groww dashboard
-2. Ensure system time is accurate
-3. Regenerate API credentials if needed
-
-### Issue: "API call returned 403"
-**Solution**: Your API key may not have the required permissions. Contact Groww support.
-
-## 📊 Testing Commands
-
-Use these commands in browser console:
-
-```javascript
-// Test complete system
-await GrowwApiUtils.testTokenGeneration()
-
-// Check current token status
-await GrowwApiUtils.getTokenStatus()
-
-// Force token refresh
-await GrowwApiUtils.refreshToken()
-
-// Update backend with fresh token
-await GrowwApiUtils.updateBackendToken()
-```
-
-## 🔒 Security Best Practices
-
-1. **Never commit credentials**: Keep API keys and TOTP secrets in environment variables only
-2. **Use different credentials**: Use separate API keys for development and production
-3. **Monitor usage**: Check Groww dashboard for API usage and any suspicious activity
-4. **Rotate credentials**: Periodically rotate your API credentials for security
-
-## 📚 Documentation References
-
-- [Groww API Python SDK](https://groww.in/trade-api/docs/python-sdk)
-- [Groww API cURL Examples](https://groww.in/trade-api/docs/curl)
-- [TOTP RFC 6238](https://tools.ietf.org/html/rfc6238)
-
-## 🎯 Benefits
-
-✅ **No more daily manual updates**  
-✅ **Automatic token refresh every 10 hours**  
-✅ **Fallback to manual tokens if needed**  
-✅ **Professional error handling and logging**  
-✅ **Easy testing and debugging tools**  
-✅ **Secure credential management**  
-
----
-
-🚀 **You're all set!** Your Groww API tokens will now be generated and refreshed automatically, eliminating the daily 6 AM token expiry hassle.
+The daily 5-minute manual process is currently the most reliable approach for production use.
