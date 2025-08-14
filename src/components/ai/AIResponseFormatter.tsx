@@ -1,6 +1,48 @@
 import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+// Add CSS styles for financial tables
+const tableStyles = `
+.financial-table table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.financial-table th {
+  text-align: left !important;
+  vertical-align: middle !important;
+  position: relative !important;
+}
+
+.financial-table td {
+  text-align: left !important;
+  vertical-align: middle !important;
+  position: relative !important;
+}
+
+.financial-table td:has(span.font-mono) {
+  text-align: right !important;
+}
+
+.financial-table .currency-cell {
+  color: #10b981 !important;
+  font-weight: 600 !important;
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+}
+
+.financial-table .percentage-cell {
+  color: #3b82f6 !important;
+  font-weight: 500 !important;
+}
+
+.financial-table .duration-cell {
+  color: #8b5cf6 !important;
+  font-weight: 500 !important;
+}
+`;
+
 interface LoanData {
   label: string;
   value: string;
@@ -547,6 +589,79 @@ const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
   </div>
 );
 
+const processHTMLTable = (htmlTable: string): string => {
+  // Clean up and enhance HTML table formatting
+  let processedTable = htmlTable;
+  
+  // Fix table structure by ensuring proper CSS classes
+  processedTable = processedTable.replace(
+    /<table[^>]*>/gi,
+    '<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-lg">'
+  );
+  
+  // Enhance thead styling
+  processedTable = processedTable.replace(
+    /<thead[^>]*>/gi,
+    '<thead class="bg-gradient-to-r from-blue-600 to-indigo-600">'
+  );
+  
+  // Fix th styling with proper alignment and spacing
+  processedTable = processedTable.replace(
+    /<th([^>]*)>/gi,
+    '<th$1 class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider border-r border-blue-500 last:border-r-0">'
+  );
+  
+  // Enhance tbody styling
+  processedTable = processedTable.replace(
+    /<tbody[^>]*>/gi,
+    '<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">'
+  );
+  
+  // Fix tr styling with alternating colors
+  processedTable = processedTable.replace(
+    /<tr([^>]*)>/gi,
+    (match, attrs) => {
+      // Check if this is a header row
+      if (match.includes('thead') || processedTable.indexOf(match) < processedTable.indexOf('<tbody')) {
+        return `<tr${attrs}>`;
+      }
+      return `<tr${attrs} class="even:bg-gray-50 dark:even:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">`;
+    }
+  );
+  
+  // Fix td styling with proper alignment and spacing
+  processedTable = processedTable.replace(
+    /<td([^>]*)>/gi,
+    '<td$1 class="px-6 py-4 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0">'
+  );
+  
+  // Apply special formatting to currency cells
+  processedTable = processedTable.replace(
+    /<td([^>]*)>([^<]*₹[^<]*)<\/td>/gi,
+    '<td$1 class="px-6 py-4 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0"><span class="font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">$2</span></td>'
+  );
+  
+  // Apply special formatting to percentage cells
+  processedTable = processedTable.replace(
+    /<td([^>]*)>([^<]*%[^<]*)<\/td>/gi,
+    '<td$1 class="px-6 py-4 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0"><span class="font-medium text-blue-600 dark:text-blue-400">$2</span></td>'
+  );
+  
+  // Apply special formatting to duration cells (years, months)
+  processedTable = processedTable.replace(
+    /<td([^>]*)>([^<]*(?:years?|months?)[^<]*)<\/td>/gi,
+    '<td$1 class="px-6 py-4 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0"><span class="font-medium text-purple-600 dark:text-purple-400">$2</span></td>'
+  );
+  
+  // Ensure numeric data is right-aligned
+  processedTable = processedTable.replace(
+    /<td([^>]*class="[^"]*")>(\s*[\d,]+(?:\.\d+)?\s*)<\/td>/gi,
+    '<td$1 style="text-align: right;"><span class="font-mono">$2</span></td>'
+  );
+  
+  return processedTable;
+};
+
 const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
   // First check for HTML tables and handle them separately
   const htmlTableRegex = /<table[\s\S]*?<\/table>/gi;
@@ -567,14 +682,18 @@ const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
         );
       }
       
-      // Add HTML table if it exists
+      // Add enhanced HTML table if it exists
       if (htmlTables[i]) {
+        const processedTable = processHTMLTable(htmlTables[i]);
         elements.push(
-          <div 
-            key={`table-${i}`} 
-            dangerouslySetInnerHTML={{ __html: htmlTables[i] }}
-            className="my-6 overflow-x-auto"
-          />
+          <div key={`table-${i}`} className="my-8">
+            <div className="overflow-x-auto rounded-xl shadow-lg border border-gray-200 dark:border-gray-600">
+              <div 
+                dangerouslySetInnerHTML={{ __html: processedTable }}
+                className="financial-table"
+              />
+            </div>
+          </div>
         );
       }
     }
@@ -1128,6 +1247,9 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   
   return (
     <div className="space-y-4">
+      {/* Inject CSS styles for financial tables */}
+      <style dangerouslySetInnerHTML={{ __html: tableStyles }} />
+      
       {/* Research Insights Card for investment analysis */}
       <ResearchInsightsCard text={formattedText} />
       

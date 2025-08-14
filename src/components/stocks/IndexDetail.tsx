@@ -102,17 +102,85 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
       // Provide mock chart data to prevent white screen
       console.log('Using mock chart data - Yahoo Finance API not accessible');
       
-      // Generate simple mock data based on current index price
+      // Generate time-appropriate mock data based on selected timeframe
       const basePrice = indexData?.price || 24000;
       const mockData = [];
       const now = new Date();
       
-      for (let i = 30; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
+      let dataPoints: number;
+      let timeStep: (date: Date, index: number) => void;
+      
+      switch (activeTimeFrame) {
+        case '1D':
+          // 1D: 24 hours of hourly data points
+          dataPoints = 24;
+          timeStep = (date, i) => {
+            date.setTime(now.getTime() - (dataPoints - 1 - i) * 60 * 60 * 1000); // hourly intervals
+          };
+          break;
         
-        // Generate slight price variations
-        const variation = (Math.random() - 0.5) * 0.02; // ±1% variation
+        case '5D':
+          // 5D: 5 days of data points (every 4 hours during market hours)
+          dataPoints = 30; // 6 points per day for 5 days
+          timeStep = (date, i) => {
+            const daysBack = Math.floor(i / 6);
+            const hourOffset = (i % 6) * 4; // 4-hour intervals
+            date.setTime(now.getTime() - (4 - daysBack) * 24 * 60 * 60 * 1000);
+            date.setHours(9 + hourOffset, 0, 0, 0); // Start at 9 AM
+          };
+          break;
+        
+        case '1M':
+          // 1M: 30 days of daily data
+          dataPoints = 30;
+          timeStep = (date, i) => {
+            date.setTime(now.getTime() - (dataPoints - 1 - i) * 24 * 60 * 60 * 1000);
+          };
+          break;
+        
+        case '1Y':
+          // 1Y: 12 months of monthly data
+          dataPoints = 12;
+          timeStep = (date, i) => {
+            date.setMonth(now.getMonth() - (dataPoints - 1 - i));
+          };
+          break;
+        
+        case '3Y':
+          // 3Y: 36 months of monthly data
+          dataPoints = 36;
+          timeStep = (date, i) => {
+            date.setMonth(now.getMonth() - (dataPoints - 1 - i));
+          };
+          break;
+        
+        case '5Y':
+          // 5Y: 60 months of monthly data
+          dataPoints = 60;
+          timeStep = (date, i) => {
+            date.setMonth(now.getMonth() - (dataPoints - 1 - i));
+          };
+          break;
+        
+        default: // 'ALL'
+          // ALL: 10 years of quarterly data
+          dataPoints = 40;
+          timeStep = (date, i) => {
+            date.setMonth(now.getMonth() - (dataPoints - 1 - i) * 3);
+          };
+          break;
+      }
+      
+      for (let i = 0; i < dataPoints; i++) {
+        const date = new Date(now);
+        timeStep(date, i);
+        
+        // Generate realistic price variations based on timeframe
+        const maxVariation = activeTimeFrame === '1D' ? 0.005 : // ±0.5% for 1D
+                           activeTimeFrame === '5D' ? 0.01 :  // ±1% for 5D
+                           0.02; // ±2% for longer timeframes
+        
+        const variation = (Math.random() - 0.5) * maxVariation * 2;
         const price = basePrice * (1 + variation);
         
         mockData.push({
@@ -121,6 +189,9 @@ export const IndexDetail: React.FC<IndexDetailProps> = ({ index, onBack, inline 
           volume: Math.floor(Math.random() * 1000000) + 500000
         });
       }
+      
+      // Sort by timestamp to ensure proper ordering
+      mockData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       
       setChartData(mockData);
     } catch (error) {
