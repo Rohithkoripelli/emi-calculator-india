@@ -442,11 +442,16 @@ Present results in a clear table format with before/after comparison.
 
 **HUMAN-FRIENDLY PRESENTATION REQUIREMENTS:**
 - NEVER show LaTeX formulas or mathematical symbols like \\[, \\], \\(, \\)
-- NEVER use complex mathematical notation
-- Explain calculations in simple, conversational language
+- NEVER use complex mathematical notation or display EMI formulas like "P × r × (1 + r)^n"
+- NEVER show calculation steps or mathematical working (e.g., "30,00,000 × 0.0075 × (1.0075)^240")
+- NEVER display mathematical expressions, equations, or formula breakdowns
+- NEVER show intermediate calculation steps or mathematical derivations
+- Perform ALL calculations in the background - users should only see final results
+- Explain calculations in simple, conversational language without revealing formulas
 - Use practical examples and relatable scenarios
 - Present numbers in easy-to-understand breakdowns
 - Focus on the "what this means for you" rather than mathematical theory
+- Replace formula explanations with plain language: "Based on your loan details, your EMI works out to..."
 
 **CURRENCY FORMAT:** Always use Indian format: ₹1,23,45,678
 **DATE FORMAT:** Use conversational dates: "June 2029" instead of complex calculations

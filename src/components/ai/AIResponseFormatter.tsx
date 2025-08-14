@@ -71,9 +71,45 @@ const formatCurrency = (amount: string): string => {
   }).format(num);
 };
 
+// Remove mathematical formulas and calculation steps from AI responses
+const removeFormulasAndCalculations = (text: string): string => {
+  let cleanText = text;
+  
+  // Remove EMI formula patterns like "P × r × (1 + r)^n" or similar
+  cleanText = cleanText.replace(/[P×Rp]\s*[×x*]\s*[r]\s*[×x*]\s*\([^)]*\)\s*\^\s*[n]/gi, '');
+  
+  // Remove mathematical expressions in parentheses with calculations
+  cleanText = cleanText.replace(/\([^)]*[×x*÷/]\s*[^)]*\)\s*[×x*÷/]/gi, '');
+  
+  // Remove step-by-step calculations like "30,00,000 × 0.0075 × (1.0075)^240"
+  cleanText = cleanText.replace(/[\d,]+\s*[×x*]\s*[\d.]+\s*[×x*]\s*\([^)]*\)/gi, '');
+  
+  // Remove formula explanations
+  cleanText = cleanText.replace(/EMI\s*=\s*[P×R\s*\(\)n\^-]*/gi, '');
+  cleanText = cleanText.replace(/Formula:\s*[^.]*\./gi, '');
+  cleanText = cleanText.replace(/Calculation:\s*[^.]*\./gi, '');
+  
+  // Remove mathematical derivation patterns
+  cleanText = cleanText.replace(/Where:\s*\n[^.]*[PRM].*?\n/gi, '');
+  
+  // Remove lines that look like mathematical steps
+  cleanText = cleanText.replace(/^\s*[•-]\s*[PRM]\s*[=:].*/gm, '');
+  
+  // Remove LaTeX-style notation that might slip through
+  cleanText = cleanText.replace(/\$[^$]*\$/g, '');
+  cleanText = cleanText.replace(/\\[()[\]]/g, '');
+  
+  // Clean up extra whitespace left by formula removal
+  cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
+  cleanText = cleanText.replace(/\s{3,}/g, ' ');
+  
+  return cleanText;
+};
+
 // Enhanced financial formatting for AI responses
 const formatFinancialText = (text: string): string => {
-  let formattedText = text;
+  // First remove any mathematical formulas and calculations
+  let formattedText = removeFormulasAndCalculations(text);
   
   // Fix interest rate formatting - add % symbol if missing
   formattedText = formattedText.replace(/interest rate of (\d+(?:\.\d+)?)\b(?![%])/gi, 'interest rate of $1%');
