@@ -1,7 +1,5 @@
 import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { EnhancedTable, EnhancedTableFormatter } from './EnhancedTableFormatter';
-import './EnhancedTable.css';
 
 interface LoanData {
   label: string;
@@ -550,35 +548,13 @@ const SavingsChart: React.FC<{ data: any[] }> = ({ data }) => (
 );
 
 const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
-  // Clean text from unwanted symbols and formatting issues
-  const cleanedText = text
-    // Remove extra asterisks and markdown symbols
-    .replace(/\*{2,}/g, '')
-    .replace(/\*(?!\w)/g, '')
-    .replace(/_{2,}/g, '')
-    .replace(/~{2,}/g, '')
-    
-    // Clean up table separators and borders
-    .replace(/\|[\s\-\|\=]*\|/g, '')
-    .replace(/[\-\=]{3,}/g, '')
-    
-    // Fix line breaks and spacing
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/\s{3,}/g, ' ')
-    
-    // Clean currency formatting
-    .replace(/₹\s+/g, '₹')
-    .replace(/\s+₹/g, ' ₹')
-    
-    .trim();
-
-  // Check for HTML tables and handle them with enhanced formatter
+  // First check for HTML tables and handle them separately
   const htmlTableRegex = /<table[\s\S]*?<\/table>/gi;
-  const htmlTables = cleanedText.match(htmlTableRegex);
+  const htmlTables = text.match(htmlTableRegex);
   
   if (htmlTables && htmlTables.length > 0) {
     // Split text by HTML tables and render each part
-    const parts = cleanedText.split(htmlTableRegex);
+    const parts = text.split(htmlTableRegex);
     const elements: React.ReactElement[] = [];
     
     for (let i = 0; i < parts.length; i++) {
@@ -591,13 +567,13 @@ const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
         );
       }
       
-      // Add enhanced HTML table if it exists
+      // Add HTML table if it exists
       if (htmlTables[i]) {
         elements.push(
-          <EnhancedTable 
-            key={`table-${i}`}
-            content={htmlTables[i]}
-            className="my-6"
+          <div 
+            key={`table-${i}`} 
+            dangerouslySetInnerHTML={{ __html: htmlTables[i] }}
+            className="my-6 overflow-x-auto"
           />
         );
       }
@@ -606,22 +582,8 @@ const EnhancedText: React.FC<{ text: string }> = ({ text }) => {
     return <div className="space-y-4">{elements}</div>;
   }
   
-  // Check for markdown tables or amortization content
-  const hasMarkdownTable = cleanedText.includes('|') && cleanedText.includes('EMI') ||
-                           cleanedText.includes('amortization') ||
-                           cleanedText.includes('payment schedule') ||
-                           cleanedText.includes('Principal') && cleanedText.includes('Interest');
-  
-  if (hasMarkdownTable) {
-    return (
-      <div className="space-y-4">
-        <EnhancedTable content={cleanedText} />
-      </div>
-    );
-  }
-  
-  // If no tables, use regular processing
-  return <EnhancedTextContent text={cleanedText} />;
+  // If no HTML tables, use regular processing
+  return <EnhancedTextContent text={text} />;
 };
 
 const StockRecommendationBadge: React.FC<{ recommendation: string; confidence?: number }> = ({ recommendation, confidence }) => {
