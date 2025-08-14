@@ -245,10 +245,48 @@ const removeFormulasAndCalculations = (text: string): string => {
   return cleanText;
 };
 
+// Clean markdown artifacts and convert to proper HTML formatting
+const cleanMarkdownArtifacts = (text: string): string => {
+  let cleanText = text;
+  
+  // Convert markdown headers to clean text (remove ### symbols)
+  cleanText = cleanText.replace(/^#{1,6}\s+/gm, '');
+  
+  // Convert bold markdown to clean text (remove ** symbols) 
+  cleanText = cleanText.replace(/\*\*(.*?)\*\*/g, '$1');
+  
+  // Convert italic markdown to clean text (remove single * symbols)
+  cleanText = cleanText.replace(/\*([^*\n]+)\*/g, '$1');
+  
+  // Remove extra asterisks that might be used for emphasis
+  cleanText = cleanText.replace(/\*+/g, '');
+  
+  // Remove standalone hash symbols that aren't part of headers
+  cleanText = cleanText.replace(/(?:^|\s)#+(?:\s|$)/g, ' ');
+  
+  // Clean up bullet points - keep the content but clean the formatting
+  cleanText = cleanText.replace(/^[\s]*[-*+]\s+/gm, '• ');
+  
+  // Remove extra markdown artifacts like --- separators
+  cleanText = cleanText.replace(/^[\s]*[-=]{3,}[\s]*$/gm, '');
+  
+  // Clean up multiple spaces and newlines
+  cleanText = cleanText.replace(/\s{3,}/g, ' ');
+  cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
+  
+  // Clean up any remaining markdown link formatting [text](url)
+  cleanText = cleanText.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  
+  return cleanText.trim();
+};
+
 // Enhanced financial formatting for AI responses
 const formatFinancialText = (text: string): string => {
   // First remove any mathematical formulas and calculations
   let formattedText = removeFormulasAndCalculations(text);
+  
+  // Clean markdown artifacts (###, **, etc.) before other processing
+  formattedText = cleanMarkdownArtifacts(formattedText);
   
   // Convert pipe-separated tables to HTML tables
   formattedText = convertPipeTableToHTML(formattedText);
@@ -1338,48 +1376,47 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
       );
     }
     
-    // Handle bold headings (**text**)
-    else if (trimmedLine.match(/^\*\*(.*?)\*\*:?$/)) {
-      const content = trimmedLine.replace(/^\*\*|\*\*:?$/g, '');
+    // Handle section headers and bold text (now cleaned of markdown symbols)
+    // Check if this is a scenario/section header by content patterns
+    else if (trimmedLine.match(/^(Scenario \d+|Option \d+|Step \d+|Phase \d+):/i) || 
+             trimmedLine.match(/^(Analysis|Summary|Recommendation|Conclusion|Overview):/i) ||
+             (trimmedLine.length < 100 && trimmedLine.endsWith(':') && !trimmedLine.includes('₹'))) {
       processedElements.push(
         <h3 key={i} className="text-base lg:text-lg font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-2 pb-2 border-b border-gray-200 dark:border-dark-border">
-          {content}
+          {trimmedLine}
         </h3>
       );
     }
     
-    // Handle section headers (###) with enhanced styling
-    else if (trimmedLine.match(/^#{1,3}\s/)) {
-      const content = trimmedLine.replace(/^#{1,3}\s/, '');
-      const level = (trimmedLine.match(/^#+/) || [''])[0].length;
+    // Handle potential headers by position and content (since markdown symbols are removed)
+    else if (trimmedLine.length < 80 && 
+             (trimmedLine.match(/^[A-Z]/i) && 
+              (trimmedLine.includes('EMI') || trimmedLine.includes('Loan') || 
+               trimmedLine.includes('Analysis') || trimmedLine.includes('Benefit') ||
+               trimmedLine.includes('Strategy') || trimmedLine.includes('Option') ||
+               trimmedLine.includes('Scenario')))) {
       
       // Add contextual icons based on header content
       let icon = '📋';
-      if (content.toLowerCase().includes('recommendation')) {
+      if (trimmedLine.toLowerCase().includes('recommendation')) {
         icon = '🎯';
-      } else if (content.toLowerCase().includes('analysis') || content.toLowerCase().includes('technical')) {
+      } else if (trimmedLine.toLowerCase().includes('analysis') || trimmedLine.toLowerCase().includes('technical')) {
         icon = '📊';
-      } else if (content.toLowerCase().includes('risk')) {
+      } else if (trimmedLine.toLowerCase().includes('risk')) {
         icon = '⚠️';
-      } else if (content.toLowerCase().includes('news') || content.toLowerCase().includes('sentiment')) {
+      } else if (trimmedLine.toLowerCase().includes('news') || trimmedLine.toLowerCase().includes('sentiment')) {
         icon = '📰';
-      } else if (content.toLowerCase().includes('market') || content.toLowerCase().includes('data')) {
+      } else if (trimmedLine.toLowerCase().includes('market') || trimmedLine.toLowerCase().includes('data')) {
         icon = '💰';
-      } else if (content.toLowerCase().includes('research') || content.toLowerCase().includes('source')) {
+      } else if (trimmedLine.toLowerCase().includes('research') || trimmedLine.toLowerCase().includes('source')) {
         icon = '🔍';
       }
       
-      const headerClass = level === 1 
-        ? 'text-xl lg:text-2xl font-bold text-gray-900 dark:text-dark-text-primary mt-6 lg:mt-8 mb-4 pb-3 border-b-2 border-gradient-to-r from-blue-500 to-indigo-500'
-        : level === 2
-        ? 'text-lg lg:text-xl font-bold text-gray-900 dark:text-dark-text-primary mt-4 lg:mt-6 mb-3 pb-2 border-b border-blue-300 dark:border-blue-600/40'
-        : 'text-base lg:text-lg font-semibold text-gray-800 dark:text-dark-text-primary mt-3 lg:mt-4 mb-2';
-      
       processedElements.push(
-        <div key={i} className={`${headerClass} flex items-center gap-3 group`}>
+        <div key={i} className="text-base lg:text-lg font-semibold text-gray-800 dark:text-dark-text-primary mt-3 lg:mt-4 mb-2 flex items-center gap-3 group">
           <span className="text-2xl group-hover:scale-110 transition-transform duration-200">{icon}</span>
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            {content}
+            {trimmedLine}
           </span>
         </div>
       );
