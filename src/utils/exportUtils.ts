@@ -23,7 +23,10 @@ export const exportToPDF = (
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${calculatorType} Calculator Report`, 20, 15);
+    const reportTitle = calculatorType === 'EMI' 
+      ? `${inputs.loanType.charAt(0).toUpperCase() + inputs.loanType.slice(1)} Loan EMI Report`
+      : `${calculatorType} Calculator Report`;
+    doc.text(reportTitle, 20, 15);
     
     // Page number
     doc.setFontSize(10);
