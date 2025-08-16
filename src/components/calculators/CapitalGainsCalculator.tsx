@@ -276,10 +276,10 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
     <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="text-center px-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-dark-text mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Capital Gains Tax Calculator
         </h1>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-dark-text-secondary">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
           Calculate STCG & LTCG tax as per latest Indian tax rules (Updated July 2024)
         </p>
       </div>
@@ -313,7 +313,7 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Input Form */}
         <Card className="p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-dark-text mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             Investment Details
           </h2>
 
@@ -330,7 +330,7 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
                 { value: 'real-estate', label: 'Real Estate' }
               ]}
             />
-            <p className="text-xs text-gray-500 dark:text-dark-text-muted -mt-2 mb-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-4">
               {getInvestmentTypeInfo()}
             </p>
 
@@ -380,9 +380,9 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
 
             {/* Transfer Expenses Section */}
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-dark-surface rounded-lg border">
+            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
               <div className="flex justify-between items-center">
-                <h4 className="font-medium text-gray-900 dark:text-dark-text text-sm sm:text-base">
+                <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
                   Transfer Expenses
                 </h4>
                 <button
@@ -480,12 +480,12 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
               />
               
               {result && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div className="text-sm font-medium text-gray-900 dark:text-dark-text">
+                <div className="p-3 bg-blue-50 dark:bg-gray-700/60 rounded-lg border dark:border-gray-600">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
                     Total Transfer Expenses: {formatCurrency(result.totalTransferExpenses)}
                   </div>
                   {result.sttDetails.totalSTT > 0 && (
-                    <div className="text-xs text-gray-600 dark:text-dark-text-secondary mt-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                       STT Reference: Buy ₹{result.sttDetails.buySTT.toFixed(0)}, Sell ₹{result.sttDetails.sellSTT.toFixed(0)}
                     </div>
                   )}
@@ -511,58 +511,58 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
 
         {/* Results */}
         <Card className="p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-dark-text mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
             Tax Calculation Results
           </h2>
 
           {result && (
             <div className="space-y-4">
               {/* Tax Classification */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 sm:p-4 rounded-lg">
+              <div className="bg-blue-50 dark:bg-gray-700/60 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   {result.isLongTerm ? (
-                    <ArrowTrendingUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
+                    <ArrowTrendingUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
                   ) : (
-                    <ArrowTrendingDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
+                    <ArrowTrendingDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
                   )}
-                  <span className="font-medium text-gray-900 dark:text-dark-text text-sm sm:text-base">
+                  <span className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
                     {result.isLongTerm ? 'Long Term Capital Gains (LTCG)' : 'Short Term Capital Gains (STCG)'}
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                   Holding Period: {result.holdingPeriod} days ({Math.floor(result.holdingPeriod / 365)} years, {result.holdingPeriod % 365} days)
                 </p>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                   Tax Rate: {result.taxRate}%
                 </p>
               </div>
 
               {/* Capital Gain Calculation */}
               <div className="space-y-2 sm:space-y-3">
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-surface rounded-lg">
-                  <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Sale Value:</span>
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">Sale Value:</span>
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">
                     {formatCurrency(formData.sellPrice * formData.quantity)}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-surface rounded-lg">
-                  <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Purchase Value:</span>
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">Purchase Value:</span>
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">
                     {formatCurrency(formData.purchasePrice * formData.quantity)}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-dark-surface rounded-lg">
-                  <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Transfer Expenses:</span>
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">Transfer Expenses:</span>
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">
                     {formatCurrency(result.totalTransferExpenses)}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">Capital Gain:</span>
-                  <span className={`font-bold text-base sm:text-lg ${result.capitalGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-yellow-50 dark:bg-gray-700/60 rounded-lg border border-yellow-200 dark:border-yellow-600">
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">Capital Gain:</span>
+                  <span className={`font-bold text-base sm:text-lg ${result.capitalGain >= 0 ? 'text-green-600 dark:text-green-400 dark:text-green-400' : 'text-red-600 dark:text-red-400 dark:text-red-400'}`}>
                     {formatCurrency(result.capitalGain)}
                   </span>
                 </div>
@@ -570,38 +570,38 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
                 {/* LTCG Exemption */}
                 {formData.investmentType === 'equity' && result.isLongTerm && result.capitalGain > 0 && (
                   <>
-                    <div className="flex justify-between items-center p-2 sm:p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">LTCG Exemption Used:</span>
-                      <span className="font-medium text-sm sm:text-base text-green-600">
+                    <div className="flex justify-between items-center p-2 sm:p-3 bg-green-50 dark:bg-gray-700/50 rounded-lg border dark:border-green-600">
+                      <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">LTCG Exemption Used:</span>
+                      <span className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
                         {formatCurrency(result.exemptionUsed)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-2 sm:p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm sm:text-base text-gray-700 dark:text-dark-text-secondary">Remaining Exemption:</span>
-                      <span className="font-medium text-sm sm:text-base text-green-600">
+                    <div className="flex justify-between items-center p-2 sm:p-3 bg-green-50 dark:bg-gray-700/50 rounded-lg border dark:border-green-600">
+                      <span className="text-sm sm:text-base text-gray-700 dark:text-gray-300">Remaining Exemption:</span>
+                      <span className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
                         {formatCurrency(result.exemptionRemaining)}
                       </span>
                     </div>
                   </>
                 )}
 
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">Taxable Gain:</span>
-                  <span className="font-bold text-base sm:text-lg text-gray-900 dark:text-dark-text">
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-blue-50 dark:bg-gray-700/60 rounded-lg border border-blue-200 dark:border-blue-600">
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">Taxable Gain:</span>
+                  <span className="font-bold text-base sm:text-lg text-gray-900 dark:text-white">
                     {formatCurrency(result.taxableGain)}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-dark-text">Tax Amount:</span>
-                  <span className="font-bold text-base sm:text-lg text-red-600">
+                <div className="flex justify-between items-center p-2 sm:p-3 bg-red-50 dark:bg-gray-700/50 rounded-lg border border-red-200 dark:border-red-600">
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">Tax Amount:</span>
+                  <span className="font-bold text-base sm:text-lg text-red-600 dark:text-red-400">
                     {formatCurrency(result.taxAmount)}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-3 sm:p-4 bg-green-100 dark:bg-green-900/30 rounded-lg border-2 border-green-300 dark:border-green-700">
-                  <span className="font-bold text-sm sm:text-base text-gray-900 dark:text-dark-text">Net Gain After Tax:</span>
-                  <span className="font-bold text-lg sm:text-xl text-green-600">
+                <div className="flex justify-between items-center p-3 sm:p-4 bg-green-100 dark:bg-gray-700/70 rounded-lg border-2 border-green-300 dark:border-green-500">
+                  <span className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">Net Gain After Tax:</span>
+                  <span className="font-bold text-lg sm:text-xl text-green-600 dark:text-green-400">
                     {formatCurrency(result.netGain)}
                   </span>
                 </div>
@@ -624,14 +624,14 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
       {/* Detailed Information */}
       {showDetails && (
         <Card className="p-4 sm:p-6 mt-4 sm:mt-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-dark-text mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Capital Gains Tax Rules (Updated July 2024)
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Equity Investments</h4>
-              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-3">Equity Investments</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <li><strong>STCG:</strong> Holding ≤ 12 months → 20% tax (effective July 23, 2024)</li>
                 <li><strong>LTCG:</strong> Holding &gt; 12 months → 12.5% tax (effective July 23, 2024)</li>
                 <li><strong>Exemption:</strong> First ₹1.25 lakh LTCG is tax-free annually</li>
@@ -641,8 +641,8 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
             
             <div>
-              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Debt Investments</h4>
-              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-3">Debt Investments</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <li><strong>All Gains:</strong> Taxed at income tax slab rate</li>
                 <li><strong>No Indexation:</strong> Indexation benefit removed from April 2023</li>
                 <li><strong>No LTCG:</strong> All debt fund gains are now STCG</li>
@@ -651,8 +651,8 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
 
             <div>
-              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Gold & Real Estate</h4>
-              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-3">Gold & Real Estate</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <li><strong>STCG:</strong> Holding ≤ 24 months → 30% (slab rate)</li>
                 <li><strong>LTCG:</strong> Holding &gt; 24 months → 12.5% (no indexation)</li>
                 <li><strong>No Exemption:</strong> No annual exemption limit</li>
@@ -661,8 +661,8 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
 
             <div>
-              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Transfer Expenses (Accurate Rates)</h4>
-              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-3">Transfer Expenses (Accurate Rates)</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <li><strong>STT Equity:</strong> 0.1% on buy + 0.1% on sell (delivery)</li>
                 <li><strong>STT Intraday:</strong> 0.025% on sell side only</li>
                 <li><strong>Stamp Duty:</strong> 0.003% on purchase value (all states)</li>
@@ -673,8 +673,8 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
 
             <div>
-              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-dark-text mb-3">Important Notes</h4>
-              <ul className="text-xs sm:text-sm text-gray-600 dark:text-dark-text-secondary space-y-2">
+              <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white mb-3">Important Notes</h4>
+              <ul className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2">
                 <li><strong>Rate Changes:</strong> New rates effective July 23, 2024</li>
                 <li><strong>STT Rounding:</strong> ≥50 paise rounds up, &lt;50 paise rounds down</li>
                 <li><strong>All Expenses:</strong> Include all transfer costs for accurate calculation</li>
@@ -683,7 +683,7 @@ export const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ 
             </div>
           </div>
 
-          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+          <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-yellow-50 dark:bg-gray-700/60 rounded-lg border border-yellow-200 dark:border-yellow-600">
             <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200">
               <strong>Disclaimer:</strong> This calculator provides estimates based on current tax rules. 
               Consult a tax advisor for complex scenarios or specific advice. Tax rules may change, 
