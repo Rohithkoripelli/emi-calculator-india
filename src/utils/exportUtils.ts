@@ -64,7 +64,7 @@ export const exportToPDF = (
   if (calculatorType === 'EMI') {
     const loanDetails = [
       ['Loan Type:', `${inputs.loanType.charAt(0).toUpperCase() + inputs.loanType.slice(1)} Loan`],
-      ['Principal Amount:', formatCurrency(inputs.principal)],
+      ['Principal Amount:', `₹${Math.round(inputs.principal).toLocaleString('en-IN')}`],
       ['Interest Rate:', `${inputs.interestRate}% per annum`],
       ['Loan Term:', `${inputs.term} ${inputs.termUnit}`],
       ['Start Date:', format(inputs.startDate, 'dd/MM/yyyy')],
@@ -99,9 +99,9 @@ export const exportToPDF = (
   yPos += 15;
   
   const results = [
-    ['Monthly EMI:', formatCurrency(calculation.emi)],
-    ['Total Payment:', formatCurrency(calculation.totalPayment)],
-    ['Total Interest:', formatCurrency(calculation.totalInterest)],
+    ['Monthly EMI:', `₹${Math.round(calculation.emi).toLocaleString('en-IN')}`],
+    ['Total Payment:', `₹${Math.round(calculation.totalPayment).toLocaleString('en-IN')}`],
+    ['Total Interest:', `₹${Math.round(calculation.totalInterest).toLocaleString('en-IN')}`],
     ['Interest as % of Total:', `${((calculation.totalInterest / calculation.totalPayment) * 100).toFixed(2)}%`]
   ];
   
@@ -132,15 +132,15 @@ export const exportToPDF = (
     
     // Table header
     doc.setFillColor(59, 130, 246);
-    doc.rect(15, yPos - 3, 180, 12, 'F');
+    doc.rect(15, yPos - 3, 170, 12, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
-    const headers = ['Month', 'Date', 'EMI', 'Principal', 'Interest', 'Balance'];
-    const columnWidths = [25, 30, 30, 35, 35, 35];
-    let xPos = 20;
+    const headers = ['Month', 'Date', 'EMI (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance (₹)'];
+    const columnWidths = [20, 25, 30, 30, 30, 30];
+    let xPos = 15;
     
     headers.forEach((header, index) => {
       doc.text(header, xPos, yPos + 6);
@@ -162,13 +162,13 @@ export const exportToPDF = (
         
         // Repeat table header on new page
         doc.setFillColor(59, 130, 246);
-        doc.rect(15, yPos - 3, 180, 12, 'F');
+        doc.rect(15, yPos - 3, 170, 12, 'F');
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         
-        xPos = 20;
+        xPos = 15;
         headers.forEach((header, index) => {
           doc.text(header, xPos, yPos + 6);
           xPos += columnWidths[index];
@@ -182,19 +182,19 @@ export const exportToPDF = (
       // Alternate row background
       if (index % 2 === 0) {
         doc.setFillColor(249, 250, 251);
-        doc.rect(15, yPos - 2, 180, 8, 'F');
+        doc.rect(15, yPos - 2, 170, 8, 'F');
       }
       
       doc.setFontSize(8);
-      xPos = 20;
+      xPos = 15;
       
       const rowData = [
         payment.month.toString(),
         format(payment.date, 'MMM yy'),
-        formatCurrency(payment.emi).replace('₹', ''),
-        formatCurrency(payment.principal).replace('₹', ''),
-        formatCurrency(payment.interest).replace('₹', ''),
-        formatCurrency(payment.balance).replace('₹', '')
+        Math.round(payment.emi).toLocaleString('en-IN'),
+        Math.round(payment.principal).toLocaleString('en-IN'),
+        Math.round(payment.interest).toLocaleString('en-IN'),
+        Math.round(payment.balance).toLocaleString('en-IN')
       ];
       
       rowData.forEach((data, colIndex) => {
