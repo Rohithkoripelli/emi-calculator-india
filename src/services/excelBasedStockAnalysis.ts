@@ -477,6 +477,94 @@ export class ExcelBasedStockAnalysisService {
   /**
    * Test the matching logic
    */
+  /**
+   * Find multiple stock symbols in a query for comparison scenarios
+   */
+  static findMultipleStocks(query: string, maxResults: number = 5): string[] {
+    this.initialize();
+
+    const cleanQuery = query.toLowerCase().trim();
+    console.log(`🔍 Finding multiple stocks in: "${cleanQuery}"`);
+
+    // Step 1: Extract meaningful words (remove stop words)
+    const words = cleanQuery.split(/\s+/);
+    const meaningfulWords = words.filter(word => {
+      const cleanWord = word.replace(/[^\w&]/g, ''); // Keep & for companies like L&T
+      return cleanWord.length > 1 && !this.STOP_WORDS.has(cleanWord.toLowerCase());
+    });
+
+    console.log(`📝 Meaningful words: ${meaningfulWords.join(', ')}`);
+
+    if (meaningfulWords.length === 0) {
+      console.log('❌ No meaningful words found');
+      return [];
+    }
+
+    // Step 2: Collect all possible matches with scores
+    const candidates = new Map<string, number>(); // symbol -> score
+
+    // Direct symbol lookup
+    for (const word of meaningfulWords) {
+      const upperWord = word.toUpperCase();
+      if (this.symbolToCompany.has(upperWord)) {
+        candidates.set(upperWord, 100); // Highest score for direct symbol matches
+      }
+    }
+
+    // Search index lookup
+    for (const word of meaningfulWords) {
+      const lowerWord = word.toLowerCase();
+      if (this.searchIndex.has(lowerWord)) {
+        this.searchIndex.get(lowerWord)!.forEach(company => {
+          const current = candidates.get(company.symbol) || 0;
+          candidates.set(company.symbol, current + 20);
+        });
+      }
+    }
+
+    // Enhanced partial matches
+    this.companies.forEach(company => {
+      let score = candidates.get(company.symbol) || 0;
+      
+      // Check for partial matches in company name and search terms
+      for (const word of meaningfulWords) {
+        const lowerWord = word.toLowerCase();
+        
+        // Check company name parts
+        if (company.cleanName.includes(lowerWord)) {
+          score += 15;
+        }
+        
+        // Check search terms
+        for (const term of company.searchTerms) {
+          if (term.includes(lowerWord)) {
+            score += 10;
+          }
+        }
+      }
+      
+      // Apply well-known matches boost
+      score += this.checkWellKnownMatches(meaningfulWords, company);
+      
+      if (score > 0) {
+        candidates.set(company.symbol, score);
+      }
+    });
+
+    // Step 3: Sort by score and return top matches
+    const sortedResults = Array.from(candidates.entries())
+      .sort((a, b) => b[1] - a[1]) // Sort by score descending
+      .filter(([symbol, score]) => score >= 10) // Minimum threshold
+      .slice(0, maxResults)
+      .map(([symbol, score]) => {
+        console.log(`🎯 Match: ${this.symbolToCompany.get(symbol)?.name} (${symbol}) - Score: ${score}`);
+        return symbol;
+      });
+
+    console.log(`✅ Found ${sortedResults.length} stock symbols: ${sortedResults.join(', ')}`);
+    return sortedResults;
+  }
+
   static testMatching(): void {
     console.log('🧪 Testing Excel-based stock matching...');
     

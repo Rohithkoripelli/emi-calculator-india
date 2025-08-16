@@ -205,13 +205,10 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
           : msg
       ));
       
-      // Normalize stock symbols
-      const normalizedSymbols = stockSymbols.map(symbol => 
-        IntentAnalysisService.normalizeStockName(symbol)
-      );
+      // Use the stock symbols directly from fuzzy logic (already normalized)
       
       // Get comprehensive stock comparison
-      const stockComparison = await StockComparisonService.compareStocks(normalizedSymbols);
+      const stockComparison = await StockComparisonService.compareStocks(stockSymbols);
       
       if (!stockComparison) {
         throw new Error(`Unable to compare ${stockSymbols.join(' and ')}. Please check if they are valid stock symbols.`);
@@ -240,6 +237,40 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
           ? { 
               ...msg, 
               text: `❌ Sorry, I couldn't compare ${stockSymbols.join(' and ')} at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}\n\nYou can try asking about individual stocks first, like:\n• "Analyze HDFC Bank stock"\n• "What's the current price of SBI?"`,
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+    }
+  };
+
+  /**
+   * Handle market news and sector analysis queries
+   */
+  const handleMarketAnalysis = async (query: string, queryIntent: QueryIntent, aiMessageId: string) => {
+    try {
+      console.log(`📰 Handling market analysis for: "${query}"`);
+      
+      // Update message to show progress
+      const analysisType = queryIntent.type === 'MARKET_NEWS_ANALYSIS' ? 'market news' : 'sector analysis';
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, text: `📊 Analyzing ${analysisType}...\n\n• Gathering latest market data\n• Processing news and trends\n• Generating insights and recommendations` }
+          : msg
+      ));
+      
+      // Route to generic financial handler with enhanced context
+      await handleGenericFinancialQuery(query, aiMessageId);
+      
+    } catch (error) {
+      console.error('❌ Error in market analysis:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `❌ Sorry, I couldn't analyze the market data at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}\n\nYou can try asking about:\n• Specific stocks or sectors\n• Investment recommendations\n• General market trends`,
               isStreaming: false, 
               isComplete: true 
             }
@@ -732,8 +763,16 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
 • "Analyze TCS stock" → Real-time data + buy/sell recommendation
 • "Compare HDFC Bank and SBI stocks" → Detailed comparison with top pick
 • "Which is better: Reliance or TCS?" → Side-by-side analysis
+
+**Market News & Sector Analysis:**
+• "How is the market performing today?" → Market sentiment + trends
+• "Banking sector outlook" → Sector-specific analysis + recommendations
+• "What's happening in IT stocks?" → Industry insights + stock picks
+
+**Investment & Portfolio Planning:**
 • "I want to invest ₹1 lakh in stocks" → Dynamic portfolio allocation
 • "Best performing stocks for monthly SIP of ₹10,000"
+• "How to diversify my portfolio?" → Asset allocation strategies
 
 **How can I assist you today?** 🚀`;
   };
@@ -779,20 +818,69 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
       // Route to appropriate handler based on intent type
       switch (queryIntent.type) {
         case 'SINGLE_STOCK_ANALYSIS':
+          // Use both AI-extracted stocks AND fuzzy logic for accurate symbol identification
+          let stockSymbol: string | undefined;
+          
           if (queryIntent.entities.stocks && queryIntent.entities.stocks.length > 0) {
-            const stockSymbol = IntentAnalysisService.normalizeStockName(queryIntent.entities.stocks[0]);
+            // First try AI-extracted stock names with fuzzy matching
+            for (const aiStock of queryIntent.entities.stocks) {
+              const fuzzySymbol = ExcelBasedStockAnalysisService.parseStockSymbol(aiStock);
+              if (fuzzySymbol) {
+                stockSymbol = fuzzySymbol;
+                break;
+              }
+            }
+          }
+          
+          // If AI extraction failed, use fuzzy logic on the entire query
+          if (!stockSymbol) {
+            stockSymbol = ExcelBasedStockAnalysisService.parseStockSymbol(userMessage);
+          }
+          
+          if (stockSymbol) {
+            console.log(`✅ Stock symbol identified: ${stockSymbol} from query: "${userMessage}"`);
             await handleStockAnalysis(stockSymbol, aiMessageId);
           } else {
-            throw new Error('Could not identify stock symbol for analysis');
+            throw new Error('Could not identify a valid stock symbol. Please try with specific company names like "Reliance", "TCS", "HDFC Bank", etc.');
           }
           break;
           
         case 'STOCK_COMPARISON':
+          // Use fuzzy logic to identify actual stock symbols for comparison
+          const stockSymbols: string[] = [];
+          
           if (queryIntent.entities.stocks && queryIntent.entities.stocks.length >= 2) {
-            await handleStockComparison(queryIntent.entities.stocks, aiMessageId);
-          } else {
-            throw new Error('Need at least 2 stocks for comparison');
+            // Try AI-extracted stocks with fuzzy matching
+            for (const aiStock of queryIntent.entities.stocks) {
+              const fuzzySymbol = ExcelBasedStockAnalysisService.parseStockSymbol(aiStock);
+              if (fuzzySymbol && !stockSymbols.includes(fuzzySymbol)) {
+                stockSymbols.push(fuzzySymbol);
+              }
+            }
           }
+          
+          // If we don't have enough from AI extraction, use fuzzy logic on entire query
+          if (stockSymbols.length < 2) {
+            // Use ExcelBasedStockAnalysisService to find multiple stocks in the query
+            const fuzzyMatches = ExcelBasedStockAnalysisService.findMultipleStocks(userMessage);
+            for (const match of fuzzyMatches) {
+              if (!stockSymbols.includes(match)) {
+                stockSymbols.push(match);
+              }
+            }
+          }
+          
+          if (stockSymbols.length >= 2) {
+            console.log(`✅ Stock symbols identified for comparison: ${stockSymbols.join(' vs ')} from query: "${userMessage}"`);
+            await handleStockComparison(stockSymbols, aiMessageId);
+          } else {
+            throw new Error('Need at least 2 valid stock symbols for comparison. Please mention specific company names like "Compare Reliance and TCS" or "HDFC Bank vs SBI".');
+          }
+          break;
+          
+        case 'MARKET_NEWS_ANALYSIS':
+        case 'SECTOR_ANALYSIS':
+          await handleMarketAnalysis(userMessage, queryIntent, aiMessageId);
           break;
           
         case 'INVESTMENT_RECOMMENDATION':
@@ -805,6 +893,9 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
           );
           break;
           
+        case 'TAX_PLANNING':
+        case 'FINANCIAL_PLANNING':
+        case 'CALCULATOR_REQUEST':
         case 'LOAN_ANALYSIS':
         case 'GENERIC_FINANCIAL':
         default:
