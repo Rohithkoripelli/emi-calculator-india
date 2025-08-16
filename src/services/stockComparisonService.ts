@@ -82,10 +82,20 @@ export class StockComparisonService {
       // Create comparison metrics
       const comparisonMetrics = this.createComparisonMetrics(comparisonStocks);
 
-      // Determine top pick
-      const topStock = comparisonStocks.reduce((best, current) => 
-        current.score > best.score ? current : best
-      );
+      // Determine top pick - prioritize recommendation action first, then score
+      const topStock = comparisonStocks.reduce((best, current) => {
+        // Priority order: BUY > HOLD > SELL
+        const bestAction = best.recommendation;
+        const currentAction = current.recommendation;
+        
+        if (currentAction === 'BUY' && bestAction !== 'BUY') return current;
+        if (currentAction === 'HOLD' && bestAction === 'SELL') return current;
+        if (currentAction === bestAction) {
+          // Same recommendation level, use score as tiebreaker
+          return current.score > best.score ? current : best;
+        }
+        return best;
+      });
 
       return {
         stocks: comparisonStocks,
@@ -136,25 +146,31 @@ export class StockComparisonService {
         } : null
       }));
 
-      const systemPrompt = `You are an expert stock analyst comparing multiple stocks. Provide a comprehensive comparison analysis.
+      const systemPrompt = `You are an expert stock analyst comparing multiple stocks for investment decisions. Provide clear, actionable analysis.
 
 Stock Data: ${JSON.stringify(stockData, null, 2)}
 
+CRITICAL ANALYSIS REQUIREMENTS:
+1. If any stock has "BUY" recommendation, it should be preferred over "HOLD" stocks
+2. Consider both technical and fundamental factors
+3. Account for sector dynamics and market conditions
+4. Provide clear, non-contradictory reasoning
+
 Provide analysis in this JSON format:
 {
-  "summary": "2-3 sentence overview of the comparison",
-  "recommendation_reasoning": "Why the top pick is best among these options",
+  "summary": "Clear 2-3 sentence overview explaining which stock is better and why",
+  "recommendation_reasoning": "Specific reasons why the recommended stock is the best choice right now",
   "confidence": 85,
-  "key_differences": ["Key differentiating factors between stocks"],
-  "market_outlook": "Overall market view for these stocks"
+  "key_differences": ["Most important differentiating factors between these stocks"],
+  "market_outlook": "Current market view and timing considerations for these investments"
 }
 
 Focus on:
-- Relative valuation and growth prospects
-- Sector positioning and competitive advantages
-- Risk-return profiles
-- Near-term vs long-term outlook
-- Which stock offers best value at current levels`;
+- Current recommendation actions (BUY vs HOLD vs SELL)
+- Risk-adjusted returns and valuation
+- Technical momentum and chart patterns
+- Sector leadership and competitive positioning
+- Entry timing and risk management`;
 
       const response = await fetch(this.OPENAI_API_URL, {
         method: 'POST',
@@ -295,57 +311,166 @@ Focus on:
   }
 
   /**
-   * Format comparison for display
+   * Format comparison for display with proper HTML tables and clear structure
    */
   static formatComparisonResponse(comparison: StockComparison): string {
-    let response = `# 🔄 Stock Comparison Analysis\n\n`;
+    const topStock = comparison.stocks.find(s => s.symbol === comparison.recommendation.topPick)!;
+    const allBuyRecommendations = comparison.stocks.filter(s => s.recommendation === 'BUY');
     
-    // Summary
-    response += `## 📋 Comparison Summary\n`;
-    response += `${comparison.summary}\n\n`;
+    let response = `# 📊 Stock Comparison Analysis\n\n`;
+    
+    // Clear recommendation section
+    response += `## 🎯 Investment Recommendation\n\n`;
+    
+    if (allBuyRecommendations.length > 0) {
+      response += `**Action: BUY ${topStock.symbol}**\n\n`;
+      response += `**Key Reasoning:**\n`;
+      response += `• ${topStock.name} has a **${topStock.recommendation}** rating with strong fundamentals\n`;
+      response += `• Superior risk-return profile in current market conditions\n`;
+      response += `• Technical indicators support the investment thesis\n\n`;
+    } else {
+      response += `**Action: HOLD positions or WAIT for better entry points**\n\n`;
+      response += `**Key Reasoning:**\n`;
+      response += `• Current valuations don't present compelling buy opportunities\n`;
+      response += `• Market conditions suggest a cautious approach\n`;
+      response += `• Consider dollar-cost averaging if investing for long term\n\n`;
+    }
+    
+    response += `**Confidence Level:** ${comparison.recommendation.confidence}%\n`;
+    response += `**Risk Assessment:** ${comparison.recommendation.riskLevel}\n\n`;
 
-    // Top Recommendation
-    response += `## 🎯 Top Recommendation: ${comparison.recommendation.topPick}\n`;
-    response += `**Confidence:** ${comparison.recommendation.confidence}%\n`;
-    response += `**Risk Level:** ${comparison.recommendation.riskLevel}\n\n`;
-    response += `**Why ${comparison.recommendation.topPick}:**\n`;
-    comparison.recommendation.reasoning.forEach((reason, index) => {
-      response += `${index + 1}. ${reason}\n`;
+    // Detailed comparison table
+    response += `## 📈 Detailed Stock Comparison\n\n`;
+    response += `<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+<thead style="background-color: #f8f9fa;">
+<tr>
+<th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Metric</th>`;
+    
+    comparison.stocks.forEach(stock => {
+      response += `<th style="padding: 12px; text-align: center; border: 1px solid #ddd;">${stock.symbol}</th>`;
     });
-    response += '\n';
+    response += `</tr>
+</thead>
+<tbody>`;
 
-    // Individual Stock Details
-    response += `## 📊 Individual Stock Analysis\n\n`;
+    // Company names row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Company</td>`;
+    comparison.stocks.forEach(stock => {
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.name}</td>`;
+    });
+    response += `</tr>`;
+
+    // Current price row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Current Price</td>`;
+    comparison.stocks.forEach(stock => {
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">₹${stock.currentPrice.toLocaleString('en-IN')}</td>`;
+    });
+    response += `</tr>`;
+
+    // Day change row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Day Change</td>`;
+    comparison.stocks.forEach(stock => {
+      const changeColor = stock.dayChangePercent >= 0 ? 'color: green;' : 'color: red;';
+      const changeSign = stock.dayChangePercent >= 0 ? '+' : '';
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${changeColor}">${changeSign}${stock.dayChangePercent.toFixed(2)}%</td>`;
+    });
+    response += `</tr>`;
+
+    // Sector row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Sector</td>`;
+    comparison.stocks.forEach(stock => {
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.sector}</td>`;
+    });
+    response += `</tr>`;
+
+    // Market cap row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Market Cap</td>`;
+    comparison.stocks.forEach(stock => {
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.marketCap}</td>`;
+    });
+    response += `</tr>`;
+
+    // Recommendation row (most important)
+    response += `<tr style="background-color: #f0f8ff;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Our Recommendation</td>`;
+    comparison.stocks.forEach(stock => {
+      let recommendationStyle = '';
+      if (stock.recommendation === 'BUY') recommendationStyle = 'background-color: #d4edda; color: #155724; font-weight: bold;';
+      else if (stock.recommendation === 'HOLD') recommendationStyle = 'background-color: #fff3cd; color: #856404; font-weight: bold;';
+      else recommendationStyle = 'background-color: #f8d7da; color: #721c24; font-weight: bold;';
+      
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${recommendationStyle}">${stock.recommendation}</td>`;
+    });
+    response += `</tr>`;
+
+    // Score row
+    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Investment Score</td>`;
+    comparison.stocks.forEach(stock => {
+      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${stock.score}/100</td>`;
+    });
+    response += `</tr>`;
+
+    response += `</tbody></table>\n\n`;
+
+    // Individual analysis for each stock
+    response += `## 🔍 Individual Stock Analysis\n\n`;
+    
     comparison.stocks.forEach((stock, index) => {
-      response += `### ${index + 1}. ${stock.name} (${stock.symbol})\n`;
-      response += `- **Current Price:** ₹${stock.currentPrice}\n`;
-      response += `- **Day Change:** ${stock.dayChange >= 0 ? '+' : ''}₹${stock.dayChange.toFixed(2)} (${stock.dayChangePercent >= 0 ? '+' : ''}${stock.dayChangePercent.toFixed(2)}%)\n`;
-      response += `- **Sector:** ${stock.sector}\n`;
-      response += `- **Recommendation:** ${stock.recommendation}\n`;
-      response += `- **Score:** ${stock.score}/100\n`;
+      response += `### ${index + 1}. ${stock.name} (${stock.symbol})\n\n`;
+      
+      response += `**Investment Rating:** `;
+      if (stock.recommendation === 'BUY') {
+        response += `🟢 **${stock.recommendation}** - Strong investment opportunity\n`;
+      } else if (stock.recommendation === 'HOLD') {
+        response += `🟡 **${stock.recommendation}** - Maintain current position\n`;
+      } else {
+        response += `🔴 **${stock.recommendation}** - Consider reducing exposure\n`;
+      }
+      
+      response += `**Price Action:** ₹${stock.currentPrice.toLocaleString('en-IN')} `;
+      response += `(${stock.dayChangePercent >= 0 ? '+' : ''}${stock.dayChangePercent.toFixed(2)}% today)\n`;
+      response += `**Sector:** ${stock.sector} | **Investment Score:** ${stock.score}/100\n\n`;
       
       if (stock.strengths.length > 0) {
-        response += `- **Strengths:** ${stock.strengths.join(', ')}\n`;
+        response += `**✅ Key Strengths:**\n`;
+        stock.strengths.forEach(strength => {
+          response += `• ${strength}\n`;
+        });
+        response += '\n';
       }
+      
       if (stock.weaknesses.length > 0) {
-        response += `- **Risks:** ${stock.weaknesses.join(', ')}\n`;
+        response += `**⚠️ Risk Factors:**\n`;
+        stock.weaknesses.forEach(weakness => {
+          response += `• ${weakness}\n`;
+        });
+        response += '\n';
       }
-      response += '\n';
     });
 
-    // Comparison Table
-    response += `## 📈 Key Metrics Comparison\n\n`;
-    comparison.comparison_metrics.forEach(metric => {
-      response += `**${metric.metric}:**\n`;
-      metric.values.forEach(value => {
-        response += `- ${value.symbol}: ${value.value}\n`;
-      });
-      response += '\n';
-    });
+    // Final recommendation summary
+    response += `## 💡 Final Investment Advice\n\n`;
+    
+    if (allBuyRecommendations.length > 0) {
+      response += `**Recommended Action:** Start building a position in **${topStock.symbol}**\n\n`;
+      response += `**Investment Strategy:**\n`;
+      response += `• Consider a phased approach (invest 50% now, 50% on any dips)\n`;
+      response += `• Set a stop-loss at 8-10% below entry price\n`;
+      response += `• Review position after quarterly results\n`;
+      response += `• Target holding period: 6-12 months minimum\n\n`;
+    } else {
+      response += `**Recommended Action:** Wait for better opportunities or HOLD existing positions\n\n`;
+      response += `**Current Strategy:**\n`;
+      response += `• Market conditions don't favor new investments in these stocks\n`;
+      response += `• Consider systematic investment plans (SIP) for long-term goals\n`;
+      response += `• Monitor for price corrections or fundamental improvements\n`;
+      response += `• Keep cash ready for better entry points\n\n`;
+    }
 
     // Disclaimer
-    response += `## ⚠️ Disclaimer\n`;
-    response += `This comparison is based on real-time market data, technical indicators, and AI analysis. It's for educational purposes only and not financial advice. Please consult with a qualified financial advisor and do your own research before making investment decisions.`;
+    response += `## ⚠️ Important Disclaimer\n\n`;
+    response += `This analysis is based on real-time market data, technical indicators, and fundamental analysis. It's intended for educational purposes only and should not be considered as personal financial advice. `;
+    response += `Please consult with a qualified financial advisor and conduct your own research before making any investment decisions. `;
+    response += `Past performance does not guarantee future results, and all investments carry risk of loss.`;
 
     return response;
   }
