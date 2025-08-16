@@ -64,7 +64,7 @@ export const exportToPDF = (
   if (calculatorType === 'EMI') {
     const loanDetails = [
       ['Loan Type:', `${inputs.loanType.charAt(0).toUpperCase() + inputs.loanType.slice(1)} Loan`],
-      ['Principal Amount:', `₹${Math.round(inputs.principal).toLocaleString('en-IN')}`],
+      ['Principal Amount:', `Rs. ${Math.round(inputs.principal).toLocaleString('en-IN')}`],
       ['Interest Rate:', `${inputs.interestRate}% per annum`],
       ['Loan Term:', `${inputs.term} ${inputs.termUnit}`],
       ['Start Date:', format(inputs.startDate, 'dd/MM/yyyy')],
@@ -99,9 +99,9 @@ export const exportToPDF = (
   yPos += 15;
   
   const results = [
-    ['Monthly EMI:', `₹${Math.round(calculation.emi).toLocaleString('en-IN')}`],
-    ['Total Payment:', `₹${Math.round(calculation.totalPayment).toLocaleString('en-IN')}`],
-    ['Total Interest:', `₹${Math.round(calculation.totalInterest).toLocaleString('en-IN')}`],
+    ['Monthly EMI:', `Rs. ${Math.round(calculation.emi).toLocaleString('en-IN')}`],
+    ['Total Payment:', `Rs. ${Math.round(calculation.totalPayment).toLocaleString('en-IN')}`],
+    ['Total Interest:', `Rs. ${Math.round(calculation.totalInterest).toLocaleString('en-IN')}`],
     ['Interest as % of Total:', `${((calculation.totalInterest / calculation.totalPayment) * 100).toFixed(2)}%`]
   ];
   
@@ -138,9 +138,9 @@ export const exportToPDF = (
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
-    const headers = ['Month', 'Date', 'EMI (₹)', 'Principal (₹)', 'Interest (₹)', 'Balance (₹)'];
-    const columnWidths = [20, 25, 30, 30, 30, 30];
-    let xPos = 15;
+    const headers = ['Month', 'Date', 'EMI (Rs.)', 'Principal (Rs.)', 'Interest (Rs.)', 'Balance (Rs.)'];
+    const columnWidths = [25, 30, 30, 35, 35, 35];
+    let xPos = 20;
     
     headers.forEach((header, index) => {
       doc.text(header, xPos, yPos + 6);
@@ -168,7 +168,7 @@ export const exportToPDF = (
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         
-        xPos = 15;
+        xPos = 20;
         headers.forEach((header, index) => {
           doc.text(header, xPos, yPos + 6);
           xPos += columnWidths[index];
@@ -186,7 +186,7 @@ export const exportToPDF = (
       }
       
       doc.setFontSize(8);
-      xPos = 15;
+      xPos = 20;
       
       const rowData = [
         payment.month.toString(),
