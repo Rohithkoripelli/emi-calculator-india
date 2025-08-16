@@ -18,6 +18,7 @@ export const Input: React.FC<InputProps> = ({
   onChange,
   onBlur,
   onFocus,
+  onKeyDown,
   value,
   ...props 
 }) => {
@@ -32,6 +33,13 @@ export const Input: React.FC<InputProps> = ({
     if (formatDisplay && props.type === 'number') {
       // Remove commas and format properly
       let inputValue = e.target.value.replace(/,/g, '');
+      
+      // Special handling for the case where user is typing over a zero field
+      // If the previous value was 0 and now we have "0X" where X is a digit, just use X
+      const previousValue = Number(value);
+      if (previousValue === 0 && inputValue.match(/^0[1-9]/)) {
+        inputValue = inputValue.substring(1); // Remove the leading 0
+      }
       
       // Handle leading zero issues comprehensively
       if (inputValue.startsWith('0') && inputValue.length > 1) {
@@ -63,12 +71,17 @@ export const Input: React.FC<InputProps> = ({
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true);
     
-    // If the field contains only "0", select all text so typing replaces it
-    if (props.type === 'number' && Number(value) === 0) {
-      // Use setTimeout to ensure the selection happens after the focus event
-      setTimeout(() => {
-        e.target.select();
-      }, 0);
+    // If the field contains only "0" or is effectively zero, select all text so typing replaces it
+    if (props.type === 'number') {
+      const currentValue = Number(value);
+      const displayedValue = e.target.value;
+      
+      if (currentValue === 0 || displayedValue === '0' || displayedValue === '') {
+        // Use setTimeout to ensure the selection happens after the focus event
+        setTimeout(() => {
+          e.target.select();
+        }, 0);
+      }
     }
     
     onFocus?.(e);
@@ -77,6 +90,22 @@ export const Input: React.FC<InputProps> = ({
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
     onBlur?.(e);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // If the field shows "0" and user types a digit, select all first
+    if (props.type === 'number' && e.target instanceof HTMLInputElement) {
+      const currentValue = Number(value);
+      const key = e.key;
+      
+      // If current value is 0 and user typed a digit or decimal point (not backspace, delete, arrow keys, etc.)
+      if (currentValue === 0 && /^[0-9.]$/.test(key)) {
+        // Select all text so the new digit replaces the 0
+        e.target.select();
+      }
+    }
+    
+    onKeyDown?.(e);
   };
 
   // Format the display value with commas when not focused
@@ -112,6 +141,7 @@ export const Input: React.FC<InputProps> = ({
           onChange={handleChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className={`
             w-full px-2 sm:px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg 
             bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text-primary
