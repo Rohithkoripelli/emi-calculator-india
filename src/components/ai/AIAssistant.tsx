@@ -49,7 +49,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm your AI financial assistant powered by real-time data from Groww API and comprehensive market analysis. I can help you with:\n\n📊 **Stock Analysis**: Get detailed analysis of any Indian stock with real-time prices, technical indicators, and buy/sell recommendations\n\n💼 **Investment Recommendations**: Receive personalized portfolio allocations based on your budget and risk appetite\n\n💰 **Financial Planning**: Loan analysis, EMI optimization, and tax-saving strategies\n\nHow can I assist you today?",
+      text: "Hello! I'm your AI financial assistant powered by real-time market data and comprehensive analysis. I can help you with:\n\n📊 **Stock Analysis**: Get detailed analysis of any Indian stock with real-time prices, technical indicators, and buy/sell recommendations\n\n💼 **Investment Recommendations**: Receive personalized portfolio allocations based on your budget and risk appetite\n\n💰 **Financial Planning**: Loan analysis, EMI optimization, and tax-saving strategies\n\nHow can I assist you today?",
       isUser: false,
       timestamp: new Date(),
       isComplete: true
@@ -210,7 +210,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
       // Update message to show progress
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: `🔄 Analyzing ${stockSymbol}...\n\n• Fetching real-time data from Groww API\n• Gathering market news and sentiment\n• Performing technical analysis\n• Generating recommendations` }
+          ? { ...msg, text: `🔄 Analyzing ${stockSymbol}...\n\n• Fetching real-time market data\n• Gathering market news and sentiment\n• Performing technical analysis\n• Generating recommendations` }
           : msg
       ));
       
@@ -297,7 +297,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       // Update message to show progress
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: `💼 Creating investment strategy for ₹${amount.toLocaleString('en-IN')}...\n\n• Discovering trending stocks through market research\n• Fetching real-time prices from Groww API\n• Analyzing market sentiment and trends\n• Creating personalized portfolio allocation\n• Generating comprehensive investment plan` }
+          ? { ...msg, text: `💼 Creating investment strategy for ₹${amount.toLocaleString('en-IN')}...\n\n• Discovering trending stocks through market research\n• Fetching real-time market prices\n• Analyzing market sentiment and trends\n• Creating personalized portfolio allocation\n• Generating comprehensive investment plan` }
           : msg
       ));
       
@@ -362,7 +362,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
    */
   const handleGenericFinancialQuery = async (query: string, aiMessageId: string) => {
     try {
-      console.log('🧠 Processing financial query with OpenAI...');
+      console.log('🧠 Processing financial query...');
       
       // Update message to show progress
       setMessages(prev => prev.map(msg => 
@@ -371,15 +371,15 @@ Please provide these details so I can give you a comprehensive portfolio recomme
           : msg
       ));
 
-      // Check if OpenAI API key is available
+      // Check if AI API key is available
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        console.error('❌ OpenAI API key not found in environment variables');
+        console.error('❌ AI API key not found in environment variables');
         console.error('Please set REACT_APP_OPENAI_API_KEY in your Vercel environment variables');
-        throw new Error('OpenAI API key not configured');
+        throw new Error('AI API key not configured');
       }
       
-      console.log('✅ OpenAI API key found, preparing analysis request...');
+      console.log('✅ AI API key found, preparing analysis request...');
 
       // Enhanced system prompt for loan/tax analysis
       let systemPrompt = `You are an expert Indian financial advisor with advanced mathematical capabilities, specialized in precise loan calculations, tax planning, investment strategies, and financial planning in India.
@@ -514,7 +514,7 @@ Present results in a clear table format with before/after comparison.
 - Use professional yet conversational tone
 - Focus on educating the user while solving their problem`;
 
-      // Prepare messages for OpenAI API
+      // Prepare messages for AI processing
       const messages = [
         {
           role: 'system',
@@ -526,7 +526,7 @@ Present results in a clear table format with before/after comparison.
         }
       ];
 
-      // Call OpenAI API
+      // Call AI service
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -544,8 +544,8 @@ Present results in a clear table format with before/after comparison.
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ OpenAI API error (${response.status}):`, errorText);
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+        console.error(`❌ AI API error (${response.status}):`, errorText);
+        throw new Error(`AI API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -553,7 +553,7 @@ Present results in a clear table format with before/after comparison.
 
       // Validate response
       if (!aiResponse || aiResponse.trim().length < 20) {
-        throw new Error('Invalid or too short response from OpenAI');
+        throw new Error('Invalid or too short response from AI service');
       }
 
       setMessages(prev => prev.map(msg => 
@@ -661,7 +661,7 @@ Present results in a clear table format with before/after comparison.
     
     // Disclaimer
     response += `## ⚠️ Disclaimer\n`;
-    response += `This analysis is based on real-time data from Groww API, technical indicators, and market news. It's for educational purposes only and not financial advice. Please consult with a qualified financial advisor and do your own research before making investment decisions.`;
+    response += `This analysis is based on real-time market data, technical indicators, and market news. It's for educational purposes only and not financial advice. Please consult with a qualified financial advisor and do your own research before making investment decisions.`;
     
     return response;
   };
@@ -933,7 +933,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
             </Button>
           </div>
           <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
-            Powered by Groww API • Real-time stock data • AI analysis
+            Real-time market data • AI analysis
           </p>
         </div>
       </div>

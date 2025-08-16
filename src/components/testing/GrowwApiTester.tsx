@@ -122,7 +122,7 @@ export const GrowwApiTester: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        🧪 Groww API Token System Tester
+        🧪 API Token System Tester
       </h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -216,7 +216,7 @@ export const GrowwApiTester: React.FC = () => {
           <li><strong>🔐 Test Token Generation:</strong> Tests complete TOTP → Token flow</li>
           <li><strong>📊 Check Token Status:</strong> Shows current token validity and expiry</li>
           <li><strong>🔄 Refresh Token:</strong> Forces a new token generation</li>
-          <li><strong>🌐 Test API Call:</strong> Tests actual Groww API call with TCS stock</li>
+          <li><strong>🌐 Test API Call:</strong> Tests actual API call with TCS stock</li>
         </ul>
       </div>
 
@@ -226,7 +226,7 @@ export const GrowwApiTester: React.FC = () => {
         </h4>
         <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
           <li>1. Check environment variables: REACT_APP_GROWW_API_KEY & REACT_APP_GROWW_TOTP_SECRET</li>
-          <li>2. Verify credentials in Groww API dashboard</li>
+          <li>2. Verify credentials in API dashboard</li>
           <li>3. Check browser console for detailed error messages</li>
           <li>4. Ensure system time is accurate (TOTP is time-sensitive)</li>
         </ul>

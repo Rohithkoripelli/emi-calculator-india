@@ -54,17 +54,17 @@ export const StockScreener: React.FC = () => {
       setIndexData(newIndexData);
 
       if (successCount === 0) {
-        setError('Unable to load live market data from Groww API. Please check your internet connection and try again. If the issue persists, the market may be closed or there may be a temporary service interruption.');
+        setError('Unable to load live market data. Please check your internet connection and try again. If the issue persists, the market may be closed or there may be a temporary service interruption.');
       } else if (successCount < priorityIndices.length / 2) {
-        setError(`Loaded ${successCount}/${priorityIndices.length} indices successfully from Groww API. Some indices may be temporarily unavailable.`);
+        setError(`Loaded ${successCount}/${priorityIndices.length} indices successfully. Some indices may be temporarily unavailable.`);
       } else {
         // Success case - show data freshness info
-        console.log(`Successfully loaded ${successCount}/${priorityIndices.length} indices with professional real-time data from Groww API`);
+        console.log(`Successfully loaded ${successCount}/${priorityIndices.length} indices with professional real-time data`);
       }
 
     } catch (err) {
-      setError('Failed to load stock market data from Groww API. This may be due to network issues or temporary service interruption.');
-      console.error('Error loading index data from Groww API:', err);
+      setError('Failed to load stock market data. This may be due to network issues or temporary service interruption.');
+      console.error('Error loading index data:', err);
     } finally {
       setLoading(false);
     }

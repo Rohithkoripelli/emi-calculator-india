@@ -12,7 +12,6 @@ import { CapitalGainsCalculator } from '../calculators/CapitalGainsCalculator';
 import { AIAssistant } from '../ai/AIAssistant';
 import { TestResults } from '../ui/TestResults';
 import { ThemeToggle } from '../ui/ThemeToggle';
-import { GrowwApiTester } from '../testing/GrowwApiTester';
 import { NavigationItem } from '../../types';
 import { parseURLParams } from '../../utils/exportUtils';
 
@@ -68,12 +67,6 @@ const additionalCalculators: NavigationItem[] = [
     icon: '💼',
     description: 'Employee Benefits'
   },
-  {
-    id: 'groww-api-test',
-    name: 'API Testing',
-    icon: '🧪',
-    description: 'Test Groww API System'
-  }
 ];
 
 export const ImprovedMainLayout: React.FC = () => {
@@ -117,8 +110,6 @@ export const ImprovedMainLayout: React.FC = () => {
         return <CreditCardCalculator />;
       case 'gratuity':
         return <GratuityCalculator />;
-      case 'groww-api-test':
-        return <GrowwApiTester />;
       default:
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
     }
@@ -159,7 +150,7 @@ export const ImprovedMainLayout: React.FC = () => {
             <button 
               onClick={() => setIsAIOpen(true)}
               className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white p-4 lg:p-5 rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 group animate-pulse"
-              title="Ask AI Financial Assistant - Powered by GPT-4"
+              title="Ask AI Financial Assistant"
             >
               <div className="relative">
                 <svg className="w-6 h-6 lg:w-7 lg:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +166,7 @@ export const ImprovedMainLayout: React.FC = () => {
             {/* Enhanced Marketing Tooltip */}
             <div className="hidden lg:block absolute bottom-full right-0 mb-3 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl">
               <div className="font-semibold text-green-400">🚀 Ask AI Assistant</div>
-              <div className="text-xs text-gray-300">Powered by GPT-4 • India-specific advice</div>
+              <div className="text-xs text-gray-300">AI-powered • India-specific advice</div>
               <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900"></div>
             </div>
             
