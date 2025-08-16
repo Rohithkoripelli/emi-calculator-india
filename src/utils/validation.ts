@@ -34,10 +34,10 @@ export const validateEMIInputs = (inputs: EMIInput): ValidationResult => {
       errors.term = 'Loan term cannot exceed 50 years';
     }
     if (inputs.loanType === 'car' && inputs.term > 7) {
-      errors.term = 'Car loan term typically does not exceed 7 years';
+      errors.term = 'Car loan inputs.term typically does not exceed 7 years';
     }
     if (inputs.loanType === 'personal' && inputs.term > 5) {
-      errors.term = 'Personal loan term typically does not exceed 5 years';
+      errors.term = 'Personal loan inputs.term typically does not exceed 5 years';
     }
   } else { // months
     if (inputs.term > 600) {
@@ -82,7 +82,8 @@ export const validateEMIInputs = (inputs: EMIInput): ValidationResult => {
 
   // Prepayment validation
   if (inputs.prepayments && inputs.prepayments.length > 0) {
-    const maxTenure = inputs.termUnit === 'years' ? inputs.term * 12 : inputs.term;
+    const termForPrepayment = inputs.term;
+    const maxTenure = inputs.termUnit === 'years' ? termForPrepayment * 12 : termForPrepayment;
     inputs.prepayments.forEach((prepayment, index) => {
       if (prepayment.month <= 0 || prepayment.month > maxTenure) {
         errors[`prepayment_${index}_month`] = `Prepayment month must be between 1 and ${maxTenure}`;
@@ -91,7 +92,7 @@ export const validateEMIInputs = (inputs: EMIInput): ValidationResult => {
         errors[`prepayment_${index}_amount`] = 'Prepayment amount must be greater than 0';
       }
       if (prepayment.amount > inputs.principal) {
-        errors[`prepayment_${index}_amount`] = 'Prepayment amount cannot exceed principal amount';
+        errors[`prepayment_${index}_amount`] = 'Prepayment amount cannot exceed inputs.principal amount';
       }
     });
   }
@@ -104,6 +105,8 @@ export const validateEMIInputs = (inputs: EMIInput): ValidationResult => {
 
 export const validateSukanyaInputs = (inputs: SukanyaInput): ValidationResult => {
   const errors: Record<string, string> = {};
+
+  // Convert inputs for validation
 
   // Deposit amount validation
   if (!inputs.depositAmount || inputs.depositAmount < 250) {

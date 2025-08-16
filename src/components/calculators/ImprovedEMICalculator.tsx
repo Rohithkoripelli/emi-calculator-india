@@ -221,7 +221,15 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                 type="number"
                 prefix="₹"
                 value={inputs.principal}
-                onChange={(e) => handleInputChange('principal', parseFloat(e.target.value) || 0)}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Remove leading zeros except for decimal numbers
+                  if (value.startsWith('0') && value.length > 1 && value[1] !== '.') {
+                    value = value.replace(/^0+/, '') || '0';
+                  }
+                  const numericValue = parseFloat(value) || 0;
+                  setInputs(prev => ({ ...prev, principal: numericValue }));
+                }}
                 error={errors.principal}
               />
 
@@ -232,7 +240,15 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                   suffix="%"
                   step="0.1"
                   value={inputs.interestRate}
-                  onChange={(e) => handleInputChange('interestRate', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                  let value = e.target.value;
+                  // Remove leading zeros except for decimal numbers
+                  if (value.startsWith('0') && value.length > 1 && value[1] !== '.') {
+                    value = value.replace(/^0+/, '') || '0';
+                  }
+                  const numericValue = parseFloat(value) || 0;
+                  setInputs(prev => ({ ...prev, interestRate: numericValue }));
+                }}
                   error={errors.interestRate}
                 />
                 <div className="grid grid-cols-2 gap-2">
@@ -240,7 +256,15 @@ export const ImprovedEMICalculator: React.FC<ImprovedEMICalculatorProps> = ({ on
                     label="Tenure"
                     type="number"
                     value={inputs.term}
-                    onChange={(e) => handleInputChange('term', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Remove leading zeros except for decimal numbers
+                      if (value.startsWith('0') && value.length > 1 && value[1] !== '.') {
+                        value = value.replace(/^0+/, '') || '0';
+                      }
+                      const numericValue = parseFloat(value) || 0;
+                      setInputs(prev => ({ ...prev, term: numericValue }));
+                    }}
                     error={errors.term}
                   />
                   <Select

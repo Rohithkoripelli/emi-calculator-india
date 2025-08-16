@@ -72,6 +72,31 @@ export const EMICalculator: React.FC = () => {
     }
   };
 
+  // Helper function to handle numeric input changes properly
+  const handleNumericInputChange = (field: keyof EMIInput, inputValue: string) => {
+    // If input is empty, set to empty string instead of 0
+    if (inputValue === '' || inputValue.trim() === '') {
+      handleInputChange(field, '');
+      return;
+    }
+    
+    // Remove any leading zeros except for decimal values like 0.5
+    let cleanValue = inputValue;
+    if (cleanValue.startsWith('0') && cleanValue.length > 1 && cleanValue[1] !== '.') {
+      cleanValue = cleanValue.replace(/^0+/, '');
+      if (cleanValue === '') cleanValue = '0'; // Handle case where user entered only zeros
+    }
+    
+    // Parse the cleaned value
+    const numericValue = parseFloat(cleanValue);
+    if (!isNaN(numericValue)) {
+      handleInputChange(field, numericValue);
+    } else {
+      // If parsing fails, set to empty string
+      handleInputChange(field, '');
+    }
+  };
+
   const validateInputs = () => {
     const validation = validateEMIInputs(inputs);
     setErrors(validation.errors);
@@ -110,7 +135,7 @@ export const EMICalculator: React.FC = () => {
               type="number"
               prefix="₹"
               value={inputs.principal}
-              onChange={(e) => handleInputChange('principal', parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleNumericInputChange('principal', e.target.value)}
               error={errors.principal}
               placeholder="Enter loan amount"
               formatDisplay={true}
@@ -123,7 +148,7 @@ export const EMICalculator: React.FC = () => {
                 suffix="%"
                 step="0.1"
                 value={inputs.interestRate}
-                onChange={(e) => handleInputChange('interestRate', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleNumericInputChange('interestRate', e.target.value)}
                 error={errors.interestRate}
                 placeholder="Enter annual interest rate"
                 formatDisplay={true}
@@ -138,7 +163,7 @@ export const EMICalculator: React.FC = () => {
                 label="Loan Term"
                 type="number"
                 value={inputs.term}
-                onChange={(e) => handleInputChange('term', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleNumericInputChange('term', e.target.value)}
                 error={errors.term}
                 placeholder="Enter term"
                 formatDisplay={true}

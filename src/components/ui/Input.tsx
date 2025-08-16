@@ -33,9 +33,17 @@ export const Input: React.FC<InputProps> = ({
       // Remove commas and format properly
       let inputValue = e.target.value.replace(/,/g, '');
       
-      // Remove leading zeros
-      if (inputValue.startsWith('0') && inputValue.length > 1 && inputValue[1] !== '.') {
-        inputValue = inputValue.replace(/^0+/, '');
+      // Handle leading zero issues comprehensively
+      if (inputValue.startsWith('0') && inputValue.length > 1) {
+        // If it starts with 0 and has more characters
+        if (inputValue[1] === '.') {
+          // Keep decimal numbers like 0.5, 0.25, etc.
+          // Do nothing, this is valid
+        } else {
+          // Remove leading zeros for non-decimal numbers
+          // This handles cases like: 07, 007, 0123 -> 7, 7, 123
+          inputValue = inputValue.replace(/^0+/, '') || '0';
+        }
       }
       
       // Create a new event with the cleaned numeric value
@@ -54,6 +62,15 @@ export const Input: React.FC<InputProps> = ({
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true);
+    
+    // If the field contains only "0", select all text so typing replaces it
+    if (props.type === 'number' && Number(value) === 0) {
+      // Use setTimeout to ensure the selection happens after the focus event
+      setTimeout(() => {
+        e.target.select();
+      }, 0);
+    }
+    
     onFocus?.(e);
   };
 
@@ -66,9 +83,12 @@ export const Input: React.FC<InputProps> = ({
   const displayValue = React.useMemo(() => {
     if (formatDisplay && props.type === 'number' && value !== undefined && value !== null && value !== '') {
       const numValue = Number(value);
-      if (!isNaN(numValue)) {
+      if (!isNaN(numValue) && numValue !== 0) {
         // Show raw number when focused, formatted when not focused
         return isFocused ? numValue.toString() : formatNumberWithCommas(numValue);
+      } else if (numValue === 0) {
+        // Show empty string when value is 0 and focused, otherwise show 0
+        return isFocused ? '' : '0';
       }
     }
     return value;
