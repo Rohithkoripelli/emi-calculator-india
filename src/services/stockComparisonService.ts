@@ -221,7 +221,7 @@ Focus on:
     // Technical analysis weight (20 points max)
     if (analysis.technical_analysis) {
       if (analysis.technical_analysis.trend === 'BULLISH') score += 15;
-      else if (analysis.technical_analysis.trend === 'NEUTRAL') score += 8;
+      else if (analysis.technical_analysis.trend === 'SIDEWAYS') score += 8;
       
       // RSI consideration
       if (analysis.technical_analysis.rsi > 30 && analysis.technical_analysis.rsi < 70) {

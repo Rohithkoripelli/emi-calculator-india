@@ -834,7 +834,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
           
           // If AI extraction failed, use fuzzy logic on the entire query
           if (!stockSymbol) {
-            stockSymbol = ExcelBasedStockAnalysisService.parseStockSymbol(userMessage);
+            stockSymbol = ExcelBasedStockAnalysisService.parseStockSymbol(userMessage) || undefined;
           }
           
           if (stockSymbol) {
