@@ -132,18 +132,24 @@ export const exportToPDF = (
     
     // Table header
     doc.setFillColor(59, 130, 246);
-    doc.rect(15, yPos - 3, 170, 12, 'F');
+    doc.rect(15, yPos - 3, 175, 12, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
     const headers = ['Month', 'Date', 'EMI (Rs.)', 'Principal (Rs.)', 'Interest (Rs.)', 'Balance (Rs.)'];
-    const columnWidths = [25, 30, 30, 35, 35, 35];
+    const columnWidths = [20, 25, 28, 32, 32, 38];
     let xPos = 20;
     
     headers.forEach((header, index) => {
-      doc.text(header, xPos, yPos + 6);
+      // Right align currency columns (EMI, Principal, Interest, Balance) to match their values
+      if (index > 1) {
+        const headerWidth = doc.getTextWidth(header);
+        doc.text(header, xPos + columnWidths[index] - headerWidth - 2, yPos + 6);
+      } else {
+        doc.text(header, xPos, yPos + 6);
+      }
       xPos += columnWidths[index];
     });
     
@@ -162,7 +168,7 @@ export const exportToPDF = (
         
         // Repeat table header on new page
         doc.setFillColor(59, 130, 246);
-        doc.rect(15, yPos - 3, 170, 12, 'F');
+        doc.rect(15, yPos - 3, 175, 12, 'F');
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(9);
@@ -170,7 +176,13 @@ export const exportToPDF = (
         
         xPos = 20;
         headers.forEach((header, index) => {
-          doc.text(header, xPos, yPos + 6);
+          // Right align currency columns (EMI, Principal, Interest, Balance) to match their values
+          if (index > 1) {
+            const headerWidth = doc.getTextWidth(header);
+            doc.text(header, xPos + columnWidths[index] - headerWidth - 2, yPos + 6);
+          } else {
+            doc.text(header, xPos, yPos + 6);
+          }
           xPos += columnWidths[index];
         });
         
@@ -182,7 +194,7 @@ export const exportToPDF = (
       // Alternate row background
       if (index % 2 === 0) {
         doc.setFillColor(249, 250, 251);
-        doc.rect(15, yPos - 2, 170, 8, 'F');
+        doc.rect(15, yPos - 2, 175, 8, 'F');
       }
       
       doc.setFontSize(8);
