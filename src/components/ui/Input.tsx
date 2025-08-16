@@ -125,12 +125,12 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
         {label}
       </label>
       <div className="relative">
         {prefix && (
-          <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-dark-text-muted text-xs sm:text-sm font-medium">
+          <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">
             {prefix}
           </div>
         )}
@@ -143,12 +143,12 @@ export const Input: React.FC<InputProps> = ({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           className={`
-            w-full px-2 sm:px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg 
-            bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text-primary
+            w-full px-2 sm:px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+            bg-white dark:bg-gray-800 text-gray-900 dark:text-white
             focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
             dark:focus:ring-blue-400 dark:focus:border-blue-400
             transition-all duration-200 text-sm sm:text-base
-            placeholder-gray-400 dark:placeholder-dark-text-muted
+            placeholder-gray-400 dark:placeholder-gray-400
             shadow-sm dark:shadow-none
             ${prefix ? 'pl-7 sm:pl-8' : ''}
             ${suffix ? 'pr-10 sm:pr-12' : ''}
@@ -157,7 +157,7 @@ export const Input: React.FC<InputProps> = ({
           `}
         />
         {suffix && (
-          <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-dark-text-muted text-xs sm:text-sm font-medium">
+          <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">
             {suffix}
           </div>
         )}
