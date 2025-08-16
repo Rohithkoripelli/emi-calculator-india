@@ -9,6 +9,8 @@ import { NewsSearchService, TrendingStock, StockNews } from '../../services/news
 import { InvestmentAnalysisService, StockAnalysisReport, InvestmentRecommendation } from '../../services/investmentAnalysisService';
 import { PortfolioAllocationService, StructuredPortfolioResponse } from '../../services/portfolioAllocationService';
 import { ExcelBasedStockAnalysisService } from '../../services/excelBasedStockAnalysis';
+import { IntentAnalysisService, QueryIntent } from '../../services/intentAnalysisService';
+import { StockComparisonService, StockComparison } from '../../services/stockComparisonService';
 
 interface Message {
   id: string;
@@ -16,18 +18,12 @@ interface Message {
   isUser: boolean;
   timestamp: Date;
   stockAnalysis?: StockAnalysisReport;
+  stockComparison?: StockComparison;
   investmentRecommendation?: InvestmentRecommendation;
   isStreaming?: boolean;
   isComplete?: boolean;
 }
 
-interface QueryAnalysis {
-  queryType: 'STOCK_ANALYSIS' | 'INVESTMENT_RECOMMENDATION' | 'GENERIC_FINANCIAL';
-  stockSymbol?: string;
-  investmentAmount?: number;
-  investmentFrequency?: 'LUMP_SUM' | 'SIP' | 'RECURRING';
-  confidence: number;
-}
 
 interface AIAssistantProps {
   isOpen: boolean;
@@ -122,82 +118,25 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   };
 
   /**
-   * Analyze user query to determine the type and extract relevant information
+   * Analyze user query using AI-powered intent analysis
    */
-  const analyzeUserQuery = (query: string): QueryAnalysis => {
-    const lowerQuery = query.toLowerCase();
+  const analyzeUserQuery = async (query: string): Promise<QueryIntent> => {
+    console.log(`🧠 Starting intelligent analysis for: "${query}"`);
     
-    console.log(`🔍 Analyzing query: "${query}"`);
-    
-    // Check for investment amount patterns
-    const amountMatches = query.match(/(\d+(?:,\d+)*)\s*(?:k|thousand|lakh|lakhs|crore|crores|rupees|rs|₹)?/gi);
-    let investmentAmount: number | undefined;
-    
-    if (amountMatches) {
-      const amountText = amountMatches[0].toLowerCase();
-      const numericValue = parseInt(amountText.replace(/[^\d]/g, ''));
-      
-      if (amountText.includes('k') || amountText.includes('thousand')) {
-        investmentAmount = numericValue * 1000;
-      } else if (amountText.includes('lakh')) {
-        investmentAmount = numericValue * 100000;
-      } else if (amountText.includes('crore')) {
-        investmentAmount = numericValue * 10000000;
-      } else if (numericValue >= 1000) {
-        investmentAmount = numericValue;
-      }
+    try {
+      const intent = await IntentAnalysisService.analyzeIntent(query);
+      console.log(`✅ Intent analysis result:`, intent);
+      return intent;
+    } catch (error) {
+      console.error('❌ Error in intent analysis:', error);
+      // Fallback to a basic analysis
+      return {
+        type: 'GENERIC_FINANCIAL',
+        confidence: 50,
+        entities: {},
+        reasoning: 'Fallback analysis due to error'
+      };
     }
-    
-    // Check for investment frequency patterns
-    let investmentFrequency: 'LUMP_SUM' | 'SIP' | 'RECURRING' = 'LUMP_SUM';
-    if (lowerQuery.includes('monthly') || lowerQuery.includes('every month') || lowerQuery.includes('sip')) {
-      investmentFrequency = 'SIP';
-    } else if (lowerQuery.includes('recurring') || lowerQuery.includes('regular')) {
-      investmentFrequency = 'RECURRING';
-    }
-    
-    // Check for stock symbol using our Excel-based service
-    const stockSymbol = ExcelBasedStockAnalysisService.parseStockSymbol(query) || undefined;
-    
-    // Determine query type based on patterns
-    let queryType: 'STOCK_ANALYSIS' | 'INVESTMENT_RECOMMENDATION' | 'GENERIC_FINANCIAL' = 'GENERIC_FINANCIAL';
-    let confidence = 50;
-    
-    // Check for loan-related context first (higher priority than stock symbol detection)
-    const loanContextKeywords = [
-      'home loan', 'housing loan', 'mortgage', 'prepay', 'prepayment', 'emi', 'loan closure', 
-      'loan term', 'interest rate', 'principal', 'tenure', 'foreclose', 'refinance'
-    ];
-    
-    const hasLoanContext = loanContextKeywords.some(keyword => lowerQuery.includes(keyword));
-    
-    if (stockSymbol && !hasLoanContext) {
-      // Only treat as stock analysis if no loan context is detected
-      queryType = 'STOCK_ANALYSIS';
-      confidence = 85;
-      console.log(`📊 Detected stock analysis query for: ${stockSymbol}`);
-    } else if (hasLoanContext) {
-      // Prioritize loan analysis even if a stock symbol is detected
-      queryType = 'GENERIC_FINANCIAL';
-      confidence = 90;
-      console.log(`🏠 Detected loan-related query, ignoring potential stock symbol: ${stockSymbol || 'none'}`);
-    } else if (investmentAmount && (lowerQuery.includes('invest') || lowerQuery.includes('portfolio') || lowerQuery.includes('stocks') || lowerQuery.includes('recommend'))) {
-      queryType = 'INVESTMENT_RECOMMENDATION';
-      confidence = 80;
-      console.log(`💼 Detected investment recommendation query for ₹${investmentAmount}`);
-    } else if (lowerQuery.includes('invest') || lowerQuery.includes('stock') || lowerQuery.includes('share') || lowerQuery.includes('portfolio')) {
-      queryType = 'INVESTMENT_RECOMMENDATION';
-      confidence = 60;
-      console.log(`💼 Detected general investment query`);
-    }
-    
-    return {
-      queryType,
-      stockSymbol,
-      investmentAmount,
-      investmentFrequency,
-      confidence
-    };
   };
 
   /**
@@ -244,6 +183,63 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
           ? { 
               ...msg, 
               text: `❌ Sorry, I couldn't analyze ${stockSymbol} at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}`,
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+    }
+  };
+
+  /**
+   * Handle stock comparison queries
+   */
+  const handleStockComparison = async (stockSymbols: string[], aiMessageId: string) => {
+    try {
+      console.log(`🔄 Starting stock comparison for: ${stockSymbols.join(' vs ')}`);
+      
+      // Update message to show progress
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, text: `🔄 Comparing ${stockSymbols.join(' vs ')}...\n\n• Fetching real-time data for all stocks\n• Performing detailed analysis\n• Calculating comparison metrics\n• Generating investment recommendation` }
+          : msg
+      ));
+      
+      // Normalize stock symbols
+      const normalizedSymbols = stockSymbols.map(symbol => 
+        IntentAnalysisService.normalizeStockName(symbol)
+      );
+      
+      // Get comprehensive stock comparison
+      const stockComparison = await StockComparisonService.compareStocks(normalizedSymbols);
+      
+      if (!stockComparison) {
+        throw new Error(`Unable to compare ${stockSymbols.join(' and ')}. Please check if they are valid stock symbols.`);
+      }
+      
+      // Format response for display
+      const response = StockComparisonService.formatComparisonResponse(stockComparison);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: response, 
+              stockComparison, 
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+      
+    } catch (error) {
+      console.error('❌ Error in stock comparison:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `❌ Sorry, I couldn't compare ${stockSymbols.join(' and ')} at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}\n\nYou can try asking about individual stocks first, like:\n• "Analyze HDFC Bank stock"\n• "What's the current price of SBI?"`,
               isStreaming: false, 
               isComplete: true 
             }
@@ -732,8 +728,10 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
 • "Should I invest lump sum or SIP in current market?"
 • "Analyze HDFC Bank stock for long-term investment"
 
-**Stock Analysis:**
+**Stock Analysis & Comparison:**
 • "Analyze TCS stock" → Real-time data + buy/sell recommendation
+• "Compare HDFC Bank and SBI stocks" → Detailed comparison with top pick
+• "Which is better: Reliance or TCS?" → Side-by-side analysis
 • "I want to invest ₹1 lakh in stocks" → Dynamic portfolio allocation
 • "Best performing stocks for monthly SIP of ₹10,000"
 
@@ -773,30 +771,42 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
     setMessages(prev => [...prev, userMsg, aiMsg]);
 
     try {
-      // Analyze the user query
-      const queryAnalysis = analyzeUserQuery(userMessage);
+      // Analyze the user query using AI-powered intent analysis
+      const queryIntent = await analyzeUserQuery(userMessage);
       
-      console.log(`🎯 Query analysis:`, queryAnalysis);
+      console.log(`🎯 Intent analysis:`, queryIntent);
       
-      // Route to appropriate handler based on query type
-      switch (queryAnalysis.queryType) {
-        case 'STOCK_ANALYSIS':
-          if (queryAnalysis.stockSymbol) {
-            await handleStockAnalysis(queryAnalysis.stockSymbol, aiMessageId);
+      // Route to appropriate handler based on intent type
+      switch (queryIntent.type) {
+        case 'SINGLE_STOCK_ANALYSIS':
+          if (queryIntent.entities.stocks && queryIntent.entities.stocks.length > 0) {
+            const stockSymbol = IntentAnalysisService.normalizeStockName(queryIntent.entities.stocks[0]);
+            await handleStockAnalysis(stockSymbol, aiMessageId);
           } else {
-            throw new Error('Could not identify stock symbol');
+            throw new Error('Could not identify stock symbol for analysis');
+          }
+          break;
+          
+        case 'STOCK_COMPARISON':
+          if (queryIntent.entities.stocks && queryIntent.entities.stocks.length >= 2) {
+            await handleStockComparison(queryIntent.entities.stocks, aiMessageId);
+          } else {
+            throw new Error('Need at least 2 stocks for comparison');
           }
           break;
           
         case 'INVESTMENT_RECOMMENDATION':
+        case 'PORTFOLIO_ALLOCATION':
           await handleInvestmentRecommendation(
             userMessage,
-            queryAnalysis.investmentAmount,
-            queryAnalysis.investmentFrequency || 'LUMP_SUM',
+            queryIntent.entities.amount,
+            queryIntent.entities.frequency || 'LUMP_SUM',
             aiMessageId
           );
           break;
           
+        case 'LOAN_ANALYSIS':
+        case 'GENERIC_FINANCIAL':
         default:
           await handleGenericFinancialQuery(userMessage, aiMessageId);
           break;
