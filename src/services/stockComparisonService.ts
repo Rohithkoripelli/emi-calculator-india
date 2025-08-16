@@ -339,131 +339,301 @@ Focus on:
     response += `**Confidence Level:** ${comparison.recommendation.confidence}%\n`;
     response += `**Risk Assessment:** ${comparison.recommendation.riskLevel}\n\n`;
 
-    // Detailed comparison table
+    // Mobile-responsive comparison section
     response += `## 📈 Detailed Stock Comparison\n\n`;
-    response += `<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+    
+    // Mobile-first: Card layout for small screens
+    response += `<div style="display: block;">`;
+    
+    // Desktop table (hidden on mobile)
+    response += `<div style="display: none;" class="desktop-table">
+<table border="1" style="border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14px;">
 <thead style="background-color: #f8f9fa;">
 <tr>
-<th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Metric</th>`;
+<th style="padding: 8px; text-align: left; border: 1px solid #ddd; min-width: 120px;">Metric</th>`;
     
     comparison.stocks.forEach(stock => {
-      response += `<th style="padding: 12px; text-align: center; border: 1px solid #ddd;">${stock.symbol}</th>`;
+      response += `<th style="padding: 8px; text-align: center; border: 1px solid #ddd; min-width: 120px;">${stock.symbol}</th>`;
     });
     response += `</tr>
 </thead>
 <tbody>`;
 
-    // Company names row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Company</td>`;
-    comparison.stocks.forEach(stock => {
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.name}</td>`;
-    });
-    response += `</tr>`;
+    // Table rows for desktop
+    const tableRows = [
+      { label: 'Company', values: comparison.stocks.map(s => s.name) },
+      { label: 'Current Price', values: comparison.stocks.map(s => `₹${s.currentPrice.toLocaleString('en-IN')}`) },
+      { 
+        label: 'Day Change', 
+        values: comparison.stocks.map(s => ({
+          value: `${s.dayChangePercent >= 0 ? '+' : ''}${s.dayChangePercent.toFixed(2)}%`,
+          style: s.dayChangePercent >= 0 ? 'color: #28a745;' : 'color: #dc3545;'
+        }))
+      },
+      { label: 'Sector', values: comparison.stocks.map(s => s.sector) },
+      { label: 'Market Cap', values: comparison.stocks.map(s => s.marketCap) },
+      { 
+        label: 'Our Recommendation', 
+        values: comparison.stocks.map(s => ({
+          value: s.recommendation,
+          style: s.recommendation === 'BUY' ? 'background-color: #d4edda; color: #155724; font-weight: bold;' :
+                 s.recommendation === 'HOLD' ? 'background-color: #fff3cd; color: #856404; font-weight: bold;' :
+                 'background-color: #f8d7da; color: #721c24; font-weight: bold;'
+        }))
+      },
+      { label: 'Investment Score', values: comparison.stocks.map(s => `${s.score}/100`) }
+    ];
 
-    // Current price row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Current Price</td>`;
-    comparison.stocks.forEach(stock => {
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">₹${stock.currentPrice.toLocaleString('en-IN')}</td>`;
+    tableRows.forEach(row => {
+      response += `<tr><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold; background-color: #f8f9fa;">${row.label}</td>`;
+      row.values.forEach(value => {
+        if (typeof value === 'object' && value.style) {
+          response += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center; ${value.style}">${value.value}</td>`;
+        } else {
+          response += `<td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${value}</td>`;
+        }
+      });
+      response += `</tr>`;
     });
-    response += `</tr>`;
 
-    // Day change row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Day Change</td>`;
-    comparison.stocks.forEach(stock => {
-      const changeColor = stock.dayChangePercent >= 0 ? 'color: green;' : 'color: red;';
+    response += `</tbody></table>
+</div>`;
+
+    // Mobile card layout
+    response += `<div class="mobile-cards" style="display: block;">`;
+    
+    comparison.stocks.forEach((stock, index) => {
+      const changeColor = stock.dayChangePercent >= 0 ? '#28a745' : '#dc3545';
       const changeSign = stock.dayChangePercent >= 0 ? '+' : '';
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${changeColor}">${changeSign}${stock.dayChangePercent.toFixed(2)}%</td>`;
-    });
-    response += `</tr>`;
-
-    // Sector row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Sector</td>`;
-    comparison.stocks.forEach(stock => {
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.sector}</td>`;
-    });
-    response += `</tr>`;
-
-    // Market cap row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Market Cap</td>`;
-    comparison.stocks.forEach(stock => {
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${stock.marketCap}</td>`;
-    });
-    response += `</tr>`;
-
-    // Recommendation row (most important)
-    response += `<tr style="background-color: #f0f8ff;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Our Recommendation</td>`;
-    comparison.stocks.forEach(stock => {
-      let recommendationStyle = '';
-      if (stock.recommendation === 'BUY') recommendationStyle = 'background-color: #d4edda; color: #155724; font-weight: bold;';
-      else if (stock.recommendation === 'HOLD') recommendationStyle = 'background-color: #fff3cd; color: #856404; font-weight: bold;';
-      else recommendationStyle = 'background-color: #f8d7da; color: #721c24; font-weight: bold;';
+      let recommendationBg = '#6c757d';
+      let recommendationColor = 'white';
       
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; ${recommendationStyle}">${stock.recommendation}</td>`;
+      if (stock.recommendation === 'BUY') {
+        recommendationBg = '#28a745';
+        recommendationColor = 'white';
+      } else if (stock.recommendation === 'HOLD') {
+        recommendationBg = '#ffc107';
+        recommendationColor = '#212529';
+      } else if (stock.recommendation === 'SELL') {
+        recommendationBg = '#dc3545';
+        recommendationColor = 'white';
+      }
+
+      response += `
+<div style="
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <h4 style="margin: 0; color: #212529; font-size: 16px; font-weight: bold;">${stock.symbol}</h4>
+    <span style="
+      background: ${recommendationBg};
+      color: ${recommendationColor};
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    ">${stock.recommendation}</span>
+  </div>
+  
+  <div style="margin-bottom: 8px;">
+    <span style="color: #6c757d; font-size: 14px;">${stock.name}</span>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+    <span style="font-weight: 600; font-size: 18px;">₹${stock.currentPrice.toLocaleString('en-IN')}</span>
+    <span style="color: ${changeColor}; font-weight: 600; font-size: 14px;">${changeSign}${stock.dayChangePercent.toFixed(2)}%</span>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #6c757d;">
+    <div><strong>Sector:</strong> ${stock.sector}</div>
+    <div><strong>Score:</strong> ${stock.score}/100</div>
+    <div style="grid-column: 1 / -1;"><strong>Market Cap:</strong> ${stock.marketCap}</div>
+  </div>
+</div>`;
     });
-    response += `</tr>`;
+    
+    response += `</div>`;
+    response += `</div>`;
 
-    // Score row
-    response += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Investment Score</td>`;
-    comparison.stocks.forEach(stock => {
-      response += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold;">${stock.score}/100</td>`;
-    });
-    response += `</tr>`;
+    // Add responsive CSS
+    response += `
+<style>
+@media (min-width: 768px) {
+  .desktop-table { display: block !important; }
+  .mobile-cards { display: none !important; }
+}
+@media (max-width: 767px) {
+  .desktop-table { display: none !important; }
+  .mobile-cards { display: block !important; }
+}
+</style>
 
-    response += `</tbody></table>\n\n`;
+`;
 
-    // Individual analysis for each stock
+    // Individual analysis for each stock - optimized for mobile
     response += `## 🔍 Individual Stock Analysis\n\n`;
     
     comparison.stocks.forEach((stock, index) => {
-      response += `### ${index + 1}. ${stock.name} (${stock.symbol})\n\n`;
+      // Mobile-friendly stock analysis cards
+      const ratingIcon = stock.recommendation === 'BUY' ? '🟢' : stock.recommendation === 'HOLD' ? '🟡' : '🔴';
+      const ratingText = stock.recommendation === 'BUY' ? 'Strong Buy Opportunity' : 
+                        stock.recommendation === 'HOLD' ? 'Hold Current Position' : 'Consider Reducing Exposure';
       
-      response += `**Investment Rating:** `;
-      if (stock.recommendation === 'BUY') {
-        response += `🟢 **${stock.recommendation}** - Strong investment opportunity\n`;
-      } else if (stock.recommendation === 'HOLD') {
-        response += `🟡 **${stock.recommendation}** - Maintain current position\n`;
-      } else {
-        response += `🔴 **${stock.recommendation}** - Consider reducing exposure\n`;
-      }
-      
-      response += `**Price Action:** ₹${stock.currentPrice.toLocaleString('en-IN')} `;
-      response += `(${stock.dayChangePercent >= 0 ? '+' : ''}${stock.dayChangePercent.toFixed(2)}% today)\n`;
-      response += `**Sector:** ${stock.sector} | **Investment Score:** ${stock.score}/100\n\n`;
-      
+      response += `
+<div style="
+  background: #ffffff;
+  border: 2px solid ${stock.recommendation === 'BUY' ? '#28a745' : stock.recommendation === 'HOLD' ? '#ffc107' : '#dc3545'};
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+">
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <h3 style="margin: 0; color: #212529; font-size: 18px; font-weight: bold; flex: 1; min-width: 200px;">${index + 1}. ${stock.name}</h3>
+    <span style="font-size: 14px; color: #6c757d; margin-top: 4px;">(${stock.symbol})</span>
+  </div>
+  
+  <div style="display: flex; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+    <span style="font-size: 16px; margin-right: 8px;">${ratingIcon}</span>
+    <strong style="color: ${stock.recommendation === 'BUY' ? '#28a745' : stock.recommendation === 'HOLD' ? '#f57c00' : '#dc3545'}; font-size: 16px;">
+      ${stock.recommendation}
+    </strong>
+    <span style="color: #6c757d; margin-left: 8px; font-size: 14px;">- ${ratingText}</span>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; padding: 12px; background-color: #f8f9fa; border-radius: 8px;">
+    <div>
+      <strong style="color: #495057; font-size: 14px;">Current Price</strong><br>
+      <span style="font-size: 18px; font-weight: bold; color: #212529;">₹${stock.currentPrice.toLocaleString('en-IN')}</span>
+    </div>
+    <div>
+      <strong style="color: #495057; font-size: 14px;">Day Change</strong><br>
+      <span style="font-size: 16px; font-weight: bold; color: ${stock.dayChangePercent >= 0 ? '#28a745' : '#dc3545'};">
+        ${stock.dayChangePercent >= 0 ? '+' : ''}${stock.dayChangePercent.toFixed(2)}%
+      </span>
+    </div>
+    <div>
+      <strong style="color: #495057; font-size: 14px;">Sector</strong><br>
+      <span style="font-size: 14px; color: #212529;">${stock.sector}</span>
+    </div>
+    <div>
+      <strong style="color: #495057; font-size: 14px;">Investment Score</strong><br>
+      <span style="font-size: 16px; font-weight: bold; color: #212529;">${stock.score}/100</span>
+    </div>
+  </div>`;
+
       if (stock.strengths.length > 0) {
-        response += `**✅ Key Strengths:**\n`;
+        response += `
+  <div style="margin-bottom: 12px;">
+    <h4 style="color: #28a745; font-size: 14px; margin: 0 0 8px 0; display: flex; align-items: center;">
+      <span style="margin-right: 6px;">✅</span> Key Strengths
+    </h4>
+    <ul style="margin: 0; padding-left: 16px; color: #495057; font-size: 13px; line-height: 1.5;">`;
         stock.strengths.forEach(strength => {
-          response += `• ${strength}\n`;
+          response += `<li style="margin-bottom: 4px;">${strength}</li>`;
         });
-        response += '\n';
+        response += `</ul>
+  </div>`;
       }
       
       if (stock.weaknesses.length > 0) {
-        response += `**⚠️ Risk Factors:**\n`;
+        response += `
+  <div>
+    <h4 style="color: #dc3545; font-size: 14px; margin: 0 0 8px 0; display: flex; align-items: center;">
+      <span style="margin-right: 6px;">⚠️</span> Risk Factors
+    </h4>
+    <ul style="margin: 0; padding-left: 16px; color: #495057; font-size: 13px; line-height: 1.5;">`;
         stock.weaknesses.forEach(weakness => {
-          response += `• ${weakness}\n`;
+          response += `<li style="margin-bottom: 4px;">${weakness}</li>`;
         });
-        response += '\n';
+        response += `</ul>
+  </div>`;
       }
+      
+      response += `</div>\n\n`;
     });
 
-    // Final recommendation summary
+    // Final recommendation summary - mobile optimized
     response += `## 💡 Final Investment Advice\n\n`;
     
     if (allBuyRecommendations.length > 0) {
-      response += `**Recommended Action:** Start building a position in **${topStock.symbol}**\n\n`;
-      response += `**Investment Strategy:**\n`;
-      response += `• Consider a phased approach (invest 50% now, 50% on any dips)\n`;
-      response += `• Set a stop-loss at 8-10% below entry price\n`;
-      response += `• Review position after quarterly results\n`;
-      response += `• Target holding period: 6-12 months minimum\n\n`;
+      response += `
+<div style="
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border: 2px solid #28a745;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+">
+  <h3 style="color: #155724; margin: 0 0 12px 0; font-size: 18px; display: flex; align-items: center;">
+    <span style="margin-right: 8px;">🎯</span> Recommended Action
+  </h3>
+  <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: bold; color: #155724;">
+    Start building a position in <strong>${topStock.symbol}</strong>
+  </p>
+  
+  <h4 style="color: #155724; margin: 16px 0 8px 0; font-size: 16px;">📋 Investment Strategy:</h4>
+  <div style="display: grid; gap: 8px; font-size: 14px; color: #155724;">
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">1.</span>
+      <span>Consider a phased approach (invest 50% now, 50% on any dips)</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">2.</span>
+      <span>Set a stop-loss at 8-10% below entry price</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">3.</span>
+      <span>Review position after quarterly results</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">4.</span>
+      <span>Target holding period: 6-12 months minimum</span>
+    </div>
+  </div>
+</div>`;
     } else {
-      response += `**Recommended Action:** Wait for better opportunities or HOLD existing positions\n\n`;
-      response += `**Current Strategy:**\n`;
-      response += `• Market conditions don't favor new investments in these stocks\n`;
-      response += `• Consider systematic investment plans (SIP) for long-term goals\n`;
-      response += `• Monitor for price corrections or fundamental improvements\n`;
-      response += `• Keep cash ready for better entry points\n\n`;
+      response += `
+<div style="
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 2px solid #ffc107;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+">
+  <h3 style="color: #856404; margin: 0 0 12px 0; font-size: 18px; display: flex; align-items: center;">
+    <span style="margin-right: 8px;">⏳</span> Recommended Action
+  </h3>
+  <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: bold; color: #856404;">
+    Wait for better opportunities or HOLD existing positions
+  </p>
+  
+  <h4 style="color: #856404; margin: 16px 0 8px 0; font-size: 16px;">📋 Current Strategy:</h4>
+  <div style="display: grid; gap: 8px; font-size: 14px; color: #856404;">
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">1.</span>
+      <span>Market conditions don't favor new investments in these stocks</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">2.</span>
+      <span>Consider systematic investment plans (SIP) for long-term goals</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">3.</span>
+      <span>Monitor for price corrections or fundamental improvements</span>
+    </div>
+    <div style="display: flex; align-items: flex-start;">
+      <span style="margin-right: 8px; font-weight: bold;">4.</span>
+      <span>Keep cash ready for better entry points</span>
+    </div>
+  </div>
+</div>`;
     }
 
     // Disclaimer
