@@ -132,15 +132,15 @@ export const exportToPDF = (
     
     // Table header
     doc.setFillColor(59, 130, 246);
-    doc.rect(15, yPos - 3, 170, 12, 'F');
+    doc.rect(10, yPos - 3, 175, 12, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     
     const headers = ['Month', 'Date', 'EMI (Rs.)', 'Principal (Rs.)', 'Interest (Rs.)', 'Balance (Rs.)'];
-    const columnWidths = [18, 24, 26, 30, 30, 42];
-    let xPos = 20;
+    const columnWidths = [15, 22, 25, 28, 28, 50];
+    let xPos = 15;
     
     headers.forEach((header, index) => {
       // Right align currency columns (EMI, Principal, Interest, Balance) to match their values
@@ -168,13 +168,13 @@ export const exportToPDF = (
         
         // Repeat table header on new page
         doc.setFillColor(59, 130, 246);
-        doc.rect(15, yPos - 3, 170, 12, 'F');
+        doc.rect(10, yPos - 3, 175, 12, 'F');
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         
-        xPos = 20;
+        xPos = 15;
         headers.forEach((header, index) => {
           // Right align currency columns (EMI, Principal, Interest, Balance) to match their values
           if (index > 1) {
@@ -194,11 +194,11 @@ export const exportToPDF = (
       // Alternate row background
       if (index % 2 === 0) {
         doc.setFillColor(249, 250, 251);
-        doc.rect(15, yPos - 2, 170, 8, 'F');
+        doc.rect(10, yPos - 2, 175, 8, 'F');
       }
       
       doc.setFontSize(8);
-      xPos = 20;
+      xPos = 15;
       
       const rowData = [
         payment.month.toString(),
