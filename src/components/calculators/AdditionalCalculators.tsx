@@ -4,11 +4,13 @@ import { NavigationItem } from '../../types';
 interface AdditionalCalculatorsProps {
   calculators: NavigationItem[];
   onCalculatorSelect: (calculatorId: string) => void;
+  onAIOpen?: () => void;
 }
 
 export const AdditionalCalculators: React.FC<AdditionalCalculatorsProps> = ({ 
   calculators, 
-  onCalculatorSelect 
+  onCalculatorSelect,
+  onAIOpen 
 }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -20,6 +22,32 @@ export const AdditionalCalculators: React.FC<AdditionalCalculatorsProps> = ({
         <p className="text-lg text-gray-600 dark:text-dark-text-secondary max-w-2xl mx-auto">
           Choose from our comprehensive suite of financial calculators designed specifically for Indian users.
         </p>
+      </div>
+
+      {/* AI Promotional Banner */}
+      <div className="bg-gradient-to-r from-green-500 to-blue-600 dark:from-green-600 dark:to-blue-700 text-white rounded-xl p-4 shadow-lg mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="bg-white/20 p-2 rounded-full">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">🤖 Ask Our AI Financial Assistant</h3>
+              <p className="text-sm text-green-100 dark:text-green-200">Get expert advice on all financial calculations and planning strategies</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => onAIOpen?.()}
+            className="bg-white dark:bg-gray-100 text-blue-600 dark:text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-gray-200 transition-colors flex items-center space-x-2"
+          >
+            <span>Try Now</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Calculator Grid */}

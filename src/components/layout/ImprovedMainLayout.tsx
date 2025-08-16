@@ -97,11 +97,11 @@ export const ImprovedMainLayout: React.FC = () => {
       case 'emi':
         return <ImprovedEMICalculator onLoanDataChange={setCurrentLoanData} onAIOpen={() => setIsAIOpen(true)} />;
       case 'capital-gains':
-        return <CapitalGainsCalculator />;
+        return <CapitalGainsCalculator onAIOpen={() => setIsAIOpen(true)} />;
       case 'stocks':
-        return <StockScreener />;
+        return <StockScreener onAIOpen={() => setIsAIOpen(true)} />;
       case 'additional':
-        return <AdditionalCalculators calculators={additionalCalculators} onCalculatorSelect={setActiveCalculator} />;
+        return <AdditionalCalculators calculators={additionalCalculators} onCalculatorSelect={setActiveCalculator} onAIOpen={() => setIsAIOpen(true)} />;
       case 'sukanya':
         return <SukanyaCalculator />;
       case 'sip':
