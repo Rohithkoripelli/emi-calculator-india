@@ -198,7 +198,7 @@ export class GrowwApiService {
   }
 
   /**
-   * Get historical candle data for technical analysis using Groww's official API format
+   * Get historical candle data for technical analysis - prioritize backend API for authentication
    */
   static async getHistoricalData(
     tradingSymbol: string, 
@@ -207,8 +207,129 @@ export class GrowwApiService {
     segment: string = 'CASH'
   ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} directly from Groww API...`);
+      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} using authenticated backend API...`);
       
+      // PRIORITY 1: Try backend API first (same authentication as real-time data)
+      console.log(`🔄 Trying authenticated backend API for ${tradingSymbol}...`);
+      const backendResult = await this.fetchFromBackendAPIWithHistoricalFormat(tradingSymbol, days, exchange, segment);
+      if (backendResult) {
+        return backendResult;
+      }
+      
+      // PRIORITY 2: Try direct Groww API (will likely fail due to CORS but worth attempting)
+      console.log(`🔄 Attempting direct Groww API for ${tradingSymbol}...`);
+      const directResult = await this.fetchFromDirectGrowwAPI(tradingSymbol, days, exchange, segment);
+      if (directResult) {
+        return directResult;
+      }
+      
+      // PRIORITY 3: Try legacy backend API format
+      console.log(`🔄 Trying legacy backend API format for ${tradingSymbol}...`);
+      const legacyResult = await this.fetchFromBackendAPI(tradingSymbol, days);
+      if (legacyResult) {
+        return legacyResult;
+      }
+      
+      // FINAL FALLBACK: Generate realistic historical data with warning
+      console.warn(`⚠️ All API methods failed for ${tradingSymbol} - using intelligent fallback data generation`);
+      console.warn(`⚠️ This may affect accuracy of target prices and stop losses for ${tradingSymbol}`);
+      return this.generateRealisticHistoricalData(tradingSymbol, days);
+      
+    } catch (error) {
+      console.error('❌ Error in getHistoricalData:', error);
+      
+      // Final error fallback
+      console.log(`🔄 Error fallback: generating realistic data for ${tradingSymbol}...`);
+      return this.generateRealisticHistoricalData(tradingSymbol, days);
+    }
+  }
+
+  /**
+   * Try to fetch from backend API with proper historical data format
+   */
+  private static async fetchFromBackendAPIWithHistoricalFormat(
+    tradingSymbol: string, 
+    days: number, 
+    exchange: string, 
+    segment: string
+  ): Promise<HistoricalCandle[] | null> {
+    try {
+      // Calculate date range for API call
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - (days * 24 * 60 * 60 * 1000));
+      
+      // Format dates as required by Groww API: "2025-07-06 09:15:00"
+      const formatDate = (date: Date) => {
+        return date.toISOString().replace('T', ' ').slice(0, 19);
+      };
+      
+      const response = await fetch('/api/groww-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symbols: [tradingSymbol],
+          type: 'historical',
+          days: days,
+          // Add parameters for Groww API format
+          exchange: exchange,
+          segment: segment,
+          start_time: formatDate(startTime),
+          end_time: formatDate(endTime),
+          interval_in_minutes: 3600
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          // Handle both old and new response formats
+          let candles: HistoricalCandle[] | null = null;
+          
+          if (result.data[tradingSymbol]) {
+            // Legacy format
+            candles = result.data[tradingSymbol];
+          } else if (result.data.candles) {
+            // New Groww API format: candles are arrays [timestamp, open, high, low, close, volume]
+            candles = result.data.candles.map(([timestamp, open, high, low, close, volume]: number[]) => ({
+              timestamp: timestamp,
+              date: new Date(timestamp * 1000).toISOString().split('T')[0],
+              open: open,
+              high: high,
+              low: low,
+              close: close,
+              volume: volume
+            }));
+          }
+          
+          if (candles && candles.length > 0) {
+            console.log(`✅ Successfully fetched ${candles.length} historical candles from authenticated backend API`);
+            console.log(`📈 Sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
+            return candles;
+          }
+        }
+      } else {
+        console.log(`⚠️ Backend API error: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Backend API with historical format failed: ${error}`);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Try direct Groww API call (will likely fail due to CORS)
+   */
+  private static async fetchFromDirectGrowwAPI(
+    tradingSymbol: string, 
+    days: number, 
+    exchange: string, 
+    segment: string
+  ): Promise<HistoricalCandle[] | null> {
+    try {
       // Calculate date range for API call
       const endTime = new Date();
       const startTime = new Date(endTime.getTime() - (days * 24 * 60 * 60 * 1000));
@@ -224,8 +345,6 @@ export class GrowwApiService {
       // Build Groww API URL with correct format
       const apiUrl = `https://api.groww.in/v1/historical/candle/range?exchange=${exchange}&segment=${segment}&trading_symbol=${tradingSymbol}&start_time=${encodeURIComponent(startTimeFormatted)}&end_time=${encodeURIComponent(endTimeFormatted)}&interval_in_minutes=3600`;
       
-      console.log(`📊 Calling Groww API: ${apiUrl}`);
-      
       // Get auth headers for API call
       const headers = await this.getAuthHeaders();
       
@@ -238,7 +357,7 @@ export class GrowwApiService {
         const result: GrowwHistoricalResponse = await response.json();
         
         if (result.status === 'SUCCESS' && result.payload && result.payload.candles && result.payload.candles.length > 0) {
-          console.log(`✅ Successfully fetched ${result.payload.candles.length} historical candles from Groww API`);
+          console.log(`✅ Successfully fetched ${result.payload.candles.length} historical candles from direct Groww API`);
           
           // Convert Groww API format to our HistoricalCandle format
           const candles: HistoricalCandle[] = result.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
@@ -255,32 +374,14 @@ export class GrowwApiService {
           console.log(`📈 Sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
           
           return candles;
-        } else {
-          console.log(`⚠️ No historical data in Groww API response for ${tradingSymbol}:`, result);
         }
-      } else {
-        console.log(`⚠️ Groww API HTTP error: ${response.status} ${response.statusText}`);
-        console.log(`🔍 Response text: ${await response.text()}`);
       }
-      
-      // Fallback: Try backend API if available
-      console.log(`🔄 Trying backend API as fallback for ${tradingSymbol}...`);
-      const backendResult = await this.fetchFromBackendAPI(tradingSymbol, days);
-      if (backendResult) {
-        return backendResult;
-      }
-      
-      // Final fallback: Generate realistic historical data
-      console.log(`🔄 Using intelligent fallback historical data generation for ${tradingSymbol}...`);
-      return this.generateRealisticHistoricalData(tradingSymbol, days);
-      
     } catch (error) {
-      console.error('❌ Error in getHistoricalData:', error);
-      
-      // Fallback in case of errors
-      console.log(`🔄 Error fallback: generating realistic data for ${tradingSymbol}...`);
-      return this.generateRealisticHistoricalData(tradingSymbol, days);
+      // Expected to fail due to CORS, so don't log as error
+      console.log(`⚠️ Direct Groww API blocked by CORS (expected): ${error}`);
     }
+    
+    return null;
   }
 
   /**

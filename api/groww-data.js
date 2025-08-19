@@ -326,6 +326,53 @@ async function fetchGrowwData(endpoint, params, token) {
   throw lastError || new Error('All data endpoints failed');
 }
 
+// Fetch historical data from Groww API
+async function fetchGrowwHistoricalData(endpoint, params, token) {
+  // Try historical data specific endpoints
+  const baseUrls = [
+    'https://api.groww.in/v1',
+    'https://api.groww.in/v1/live-data'
+  ];
+  
+  let lastError;
+  
+  for (const baseUrl of baseUrls) {
+    try {
+      const url = `${baseUrl}/${endpoint}?${params.toString()}`;
+      console.log(`Trying historical data endpoint: ${url}`);
+      
+      const response = await fetchImplementation(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-API-VERSION': '1.0',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'GrowwAPI/1.0'
+        }
+      });
+
+      console.log(`Historical data response status: ${response.status}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Successfully fetched historical data from Groww API');
+        console.log('Response sample:', JSON.stringify(data, null, 2).substring(0, 300) + '...');
+        return data;
+      } else {
+        const errorText = await response.text();
+        console.log(`Historical data fetch failed for ${url}: ${response.status} - ${errorText.substring(0, 200)}`);
+        lastError = new Error(`Groww historical API error: ${response.status} - ${errorText.substring(0, 100)}`);
+      }
+    } catch (error) {
+      console.log(`Network error for ${baseUrl}:`, error.message);
+      lastError = error;
+    }
+  }
+  
+  throw lastError || new Error('All historical data endpoints failed');
+}
+
 // Main handler
 module.exports = async function handler(req, res) {
   // CORS headers
@@ -366,20 +413,62 @@ module.exports = async function handler(req, res) {
       try {
         console.log(`Processing symbol: ${symbol}`);
         
-        // Handle historical data requests
+        // Handle historical data requests using real Groww API
         if (type === 'historical') {
-          const stockMapping = {
-            tradingSymbol: symbol,
-            exchange: 'NSE',
-            segment: 'CASH',
-            name: symbol
-          };
+          const exchange = req.body?.exchange || 'NSE';
+          const segment = req.body?.segment || 'CASH';
+          const startTime = req.body?.start_time;
+          const endTime = req.body?.end_time;
+          const intervalInMinutes = req.body?.interval_in_minutes || 3600;
           
-          // Generate historical data since Groww doesn't provide historical API yet
+          console.log(`📈 Fetching real historical data for ${symbol} from Groww API...`);
+          
+          try {
+            // Try to fetch real historical data using Groww API format
+            const params = new URLSearchParams({
+              exchange: exchange,
+              segment: segment,
+              trading_symbol: symbol,
+              start_time: startTime || new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19),
+              end_time: endTime || new Date().toISOString().replace('T', ' ').slice(0, 19),
+              interval_in_minutes: intervalInMinutes.toString()
+            });
+            
+            console.log(`🔍 Calling Groww historical API with params: ${params.toString()}`);
+            
+            // Try the historical candle range endpoint
+            const response = await fetchGrowwHistoricalData('historical/candle/range', params, token);
+            
+            if (response && response.status === 'SUCCESS' && response.payload && response.payload.candles) {
+              console.log(`✅ Successfully fetched ${response.payload.candles.length} real historical candles for ${symbol}`);
+              
+              // Convert Groww API format to our format
+              const historicalData = response.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
+                timestamp: timestamp,
+                date: new Date(timestamp * 1000).toISOString().split('T')[0],
+                open: open,
+                high: high,
+                low: low,
+                close: close,
+                volume: volume
+              }));
+              
+              results[symbol] = historicalData;
+              console.log(`🔍 Converted ${historicalData.length} real candles for ${symbol}`);
+              continue;
+            } else {
+              console.log(`⚠️ Groww API returned no historical data for ${symbol}, falling back to generated data`);
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching real historical data for ${symbol}:`, error);
+            console.log(`🔄 Falling back to generated data for ${symbol}`);
+          }
+          
+          // Fallback to generated data if real API fails
           try {
             const historicalData = generateHistoricalData(symbol, parseInt(days));
             results[symbol] = historicalData;
-            console.log(`✅ Generated ${historicalData.length} historical candles for ${symbol}`);
+            console.log(`✅ Generated ${historicalData.length} fallback historical candles for ${symbol}`);
             continue;
           } catch (error) {
             console.error(`❌ Error generating historical data for ${symbol}:`, error);
