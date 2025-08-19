@@ -1450,13 +1450,15 @@ export class InvestmentAnalysisService {
     try {
       const { WebSearch } = await import('../utils/webSearchUtil');
       
-      // Define comprehensive search queries for market research
+      // Define comprehensive search queries for market research with fundamental focus
       const searchQueries = [
-        `${companyName} ${symbol} stock analysis latest target price 2025`,
-        `${symbol} quarterly results earnings growth prospects`,
-        `${companyName} news recent developments expansion plans`,
-        `${symbol} brokerage recommendation buy sell rating`,
-        `${companyName} market share competitive position industry`
+        `${companyName} ${symbol} stock analysis latest target price PE ratio 2025`,
+        `${symbol} quarterly results earnings growth revenue profit margin financial performance`,
+        `${companyName} debt equity ratio ROE ROA financial health balance sheet analysis`,
+        `${symbol} brokerage recommendation analyst rating price target upgrade downgrade`,
+        `${companyName} business growth expansion plans competitive advantage market leadership`,
+        `${symbol} dividend yield payout ratio cash flow free cash flow analysis`,
+        `${companyName} industry outlook sector trends market share competitive position 2025`
       ];
       
       const allResults = [];

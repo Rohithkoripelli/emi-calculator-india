@@ -435,12 +435,15 @@ module.exports = async function handler(req, res) {
             });
             
             console.log(`🔍 Calling Groww historical API with params: ${params.toString()}`);
+            console.log(`📅 Date range: ${startTime || new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19)} to ${endTime || new Date().toISOString().replace('T', ' ').slice(0, 19)}`);
             
             // Try the historical candle range endpoint
             const response = await fetchGrowwHistoricalData('historical/candle/range', params, token);
             
-            if (response && response.status === 'SUCCESS' && response.payload && response.payload.candles) {
-              console.log(`✅ Successfully fetched ${response.payload.candles.length} real historical candles for ${symbol}`);
+            if (response && response.status === 'SUCCESS' && response.payload && response.payload.candles && response.payload.candles.length > 0) {
+              console.log(`✅ Successfully fetched ${response.payload.candles.length} REAL historical candles for ${symbol} from Groww API`);
+              console.log(`📊 First candle: ${JSON.stringify(response.payload.candles[0])}`);
+              console.log(`📊 Last candle: ${JSON.stringify(response.payload.candles[response.payload.candles.length - 1])}`);
               
               // Convert Groww API format to our format
               const historicalData = response.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
@@ -454,10 +457,15 @@ module.exports = async function handler(req, res) {
               }));
               
               results[symbol] = historicalData;
-              console.log(`🔍 Converted ${historicalData.length} real candles for ${symbol}`);
+              console.log(`🔍 Converted ${historicalData.length} REAL candles for ${symbol} - USING ACTUAL MARKET DATA`);
               continue;
             } else {
-              console.log(`⚠️ Groww API returned no historical data for ${symbol}, falling back to generated data`);
+              console.log(`⚠️ Groww historical API failed for ${symbol}:`);
+              console.log(`   Response status: ${response?.status || 'No response'}`);
+              console.log(`   Has payload: ${!!response?.payload}`);
+              console.log(`   Has candles: ${!!response?.payload?.candles}`);
+              console.log(`   Candles length: ${response?.payload?.candles?.length || 0}`);
+              console.log(`   🔄 Falling back to GENERATED data (this affects accuracy)`);
             }
           } catch (error) {
             console.error(`❌ Error fetching real historical data for ${symbol}:`, error);

@@ -196,10 +196,22 @@ ANALYSIS REQUIREMENTS:
 
 4. **RECOMMENDATION**: BUY/SELL/HOLD based on:
    - Price position vs key moving averages
-   - RSI momentum and divergences
+   - RSI momentum and divergences (RSI=${basicMetrics.rsi.toFixed(1)} - ${basicMetrics.rsi > 70 ? 'OVERBOUGHT WARNING' : basicMetrics.rsi < 30 ? 'OVERSOLD OPPORTUNITY' : 'NEUTRAL'})
    - Volume confirmation
    - Support/resistance proximity
    - Current trend strength
+
+**CRITICAL RSI ANALYSIS REQUIRED:**
+- Current RSI: ${basicMetrics.rsi.toFixed(1)}
+- If RSI >70: MANDATORY WARNING about overbought conditions and correction risk
+- If RSI <30: Highlight oversold bounce opportunity
+- If RSI 30-70: Normal momentum conditions
+
+5. **RISK ASSESSMENT**: Provide specific warnings:
+   - Overbought conditions (RSI >70): High risk of near-term pullback
+   - Technical divergences: Price vs momentum conflicts  
+   - Volume weakness: Lack of conviction in current move
+   - Support breaks: Risk of further downside
 
 Provide ONLY accurate values derived from the actual data. No generic or placeholder numbers.
 
