@@ -6,6 +6,7 @@
 import { GrowwApiService, StockQuote, HistoricalCandle, TechnicalAnalysis } from './growwApiService';
 import { NewsSearchService, TrendingStock, StockNews, MarketTrends } from './newsSearchService';
 import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
+import { EnhancedTechnicalAnalysisService } from './enhancedTechnicalAnalysis';
 
 interface StockAnalysisReport {
   stock_info: {
@@ -165,10 +166,24 @@ export class InvestmentAnalysisService {
         return null;
       }
       
-      // Step 3: Get historical data and technical analysis
-      const historicalData = await GrowwApiService.getHistoricalData(symbol, 30);
-      const technicalAnalysis = historicalData ? 
-        GrowwApiService.performTechnicalAnalysis(historicalData, symbol) : null;
+      // Step 3: Get enhanced technical analysis using real historical data and GPT-4o
+      console.log(`🔍 Getting enhanced technical analysis for ${symbol}...`);
+      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice);
+      
+      // Convert to legacy format for compatibility
+      const technicalAnalysis: TechnicalAnalysis = {
+        trend: enhancedTechnicalAnalysis.trend,
+        support: enhancedTechnicalAnalysis.support,
+        resistance: enhancedTechnicalAnalysis.resistance,
+        sma20: enhancedTechnicalAnalysis.sma20,
+        sma50: enhancedTechnicalAnalysis.sma50,
+        rsi: enhancedTechnicalAnalysis.rsi,
+        volatility: enhancedTechnicalAnalysis.volatility,
+        priceChange30Days: 0, // Will be calculated from real data
+        volumeAverage: quote.volume || 0,
+        recommendation: enhancedTechnicalAnalysis.recommendation,
+        confidence: enhancedTechnicalAnalysis.confidence
+      };
       
       // Step 4: Conduct comprehensive web research for market analysis
       console.log(`🔍 Conducting comprehensive web research for ${symbol}...`);
@@ -183,7 +198,8 @@ export class InvestmentAnalysisService {
         quote,
         technicalAnalysis,
         stockNews,
-        companyInfo
+        companyInfo,
+        enhancedTechnicalAnalysis // Pass the enhanced analysis for accurate targets
       });
       
       // Step 6: Compile the analysis report
@@ -1783,17 +1799,26 @@ export class InvestmentAnalysisService {
       // Calculate target and stop loss based on volatility
       const volatilityMultiplier = Math.max(0.08, Math.min(0.20, tech.volatility / 100));
       
+      // Use enhanced technical analysis for accurate target and stop loss
+      const enhancedAnalysis = data.enhancedTechnicalAnalysis;
+      const target_price = enhancedAnalysis?.targetPrice || (
+        tech.recommendation === 'BUY' ? price * (1 + volatilityMultiplier * 1.5) : 
+        tech.recommendation === 'SELL' ? price * (1 - volatilityMultiplier * 1.2) : 
+        price * 1.08
+      );
+      const stop_loss = enhancedAnalysis?.stopLoss || (
+        tech.recommendation === 'BUY' ? price * (1 - volatilityMultiplier) : 
+        tech.recommendation === 'SELL' ? price * (1 + volatilityMultiplier * 0.8) :
+        price * 0.92
+      );
+
       return {
         action: tech.recommendation,
         confidence: tech.confidence,
-        target_price: tech.recommendation === 'BUY' ? price * (1 + volatilityMultiplier * 1.5) : 
-                     tech.recommendation === 'SELL' ? price * (1 - volatilityMultiplier * 1.2) : 
-                     price * 1.08,
-        stop_loss: tech.recommendation === 'BUY' ? price * (1 - volatilityMultiplier) : 
-                  tech.recommendation === 'SELL' ? price * (1 + volatilityMultiplier * 0.8) :
-                  price * 0.92,
+        target_price,
+        stop_loss,
         time_horizon: tech.volatility > 20 ? 'SHORT_TERM' : tech.volatility > 10 ? 'MEDIUM_TERM' : 'LONG_TERM',
-        reasoning: reasoning
+        reasoning: enhancedAnalysis?.reasoning || reasoning
       };
     }
     
@@ -1857,13 +1882,22 @@ export class InvestmentAnalysisService {
       reasoning.push('Consider fundamental analysis and broader market trends');
     }
     
+    // Use enhanced technical analysis for fallback as well
+    const enhancedAnalysis = data.enhancedTechnicalAnalysis;
+    const target_price = enhancedAnalysis?.targetPrice || (
+      action === 'BUY' ? price * 1.12 : action === 'SELL' ? price * 0.92 : price * 1.05
+    );
+    const stop_loss = enhancedAnalysis?.stopLoss || (
+      action === 'BUY' ? price * 0.92 : action === 'SELL' ? price * 1.05 : price * 0.95
+    );
+
     return {
       action,
       confidence,
-      target_price: action === 'BUY' ? price * 1.15 : action === 'SELL' ? price * 0.90 : price * 1.08,
-      stop_loss: action === 'BUY' ? price * 0.90 : action === 'SELL' ? price * 1.08 : price * 0.92,
+      target_price,
+      stop_loss,
       time_horizon: tech && tech.volatility > 20 ? 'SHORT_TERM' : 'MEDIUM_TERM',
-      reasoning: reasoning
+      reasoning: enhancedAnalysis?.reasoning || reasoning
     };
   }
 

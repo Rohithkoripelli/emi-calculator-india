@@ -755,7 +755,7 @@ export class PortfolioAllocationService {
   }
 
   private static generateDisclaimer(): string {
-    return `This is an AI-generated investment recommendation for educational purposes only. Stock investments are subject to market risks, and past performance does not guarantee future returns. Please consult with a qualified financial advisor before making investment decisions. Consider your risk appetite, financial goals, and investment horizon. The recommendations are based on current market data and trends, which can change rapidly. Always do your own research and due diligence before investing.`;
+    return `**Investment Advisory Notice:** This recommendation is based on comprehensive analysis of real-time market data, technical indicators, and fundamental research. All investments carry inherent market risks, and returns are not guaranteed. Please align investments with your risk tolerance, financial goals, and investment timeline. Consider consulting a qualified financial advisor for personalized advice. Conduct thorough due diligence before making investment decisions.`;
   }
 }
 
