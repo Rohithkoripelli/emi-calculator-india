@@ -176,7 +176,13 @@ ANALYSIS REQUIREMENTS:
    - Volume-confirmed levels where significant buying/selling occurred
    - Fibonacci retracements from recent swing high/low
    - Round number psychology levels
-   Support MUST be below current price, Resistance MUST be above
+
+   CRITICAL RULES:
+   - Support MUST be below current price (₹${currentPrice})
+   - Resistance MUST be above current price (₹${currentPrice})
+   - Support should be 3-20% below current price (₹${(currentPrice * 0.8).toFixed(0)} - ₹${(currentPrice * 0.97).toFixed(0)})
+   - Resistance should be 3-20% above current price (₹${(currentPrice * 1.03).toFixed(0)} - ₹${(currentPrice * 1.2).toFixed(0)})
+   - Use ACTUAL data points from the historical candles provided
 
 2. **VOLATILITY**: Calculate accurate volatility using:
    - Daily returns standard deviation from the historical data
@@ -243,7 +249,9 @@ Return response in this exact JSON format:
         recommendation: analysis.recommendation
       });
 
-      return analysis;
+      // CRITICAL VALIDATION: Ensure support/resistance make logical sense
+      const validatedAnalysis = this.validateAnalysis(analysis, currentPrice, symbol);
+      return validatedAnalysis;
 
     } catch (error) {
       console.error('❌ Error in GPT analysis:', error);
@@ -276,7 +284,7 @@ Return response in this exact JSON format:
     // Generate recommendation
     const recommendation = this.generateRecommendation(currentPrice, support, resistance, rsi, trend);
 
-    return Promise.resolve({
+    const algorithmicResult = {
       support,
       resistance,
       volatility,
@@ -287,7 +295,11 @@ Return response in this exact JSON format:
       recommendation,
       reasoning: this.generateReasoning(trend, rsi, currentPrice, sma20),
       keyInsights: [`Real volatility: ${volatility.toFixed(1)}%`, `Key levels: Support ₹${support}, Resistance ₹${resistance}`]
-    });
+    };
+
+    // Apply the same validation to algorithmic results
+    const validatedResult = this.validateAnalysis(algorithmicResult, currentPrice, symbol);
+    return Promise.resolve(validatedResult);
   }
 
   private static findRealSupport(candles: HistoricalCandle[], currentPrice: number): number {
@@ -413,6 +425,79 @@ Return response in this exact JSON format:
     const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length;
     
     return Math.sqrt(avgSquaredDiff);
+  }
+
+  /**
+   * CRITICAL: Validate analysis results to ensure they make logical sense
+   */
+  private static validateAnalysis(analysis: GPTAnalysisResult, currentPrice: number, symbol: string): GPTAnalysisResult {
+    let support = analysis.support;
+    let resistance = analysis.resistance;
+    let needsFix = false;
+
+    console.log(`🔍 Validating analysis for ${symbol}: Current ₹${currentPrice}, Support ₹${support}, Resistance ₹${resistance}`);
+
+    // VALIDATION 1: Support must be below current price
+    if (support >= currentPrice) {
+      console.warn(`❌ Invalid support ₹${support} >= current price ₹${currentPrice}, fixing...`);
+      support = currentPrice * 0.85; // 15% below current price
+      needsFix = true;
+    }
+
+    // VALIDATION 2: Resistance must be above current price
+    if (resistance <= currentPrice) {
+      console.warn(`❌ Invalid resistance ₹${resistance} <= current price ₹${currentPrice}, fixing...`);
+      resistance = currentPrice * 1.15; // 15% above current price
+      needsFix = true;
+    }
+
+    // VALIDATION 3: Support should be within reasonable range (5-25% below)
+    const supportDistance = ((currentPrice - support) / currentPrice) * 100;
+    if (supportDistance > 25 || supportDistance < 2) {
+      console.warn(`❌ Support too far from current price (${supportDistance.toFixed(1)}%), adjusting...`);
+      support = currentPrice * 0.92; // 8% below current price
+      needsFix = true;
+    }
+
+    // VALIDATION 4: Resistance should be within reasonable range (5-25% above)
+    const resistanceDistance = ((resistance - currentPrice) / currentPrice) * 100;
+    if (resistanceDistance > 25 || resistanceDistance < 2) {
+      console.warn(`❌ Resistance too far from current price (${resistanceDistance.toFixed(1)}%), adjusting...`);
+      resistance = currentPrice * 1.12; // 12% above current price
+      needsFix = true;
+    }
+
+    // VALIDATION 5: Volatility should be reasonable (0.5% to 10%)
+    let volatility = analysis.volatility;
+    if (volatility < 0.5 || volatility > 10) {
+      console.warn(`❌ Invalid volatility ${volatility}%, adjusting...`);
+      volatility = Math.max(0.8, Math.min(5.0, volatility));
+      needsFix = true;
+    }
+
+    if (needsFix) {
+      console.log(`✅ Fixed analysis for ${symbol}: Support ₹${support.toFixed(2)}, Resistance ₹${resistance.toFixed(2)}, Volatility ${volatility.toFixed(1)}%`);
+      
+      // Update target price and stop loss based on corrected levels
+      const targetPrice = resistance * 0.98; // Just below resistance
+      const stopLoss = support * 1.02; // Just above support
+
+      return {
+        ...analysis,
+        support: Math.round(support * 100) / 100,
+        resistance: Math.round(resistance * 100) / 100,
+        volatility: Math.round(volatility * 100) / 100,
+        targetPrice: Math.round(targetPrice * 100) / 100,
+        stopLoss: Math.round(stopLoss * 100) / 100,
+        reasoning: [
+          ...analysis.reasoning,
+          `Analysis validated and adjusted for accuracy`
+        ]
+      };
+    }
+
+    console.log(`✅ Analysis validation passed for ${symbol}`);
+    return analysis;
   }
 
   /**

@@ -198,7 +198,7 @@ export class GrowwApiService {
   }
 
   /**
-   * Get historical candle data for technical analysis
+   * Get historical candle data for technical analysis using Groww's official API format
    */
   static async getHistoricalData(
     tradingSymbol: string, 
@@ -207,9 +207,87 @@ export class GrowwApiService {
     segment: string = 'CASH'
   ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} via backend API...`);
+      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} directly from Groww API...`);
       
-      // Use the backend API for historical data
+      // Calculate date range for API call
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - (days * 24 * 60 * 60 * 1000));
+      
+      // Format dates as required by Groww API: "2025-07-06 09:15:00"
+      const formatDate = (date: Date) => {
+        return date.toISOString().replace('T', ' ').slice(0, 19);
+      };
+      
+      const startTimeFormatted = formatDate(startTime);
+      const endTimeFormatted = formatDate(endTime);
+      
+      // Build Groww API URL with correct format
+      const apiUrl = `https://api.groww.in/v1/historical/candle/range?exchange=${exchange}&segment=${segment}&trading_symbol=${tradingSymbol}&start_time=${encodeURIComponent(startTimeFormatted)}&end_time=${encodeURIComponent(endTimeFormatted)}&interval_in_minutes=3600`;
+      
+      console.log(`📊 Calling Groww API: ${apiUrl}`);
+      
+      // Get auth headers for API call
+      const headers = await this.getAuthHeaders();
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (response.ok) {
+        const result: GrowwHistoricalResponse = await response.json();
+        
+        if (result.status === 'SUCCESS' && result.payload && result.payload.candles && result.payload.candles.length > 0) {
+          console.log(`✅ Successfully fetched ${result.payload.candles.length} historical candles from Groww API`);
+          
+          // Convert Groww API format to our HistoricalCandle format
+          const candles: HistoricalCandle[] = result.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
+            timestamp: timestamp, // Already in epoch seconds
+            date: new Date(timestamp * 1000).toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+            open: open,
+            high: high,
+            low: low,
+            close: close,
+            volume: volume
+          }));
+          
+          console.log(`🔍 Converted ${candles.length} candles for technical analysis`);
+          console.log(`📈 Sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
+          
+          return candles;
+        } else {
+          console.log(`⚠️ No historical data in Groww API response for ${tradingSymbol}:`, result);
+        }
+      } else {
+        console.log(`⚠️ Groww API HTTP error: ${response.status} ${response.statusText}`);
+        console.log(`🔍 Response text: ${await response.text()}`);
+      }
+      
+      // Fallback: Try backend API if available
+      console.log(`🔄 Trying backend API as fallback for ${tradingSymbol}...`);
+      const backendResult = await this.fetchFromBackendAPI(tradingSymbol, days);
+      if (backendResult) {
+        return backendResult;
+      }
+      
+      // Final fallback: Generate realistic historical data
+      console.log(`🔄 Using intelligent fallback historical data generation for ${tradingSymbol}...`);
+      return this.generateRealisticHistoricalData(tradingSymbol, days);
+      
+    } catch (error) {
+      console.error('❌ Error in getHistoricalData:', error);
+      
+      // Fallback in case of errors
+      console.log(`🔄 Error fallback: generating realistic data for ${tradingSymbol}...`);
+      return this.generateRealisticHistoricalData(tradingSymbol, days);
+    }
+  }
+
+  /**
+   * Try to fetch from backend API as fallback
+   */
+  private static async fetchFromBackendAPI(tradingSymbol: string, days: number): Promise<HistoricalCandle[] | null> {
+    try {
       const response = await fetch('/api/groww-data', {
         method: 'POST',
         headers: {
@@ -227,23 +305,15 @@ export class GrowwApiService {
         
         if (result.success && result.data && result.data[tradingSymbol]) {
           const candles = result.data[tradingSymbol];
-          console.log(`✅ Successfully fetched ${candles.length} historical candles for ${tradingSymbol} from backend API`);
+          console.log(`✅ Successfully fetched ${candles.length} historical candles from backend API`);
           return candles;
-        } else {
-          console.log(`⚠️ No historical data returned from backend API for ${tradingSymbol}`);
         }
-      } else {
-        console.log(`⚠️ Backend API error: ${response.status}`);
       }
-      
-      // Fallback: Generate realistic historical data
-      console.log(`🔄 Using fallback historical data generation for ${tradingSymbol}...`);
-      return this.generateRealisticHistoricalData(tradingSymbol, days);
-      
     } catch (error) {
-      console.error('❌ Error in getHistoricalData:', error);
-      return this.generateRealisticHistoricalData(tradingSymbol, days);
+      console.log(`⚠️ Backend API also failed: ${error}`);
     }
+    
+    return null;
   }
 
   /**

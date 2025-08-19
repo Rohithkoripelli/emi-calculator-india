@@ -934,18 +934,18 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-end md:items-center justify-center p-0 md:p-4">
       <div 
-        className="bg-white dark:bg-dark-card w-full h-full md:h-auto md:max-h-[90vh] md:w-full md:max-w-4xl rounded-t-xl md:rounded-xl shadow-2xl flex flex-col"
+        className="bg-white dark:bg-gray-800 w-full h-full md:h-auto md:max-h-[90vh] md:w-full md:max-w-4xl rounded-t-xl md:rounded-xl shadow-2xl flex flex-col"
         style={{ height: `${viewportHeight}px`, maxHeight: `${viewportHeight}px` }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/10 dark:to-indigo-600/10 rounded-t-xl">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/10 dark:to-indigo-600/10 rounded-t-xl">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
               <ChatBubbleLeftRightIcon className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-dark-text-primary">AI Financial Assistant</h3>
-              <p className="text-sm text-gray-500 dark:text-dark-text-secondary">Powered by real-time market data</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white">AI Financial Assistant</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-300">Powered by real-time market data</p>
             </div>
           </div>
           <Button
@@ -1033,8 +1033,8 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
               )}
             </Button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
-            Real-time market data • AI analysis
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            AI generated responses can be inaccurate
           </p>
         </div>
       </div>
