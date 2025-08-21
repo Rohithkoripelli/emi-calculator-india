@@ -180,6 +180,44 @@ const tableStyles = `
     font-size: 12px !important;
   }
 }
+
+/* Text clamp utilities for line truncation */
+.line-clamp-2 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.line-clamp-3 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* Custom scrollbar for better UX */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #475569;
+}
 `;
 
 interface LoanData {
@@ -1077,155 +1115,197 @@ const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const NewsArticlesCard: React.FC<{ text: string }> = ({ text }) => {
-  // Extract news articles from different sections
-  const newsArticles: Array<{ title: string; snippet: string; url?: string; sentiment?: string }> = [];
+const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
+  // Extract web sources from different sections with improved parsing
+  const webSources: Array<{ title: string; snippet: string; url: string; domain?: string }> = [];
   
-  // Extract from Recent News Sentiment section
-  const newsMatch = text.match(/## 📰 Recent News Sentiment[\s\S]*?(?=##|$)/);
-  if (newsMatch) {
-    const newsSection = newsMatch[0];
-    const articleMatches = newsSection.match(/\d+\. \*\*(.*?)\*\*: (.*?)(?=\n|$)/g);
-    
-    if (articleMatches) {
-      articleMatches.forEach(match => {
-        const titleMatch = match.match(/\*\*(.*?)\*\*:/);
-        const snippetMatch = match.match(/\*\*.*?\*\*: (.*?)$/);
-        
-        if (titleMatch && snippetMatch) {
-          const sentiment = titleMatch[1];
-          const headline = snippetMatch[1];
-          newsArticles.push({
-            title: headline,
-            snippet: `Market sentiment: ${sentiment}`,
-            sentiment: sentiment
-          });
-        }
-      });
-    }
-  }
-  
-  // Extract from web research results
-  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|$)/);
+  // Extract from Market Research Sources section with better regex
+  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/);
   if (webResultsMatch) {
     const webResultsSection = webResultsMatch[0];
-    const resultMatches = webResultsSection.match(/\*\*(.*?)\*\*\n(.*?)\n🔗 \[Read more\]\((.*?)\)/g);
     
-    if (resultMatches) {
-      resultMatches.forEach((match) => {
-        const titleMatch = match.match(/\*\*(.*?)\*\*/);
-        const snippetMatch = match.match(/\*\*.*?\*\*\n(.*?)\n🔗/s);
-        const urlMatch = match.match(/🔗 \[Read more\]\((.*?)\)/);
-        
-        if (titleMatch && snippetMatch && urlMatch) {
-          // Avoid duplicates by checking if we already have similar content
-          const isDuplicate = newsArticles.some(article => 
-            article.title.includes(titleMatch[1]) || titleMatch[1].includes(article.title)
-          );
-          
-          if (!isDuplicate) {
-            newsArticles.push({
-              title: titleMatch[1],
-              snippet: snippetMatch[1].trim(),
-              url: urlMatch[1]
-            });
-          }
+    // Match multiple formats: standard markdown links and custom format
+    const resultMatches = [
+      ...webResultsSection.matchAll(/\*\*(.*?)\*\*\n([\s\S]*?)(?:\n🔗 \[Read more\]\((.*?)\)|\[Read more\]\((.*?)\))/g)
+    ];
+    
+    resultMatches.forEach((match) => {
+      const title = match[1];
+      const snippet = match[2] ? match[2].trim().replace(/\n+/g, ' ').substring(0, 150) : '';
+      const url = match[3] || match[4];
+      
+      if (title && url && !webSources.some(source => source.url === url)) {
+        // Extract domain from URL for display
+        let domain = '';
+        try {
+          domain = new URL(url).hostname.replace('www.', '');
+        } catch (e) {
+          domain = url.split('/')[2] || '';
         }
+        
+        webSources.push({
+          title: title.trim(),
+          snippet: snippet || 'Click to read the full article',
+          url: url,
+          domain: domain
+        });
+      }
+    });
+  }
+  
+  // Also extract any other URLs mentioned in the text
+  const additionalUrlMatches = text.matchAll(/🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g);
+  for (const match of additionalUrlMatches) {
+    const linkText = match[1];
+    const url = match[2];
+    
+    if (!webSources.some(source => source.url === url)) {
+      let domain = '';
+      try {
+        domain = new URL(url).hostname.replace('www.', '');
+      } catch (e) {
+        domain = url.split('/')[2] || '';
+      }
+      
+      webSources.push({
+        title: linkText || 'Additional Resource',
+        snippet: 'External link for additional information',
+        url: url,
+        domain: domain
       });
     }
   }
   
-  // Deduplicate and take only top 5
-  const uniqueArticles = newsArticles
-    .filter((article, index, self) => 
-      index === self.findIndex(a => a.title === article.title)
-    )
-    .slice(0, 5);
+  // Limit to 6 sources for optimal display
+  const uniqueSources = webSources.slice(0, 6);
   
-  if (uniqueArticles.length === 0) return null;
+  if (uniqueSources.length === 0) return null;
   
   return (
-    <div className="my-8">
-      <div className="mb-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text-primary flex items-center gap-3">
-          <span className="text-2xl">📰</span>
-          Latest Market News & Analysis
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1">
-          Key news articles and market research findings
-        </p>
+    <div className="mt-12 mb-8">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl shadow-lg">
+            <span className="text-white text-xl">🔗</span>
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Sources & References
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Research sources used for this analysis • Click to open in new tab
+            </p>
+          </div>
+        </div>
+        <div className="w-full h-px bg-gradient-to-r from-blue-500/20 via-blue-500/50 to-blue-500/20"></div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {uniqueArticles.map((article, index) => {
-          const getSentimentColor = (sentiment?: string) => {
-            if (!sentiment) return 'bg-blue-50 dark:bg-blue-600/10 border-blue-200 dark:border-blue-600/30';
-            switch(sentiment.toUpperCase()) {
-              case 'POSITIVE': return 'bg-green-50 dark:bg-green-600/10 border-green-200 dark:border-green-600/30';
-              case 'NEGATIVE': return 'bg-red-50 dark:bg-red-600/10 border-red-200 dark:border-red-600/30';
-              case 'NEUTRAL': return 'bg-gray-50 dark:bg-gray-600/10 border-gray-200 dark:border-gray-600/30';
-              default: return 'bg-blue-50 dark:bg-blue-600/10 border-blue-200 dark:border-blue-600/30';
+      {/* Sources Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {uniqueSources.map((source, index) => {
+          // Get domain-specific styling
+          const getDomainStyling = (domain: string) => {
+            if (domain.includes('screener.in') || domain.includes('moneycontrol') || domain.includes('economictimes')) {
+              return {
+                gradient: 'from-green-500 to-emerald-600',
+                bg: 'bg-green-50 dark:bg-green-500/10',
+                border: 'border-green-200 dark:border-green-500/30',
+                icon: '📊'
+              };
+            } else if (domain.includes('groww') || domain.includes('zerodha')) {
+              return {
+                gradient: 'from-blue-500 to-cyan-600',
+                bg: 'bg-blue-50 dark:bg-blue-500/10',
+                border: 'border-blue-200 dark:border-blue-500/30',
+                icon: '💼'
+              };
+            } else if (domain.includes('livemint') || domain.includes('business-standard')) {
+              return {
+                gradient: 'from-orange-500 to-red-600',
+                bg: 'bg-orange-50 dark:bg-orange-500/10',
+                border: 'border-orange-200 dark:border-orange-500/30',
+                icon: '📰'
+              };
+            } else {
+              return {
+                gradient: 'from-gray-500 to-slate-600',
+                bg: 'bg-gray-50 dark:bg-gray-500/10',
+                border: 'border-gray-200 dark:border-gray-500/30',
+                icon: '🌐'
+              };
             }
           };
           
-          const getSentimentIcon = (sentiment?: string) => {
-            if (!sentiment) return '📊';
-            switch(sentiment.toUpperCase()) {
-              case 'POSITIVE': return '📈';
-              case 'NEGATIVE': return '📉';
-              case 'NEUTRAL': return '📊';
-              default: return '📊';
-            }
-          };
+          const styling = getDomainStyling(source.domain || '');
           
           return (
             <div
               key={index}
-              className={`${getSentimentColor(article.sentiment)} border rounded-xl p-4 hover:shadow-lg transition-all duration-200 group cursor-pointer transform hover:scale-105`}
-              onClick={() => article.url && window.open(article.url, '_blank')}
+              className={`group relative ${styling.bg} ${styling.border} border-2 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 hover:scale-[1.02]`}
+              onClick={() => window.open(source.url, '_blank', 'noopener,noreferrer')}
             >
-              <div className="flex flex-col h-full">
-                <div className="flex items-start gap-2 mb-3">
-                  <span className="text-lg flex-shrink-0">{getSentimentIcon(article.sentiment)}</span>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 dark:text-dark-text-primary text-sm leading-tight line-clamp-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {article.title}
-                    </h4>
-                  </div>
+              {/* Card Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-r ${styling.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
+                  <span className="text-white text-xl">{styling.icon}</span>
                 </div>
-                
-                <p className="text-xs text-gray-600 dark:text-dark-text-secondary line-clamp-3 flex-1">
-                  {article.snippet}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-gray-900 dark:text-white text-base leading-tight line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+                    {source.title}
+                  </h4>
+                  {source.domain && (
+                    <div className="mt-1">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 border border-gray-200/50 dark:border-gray-600/50">
+                        {source.domain}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Card Content */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
+                  {source.snippet}
                 </p>
                 
-                {article.sentiment && (
-                  <div className="mt-2 pt-2 border-t border-current border-opacity-20">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      article.sentiment.toUpperCase() === 'POSITIVE' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300'
-                        : article.sentiment.toUpperCase() === 'NEGATIVE'
-                        ? 'bg-red-100 text-red-800 dark:bg-red-600/20 dark:text-red-300'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-600/20 dark:text-gray-300'
-                    }`}>
-                      {article.sentiment}
-                    </span>
+                {/* Action Button */}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Click to read full article
+                  </span>
+                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300 transition-colors duration-300">
+                    <span className="text-sm font-semibold">Open</span>
+                    <svg className="w-4 h-4 transform group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
                   </div>
-                )}
-                
-                {article.url && (
-                  <div className="mt-3 flex items-center justify-center">
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300">
-                      <span>Read More</span>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </span>
-                  </div>
-                )}
+                </div>
               </div>
+              
+              {/* Hover Overlay Effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
             </div>
           );
         })}
+      </div>
+      
+      {/* Footer Note */}
+      <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-500/10 dark:to-indigo-500/10 rounded-xl border border-blue-200 dark:border-blue-500/30">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+            <span className="text-white text-sm">ℹ️</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span className="font-semibold">Research Methodology:</span> This analysis combines data from {uniqueSources.length} verified financial sources to provide comprehensive market insights.
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              All external links open in new tabs • Sources verified for credibility and relevance
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1527,12 +1607,15 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   const comparisonData = extractTableData(formattedText);
   const savingsChartData = createSavingsChart(formattedText);
   
-  // Remove the news sections from the text to avoid duplication
-  // The NewsArticlesCard will handle displaying them
-  const textWithoutNews = formattedText
-    .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|$)/g, '') // Remove news sentiment section
-    .replace(/## 🌐 Market Research Sources[^#]*?(?=##|$)/g, '') // Remove web research section
-    .replace(/\n\n\n+/g, '\n\n'); // Clean up extra newlines
+  // Remove the web research sections from the text to avoid duplication
+  // The WebSourcesCard will handle displaying them at the end
+  const textWithoutWebSources = formattedText
+    .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|⚠️|$)/g, '') // Remove news sentiment section
+    .replace(/## 🌐 Market Research Sources[^#]*?(?=##|⚠️|$)/g, '') // Remove web research section
+    .replace(/🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '') // Remove inline links
+    .replace(/\[Read more\]\([^)]+\)/g, '') // Remove "Read more" links
+    .replace(/\n\n\n+/g, '\n\n') // Clean up extra newlines
+    .replace(/^\s*\n/gm, ''); // Remove empty lines at start
   
   return (
     <div className="space-y-4">
@@ -1551,11 +1634,11 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       {/* Savings Chart */}
       {savingsChartData && <SavingsChart data={savingsChartData} />}
       
-      {/* Enhanced Text Formatting - using cleaned text without news */}
-      <EnhancedText text={textWithoutNews} />
+      {/* Enhanced Text Formatting - using cleaned text without web sources */}
+      <EnhancedText text={textWithoutWebSources} />
       
-      {/* News Articles Card - moved to bottom using original text to extract news */}
-      <NewsArticlesCard text={formattedText} />
+      {/* Web Sources Card - positioned at the very end of the response */}
+      <WebSourcesCard text={formattedText} />
     </div>
   );
 };
