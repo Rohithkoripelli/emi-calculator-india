@@ -845,8 +845,8 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
             console.log(`🔍 Stock not found in Excel database, searching web for: "${userMessage}"`);
             
             try {
-              // Import web search utility
-              const { WebSearch } = await import('../utils/webSearchUtil');
+              // Import web search utility functions
+              const { WebSearch, extractStockSymbolFromResults } = await import('../../utils/webSearchUtil');
               
               // Extract company name from user message
               const companyQuery = userMessage
@@ -854,57 +854,20 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
                 .replace(/\?|now|\!|stocks?/gi, '')
                 .trim();
               
-              // Search for the company's stock symbol
+              // Search for the company's stock symbol using Google Custom Search API
               const searchQuery = `"${companyQuery}" NSE BSE stock symbol ticker`;
-              console.log(`🔍 Searching: "${searchQuery}"`);
+              console.log(`🔍 Searching Google API: "${searchQuery}"`);
               
               const searchResults = await WebSearch(searchQuery, 3);
               
               if (searchResults && searchResults.length > 0) {
-                // Look for stock symbols in search results
-                let foundSymbol = null;
+                console.log(`📊 Received ${searchResults.length} search results from Google API`);
                 
-                for (const result of searchResults) {
-                  const text = `${result.title} ${result.snippet}`.toLowerCase();
-                  
-                  // Look for common patterns that indicate stock symbols
-                  const symbolPatches: RegExpMatchArray[] = [];
-                  
-                  // Pattern 1: Symbol followed by NSE/BSE/stock/symbol/ticker/share
-                  const regex1 = /\b([A-Z]{2,10})\s*(?:nse|bse|stock|symbol|ticker|share)/gi;
-                  let match1;
-                  while ((match1 = regex1.exec(text)) !== null) {
-                    symbolPatches.push(match1);
-                  }
-                  
-                  // Pattern 2: symbol/ticker followed by colon and symbol
-                  const regex2 = /(?:symbol|ticker)[\s:]*([A-Z]{2,10})/gi;
-                  let match2;
-                  while ((match2 = regex2.exec(text)) !== null) {
-                    symbolPatches.push(match2);
-                  }
-                  
-                  // Pattern 3: Symbol in parentheses
-                  const regex3 = /\(([A-Z]{2,10})\)/g;
-                  let match3;
-                  while ((match3 = regex3.exec(text)) !== null) {
-                    symbolPatches.push(match3);
-                  }
-                  
-                  for (const match of symbolPatches) {
-                    const potentialSymbol = match[1].toUpperCase();
-                    if (potentialSymbol.length >= 2 && potentialSymbol.length <= 10) {
-                      foundSymbol = potentialSymbol;
-                      console.log(`🎯 Found potential symbol: ${foundSymbol} from search result`);
-                      break;
-                    }
-                  }
-                  
-                  if (foundSymbol) break;
-                }
+                // Use the utility function to extract stock symbol
+                const foundSymbol = extractStockSymbolFromResults(searchResults, companyQuery);
                 
                 if (foundSymbol) {
-                  console.log(`✅ Web search found symbol: ${foundSymbol} for query: "${userMessage}"`);
+                  console.log(`✅ Google search found symbol: ${foundSymbol} for query: "${userMessage}"`);
                   await handleStockAnalysis(foundSymbol, aiMessageId);
                 } else {
                   throw new Error(`Could not find stock symbol for "${companyQuery}". Please try with more specific company names or known stock symbols.`);

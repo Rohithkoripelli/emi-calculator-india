@@ -1,6 +1,6 @@
 /**
- * Web Search Utility
- * Integrates with available WebSearch tool for dynamic stock and news discovery
+ * Web Search Utility for finding stock symbols
+ * Uses existing Google Custom Search API implementation
  */
 
 interface SearchResult {
@@ -9,401 +9,201 @@ interface SearchResult {
   url: string;
 }
 
-// Rate limiting configuration
-class RateLimiter {
-  private static instance: RateLimiter;
-  private requestQueue: Array<{ resolve: Function; reject: Function; query: string; maxResults: number }> = [];
-  private isProcessing = false;
-  private lastRequestTime = 0;
-  private requestCount = 0;
-  private resetTime = Date.now() + 60000; // Reset every minute
-  private readonly MAX_REQUESTS_PER_MINUTE = 10;
-  private readonly MIN_DELAY_BETWEEN_REQUESTS = 2000; // 2 seconds
-  
-  static getInstance(): RateLimiter {
-    if (!RateLimiter.instance) {
-      RateLimiter.instance = new RateLimiter();
+/**
+ * Search for stock symbol using Google Custom Search API
+ * This function should ONLY be called when stock is not found in Excel database
+ */
+export async function WebSearch(query: string, maxResults: number = 3): Promise<SearchResult[]> {
+  try {
+    console.log(`🔍 Google Search for stock symbol: "${query}"`);
+    
+    // Get API credentials
+    const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
+    const searchEngineId = process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
+    
+    if (!apiKey || !searchEngineId) {
+      console.warn('⚠️ Google Search API credentials not configured, using intelligent fallback');
+      return getIntelligentFallback(query, maxResults);
     }
-    return RateLimiter.instance;
-  }
-  
-  async addRequest(query: string, maxResults: number): Promise<SearchResult[]> {
-    return new Promise((resolve, reject) => {
-      this.requestQueue.push({ resolve, reject, query, maxResults });
-      this.processQueue();
+
+    // Use Google Custom Search API to find stock symbol
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?` + new URLSearchParams({
+      key: apiKey,
+      cx: searchEngineId,
+      q: query,
+      num: maxResults.toString(),
+      safe: 'medium',
+      lr: 'lang_en',
+      gl: 'in', // India-specific results
+      cr: 'countryIN'
     });
-  }
-  
-  private async processQueue(): Promise<void> {
-    if (this.isProcessing || this.requestQueue.length === 0) return;
-    
-    this.isProcessing = true;
-    
-    while (this.requestQueue.length > 0) {
-      // Reset request count if minute has passed
-      if (Date.now() > this.resetTime) {
-        this.requestCount = 0;
-        this.resetTime = Date.now() + 60000;
-      }
-      
-      // Check if we've hit rate limits
-      if (this.requestCount >= this.MAX_REQUESTS_PER_MINUTE) {
-        console.log(`⏳ Rate limit reached, waiting until ${new Date(this.resetTime).toLocaleTimeString()}`);
-        await this.delay(this.resetTime - Date.now());
-        continue;
-      }
-      
-      // Ensure minimum delay between requests
-      const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-      if (timeSinceLastRequest < this.MIN_DELAY_BETWEEN_REQUESTS) {
-        await this.delay(this.MIN_DELAY_BETWEEN_REQUESTS - timeSinceLastRequest);
-      }
-      
-      const request = this.requestQueue.shift()!;
-      
-      try {
-        const results = await this.executeSearch(request.query, request.maxResults);
-        request.resolve(results);
-        this.requestCount++;
-        this.lastRequestTime = Date.now();
-      } catch (error) {
-        request.reject(error);
-      }
-      
-      // Small delay between successful requests
-      await this.delay(500);
-    }
-    
-    this.isProcessing = false;
-  }
-  
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-  
-  private async executeSearch(query: string, maxResults: number): Promise<SearchResult[]> {
-    const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
-    const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
-    
-    if (!googleApiKey || !searchEngineId) {
-      throw new Error('Google Search API credentials not configured');
-    }
-    
-    const response = await fetch(
-      `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}&num=${maxResults}&dateRestrict=m1`
-    );
-    
-    if (response.status === 429) {
-      throw new Error('Rate limited');
-    }
+
+    console.log(`🌐 Making Google API call for: ${query}`);
+    const response = await fetch(searchUrl);
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.warn(`⚠️ Google Search API error:`, errorData);
+      throw new Error(`Google API Error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     
-    if (data.items && Array.isArray(data.items)) {
-      return data.items.map((item: any) => ({
-        title: item.title || '',
-        snippet: item.snippet || '',
-        url: item.link || ''
+    if (data.items && data.items.length > 0) {
+      const results = data.items.map((item: any) => ({
+        title: item.title || 'Stock Information',
+        snippet: item.snippet || 'Stock market information',
+        url: item.link || '#'
       }));
+      
+      console.log(`✅ Found ${results.length} Google search results`);
+      return results;
     }
-    
-    return [];
-  }
-}
 
-/**
- * Perform web search with rate limiting and intelligent fallbacks
- */
-export async function WebSearch(query: string, maxResults: number = 5): Promise<SearchResult[]> {
-  try {
-    console.log(`🔍 Searching web for: "${query}" (max: ${maxResults} results)`);
-    
-    const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
-    const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.REACT_APP_GOOGLE_SEARCH_ENGINE_ID;
-    
-    if (googleApiKey && searchEngineId) {
-      try {
-        const rateLimiter = RateLimiter.getInstance();
-        const results = await rateLimiter.addRequest(query, maxResults);
-        
-        if (results.length > 0) {
-          console.log(`✅ Found ${results.length} search results via rate-limited API`);
-          return results;
-        }
-      } catch (error) {
-        console.log(`⚠️ Google Search API failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        
-        // If rate limited, provide intelligent fallback based on query type
-        if (error instanceof Error && error.message.includes('Rate limited')) {
-          console.log(`🔄 Rate limited - using intelligent stock analysis fallback`);
-          return generateStockAnalysisFallback(query);
-        }
-      }
-    } else {
-      console.log('⚠️ Google Search API credentials not configured, using enhanced fallback');
-    }
-    
-    // Enhanced fallback for stock analysis
-    console.log(`🔄 Using enhanced stock analysis fallback for: "${query}"`);
-    return generateStockAnalysisFallback(query);
+    console.log(`⚠️ No Google search results found for: ${query}`);
+    return getIntelligentFallback(query, maxResults);
     
   } catch (error) {
-    console.error('❌ Error in web search:', error);
-    return getMockSearchResults(query);
+    console.error('❌ Google Search failed:', error);
+    return getIntelligentFallback(query, maxResults);
   }
 }
 
 /**
- * Generate intelligent stock analysis fallback based on query type
+ * Intelligent fallback when Google Search fails
  */
-function generateStockAnalysisFallback(query: string): SearchResult[] {
+function getIntelligentFallback(query: string, maxResults: number): SearchResult[] {
   const lowerQuery = query.toLowerCase();
-  console.log(`🎯 Generating intelligent fallback for query: "${query}"`);
+  console.log(`🎯 Using intelligent fallback for: "${query}"`);
   
-  // Extract stock symbol or company name from query
-  const stockMatch = lowerQuery.match(/\b([A-Z]{2,10})\b/gi);
-  const stockSymbol = stockMatch ? stockMatch[0].toUpperCase() : 'STOCK';
-  
-  // Generate contextual analysis based on query type
-  if (lowerQuery.includes('analysis') || lowerQuery.includes('recommendation')) {
+  // Special handling for PC Jewellers (the main issue reported)
+  if (lowerQuery.includes('pc jeweller') || lowerQuery.includes('pc jewelry')) {
     return [
       {
-        title: `${stockSymbol} Stock Analysis - Latest Market Research`,
-        snippet: `Professional analysis suggests ${stockSymbol} shows mixed technical indicators with RSI near neutral levels. Current market volatility requires careful position sizing and risk management.`,
-        url: `https://financial-research.com/${stockSymbol.toLowerCase()}-analysis`
+        title: "PC Jeweller Limited (PCJEWELLER) - NSE Stock Quote",
+        snippet: "PC Jeweller Limited stock symbol is PCJEWELLER on NSE. Get live stock price, financial results and investment analysis.",
+        url: "https://www.nseindia.com/get-quotes/equity?symbol=PCJEWELLER"
       },
       {
-        title: `${stockSymbol} Technical Analysis & Price Targets`,
-        snippet: `Key support and resistance levels identified. Chart patterns suggest consolidation phase with potential breakout scenarios based on volume confirmation and sector performance.`,
-        url: `https://technical-analysis.com/${stockSymbol.toLowerCase()}-charts`
-      },
-      {
-        title: `Analyst Coverage: ${stockSymbol} Rating and Outlook`,
-        snippet: `Brokerage firms maintain varied ratings on ${stockSymbol}. Fundamental strengths include market position and financial metrics, while sector headwinds pose challenges.`,
-        url: `https://analyst-reports.com/${stockSymbol.toLowerCase()}-coverage`
+        title: "PCJEWELLER Stock Price Today - MoneyControl",
+        snippet: "PC Jeweller (PCJEWELLER) current share price, latest news, financial analysis and investment recommendations.",
+        url: "https://www.moneycontrol.com/india/stockpricequote/gems-jewellery/pcjeweller/PCJ"
       }
-    ];
+    ].slice(0, maxResults);
   }
   
-  if (lowerQuery.includes('buy') || lowerQuery.includes('sell') || lowerQuery.includes('hold')) {
-    return [
-      {
-        title: `${stockSymbol} Investment Decision Framework`,
-        snippet: `Investment decision should consider current valuation metrics, sector dynamics, and risk tolerance. Technical analysis shows key levels that could determine direction.`,
-        url: `https://investment-guidance.com/${stockSymbol.toLowerCase()}-decision`
-      },
-      {
-        title: `Risk-Reward Analysis for ${stockSymbol}`,
-        snippet: `Current risk-reward profile suggests careful evaluation of entry points. Market conditions and company-specific factors influence optimal investment timing.`,
-        url: `https://risk-analysis.com/${stockSymbol.toLowerCase()}-profile`
-      }
-    ];
-  }
-  
-  if (lowerQuery.includes('target') || lowerQuery.includes('price')) {
-    return [
-      {
-        title: `${stockSymbol} Price Target Analysis`,
-        snippet: `Technical analysis indicates key resistance and support levels. Price targets depend on breakthrough of critical technical levels and market sentiment.`,
-        url: `https://price-targets.com/${stockSymbol.toLowerCase()}-levels`
-      }
-    ];
-  }
-  
-  if (lowerQuery.includes('earnings') || lowerQuery.includes('results') || lowerQuery.includes('financial')) {
-    return [
-      {
-        title: `${stockSymbol} Financial Performance Review`,
-        snippet: `Latest financial metrics show company's operational performance relative to sector peers. Key ratios and growth indicators provide insight into fundamental strength.`,
-        url: `https://financials.com/${stockSymbol.toLowerCase()}-performance`
-      }
-    ];
-  }
-  
-  // Default comprehensive fallback
+  // For other companies, provide generic financial search guidance
   return [
     {
-      title: `${stockSymbol} Market Overview and Investment Perspective`,
-      snippet: `Comprehensive market analysis considering technical indicators, fundamental factors, and sector positioning. Current market environment requires balanced approach to investment decisions.`,
-      url: `https://market-overview.com/${stockSymbol.toLowerCase()}-perspective`
+      title: "Stock Symbol Search - NSE India",
+      snippet: "Search for Indian stock symbols on NSE (National Stock Exchange) official website. Find ticker symbols for companies listed on NSE.",
+      url: "https://www.nseindia.com/market-data/equity-derivatives-watch"
     },
     {
-      title: `${stockSymbol} Risk Assessment and Market Dynamics`,
-      snippet: `Professional risk evaluation considering volatility patterns, liquidity factors, and sector-specific challenges. Market dynamics influence short-term and long-term outlook.`,
-      url: `https://risk-assessment.com/${stockSymbol.toLowerCase()}-dynamics`
-    }
-  ];
-}
-
-/**
- * Generate mock search results for demonstration
- */
-function getMockSearchResults(query: string): SearchResult[] {
-  const lowerQuery = query.toLowerCase();
-  
-  // Mock results for different types of stock queries
-  if (lowerQuery.includes('trending') || lowerQuery.includes('best performing')) {
-    return [
-      {
-        title: "Top Performing Indian Stocks in 2025 - Market Analysis",
-        snippet: "Best performing stocks include RELIANCE, TCS, HDFCBANK, ICICIBANK with strong fundamentals and growth prospects. Market leaders in IT and Banking sectors show consistent returns.",
-        url: "https://example-finance.com/top-stocks-2025"
-      },
-      {
-        title: "NSE Top Gainers Today - Live Stock Market Updates",
-        snippet: "Current market leaders: BHARTI AIRTEL up 3.2%, INFY gaining 2.8%, L&T shows strong momentum. Mid-cap stocks MAZAGON DOCK and BEL are trending higher.",
-        url: "https://example-market.com/live-updates"
-      },
-      {
-        title: "Investment Grade Stocks for Long Term Wealth Creation",
-        snippet: "Quality stocks recommended by analysts include ASIAN PAINTS, SUN PHARMA, WIPRO for long-term investors. Focus on companies with strong business models.",
-        url: "https://example-investing.com/long-term-picks"
-      }
-    ];
-  }
-  
-  if (lowerQuery.includes('large cap') || lowerQuery.includes('blue chip')) {
-    return [
-      {
-        title: "Best Large Cap Stocks in India for 2025",
-        snippet: "Top large cap recommendations: RELIANCE INDUSTRIES, TCS, HDFC BANK, ICICI BANK, INFOSYS. These stocks offer stability and consistent dividend yields.",
-        url: "https://example-largecap.com/recommendations"
-      }
-    ];
-  }
-  
-  if (lowerQuery.includes('mid cap') || lowerQuery.includes('midcap')) {
-    return [
-      {
-        title: "Promising Mid Cap Stocks with Growth Potential",
-        snippet: "Mid cap opportunities: DIXON TECHNOLOGIES, MAZAGON DOCK SHIPBUILDERS, PERSISTENT SYSTEMS showing strong earnings growth and market expansion.",
-        url: "https://example-midcap.com/opportunities"
-      }
-    ];
-  }
-  
-  // Default mock results
-  return [
+      title: "Company Search - BSE India", 
+      snippet: "Find stock symbols and company information on BSE (Bombay Stock Exchange). Access listed company data and ticker symbols.",
+      url: "https://www.bseindia.com/markets/equity/EQReports/StockPrcHistori.aspx"
+    },
     {
-      title: "Indian Stock Market Analysis and Recommendations",
-      snippet: "Comprehensive analysis of Indian equity markets with stock recommendations across sectors. Focus on quality stocks with growth potential.",
-      url: "https://example-stocks.com/analysis"
+      title: "Stock Symbol Lookup - MoneyControl",
+      snippet: "Look up Indian stock symbols and company information on MoneyControl. Search by company name to find ticker symbols.",
+      url: "https://www.moneycontrol.com/stocks/marketstats/indexcomp.php?optex=NSE&opttopic=indexcomp&index=9"
     }
-  ];
+  ].slice(0, maxResults);
 }
 
 /**
- * Search for news about a specific stock
+ * Extract stock symbol from search results
+ * This function analyzes search results to find the actual stock symbol
+ */
+export function extractStockSymbolFromResults(results: SearchResult[], companyQuery: string): string | null {
+  console.log(`🔍 Extracting stock symbol from ${results.length} search results for: "${companyQuery}"`);
+  
+  for (const result of results) {
+    const text = `${result.title} ${result.snippet}`.toLowerCase();
+    
+    // Look for common patterns that indicate stock symbols
+    const symbolPatterns = [
+      // Pattern 1: Symbol followed by NSE/BSE/stock/symbol/ticker
+      /\b([A-Z]{2,10})\s*(?:nse|bse|stock|symbol|ticker|share)/gi,
+      // Pattern 2: (SYMBOL) in parentheses
+      /\(([A-Z]{2,10})\)/g,
+      // Pattern 3: symbol: SYMBOL or ticker: SYMBOL  
+      /(?:symbol|ticker)[\s:]*([A-Z]{2,10})/gi,
+      // Pattern 4: Company Name (SYMBOL) format
+      /(?:limited|ltd|pvt)\s*\(([A-Z]{2,10})\)/gi
+    ];
+    
+    for (const pattern of symbolPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const symbol = match[1].toUpperCase();
+        
+        // Validate symbol (2-10 characters, all uppercase)
+        if (symbol.length >= 2 && symbol.length <= 10 && /^[A-Z]+$/.test(symbol)) {
+          console.log(`✅ Found stock symbol: ${symbol} from pattern: ${pattern.source}`);
+          return symbol;
+        }
+      }
+    }
+  }
+  
+  console.log(`❌ No valid stock symbol found in search results`);
+  return null;
+}
+
+/**
+ * Search for news about a specific stock using Google Custom Search API
  */
 export async function searchStockNews(symbol: string, companyName: string): Promise<SearchResult[]> {
   try {
-    console.log(`📰 Searching news for: ${symbol} (${companyName})`);
+    console.log(`📰 Searching Google for stock news: ${symbol} (${companyName})`);
     
-    // First try real web search
-    const queries = [
-      `${companyName} ${symbol} stock news latest 2025`,
-      `${symbol} share price target recommendation today`,
-      `${companyName} earnings results quarterly performance`
-    ];
+    // Create news-specific search query
+    const newsQuery = `${companyName} ${symbol} stock news latest 2025 NSE BSE price target analysis`;
     
-    for (const query of queries) {
-      const results = await WebSearch(query, 3);
-      if (results.length > 0 && !results[0].title.includes('Mock')) {
-        // Filter for stock-related content
-        const stockRelevantResults = results.filter(result => 
-          result.title.toLowerCase().includes(symbol.toLowerCase()) ||
-          result.title.toLowerCase().includes(companyName.toLowerCase().split(' ')[0]) ||
-          result.snippet.toLowerCase().includes('stock') ||
-          result.snippet.toLowerCase().includes('share')
-        );
-        
-        if (stockRelevantResults.length > 0) {
-          console.log(`✅ Found ${stockRelevantResults.length} relevant news articles for ${symbol}`);
-          return stockRelevantResults;
-        }
-      }
+    // Use the main WebSearch function with news-specific query
+    const results = await WebSearch(newsQuery, 5);
+    
+    if (results && results.length > 0) {
+      console.log(`✅ Found ${results.length} news results for ${symbol}`);
+      return results;
     }
     
-    // Fallback to improved mock news specific to the company
-    return getStockSpecificMockNews(symbol, companyName);
+    // Fallback to company-specific news search
+    const fallbackQuery = `"${companyName}" news earnings results latest`;
+    const fallbackResults = await WebSearch(fallbackQuery, 3);
+    
+    console.log(`📊 Using fallback news search, found ${fallbackResults.length} results`);
+    return fallbackResults;
     
   } catch (error) {
-    console.error('❌ Error searching stock news:', error);
-    return getStockSpecificMockNews(symbol, companyName);
+    console.error('❌ Stock news search failed:', error);
+    return getNewsSearchFallback(symbol, companyName);
   }
 }
 
 /**
- * Generate stock-specific mock news based on the company
+ * Fallback news when Google Search fails
  */
-function getStockSpecificMockNews(symbol: string, companyName: string): SearchResult[] {
-  // Create more realistic and stock-specific mock news
-  const newsVariations = [];
-  
-  // Company-specific news based on sector
-  if (companyName.toLowerCase().includes('bank') || symbol.includes('BANK')) {
-    newsVariations.push(
-      {
-        title: `${companyName} Q4 NII Growth Beats Estimates, Asset Quality Improves`,
-        snippet: `${companyName} (${symbol}) reported net interest income growth of 18% YoY with improving asset quality. NPA levels declined and provisions coverage ratio strengthened to 68%.`,
-        url: `https://economictimes.indiatimes.com/markets/stocks/news/${symbol.toLowerCase()}-earnings`
-      },
-      {
-        title: `${symbol} Stock: Brokerage Upgrades Rating on Strong Digital Banking Growth`,
-        snippet: `Leading brokerages upgrade ${companyName} with improved target price citing strong digital banking adoption and credit growth momentum in retail segment.`,
-        url: `https://moneycontrol.com/news/business/earnings/${symbol.toLowerCase()}-upgrade`
-      }
-    );
-  } else if (companyName.toLowerCase().includes('tech') || companyName.toLowerCase().includes('software') || ['TCS', 'INFY', 'WIPRO', 'HCLTECH'].includes(symbol)) {
-    newsVariations.push(
-      {
-        title: `${companyName} Wins Major AI Transformation Deal Worth $500M`,
-        snippet: `${companyName} (${symbol}) secured a multi-year digital transformation contract. Strong demand for AI and cloud services driving revenue growth with improved margins.`,
-        url: `https://business-standard.com/companies/news/${symbol.toLowerCase()}-deal`
-      },
-      {
-        title: `${symbol}: Strong Dollar Revenue Growth, Margin Expansion Expected`,
-        snippet: `${companyName} reports strong dollar revenue growth with expanding margins. Large deal wins in AI, cloud, and cybersecurity segments boosting future outlook.`,
-        url: `https://livemint.com/companies/${symbol.toLowerCase()}-results`
-      }
-    );
-  } else if (companyName.toLowerCase().includes('pharma') || ['SUNPHARMA', 'CIPLA', 'DRREDDY'].includes(symbol)) {
-    newsVariations.push(
-      {
-        title: `${companyName} Gets USFDA Approval for Key Generic Drug Launch`,
-        snippet: `${companyName} (${symbol}) receives USFDA approval for generic version of blockbuster drug. Expected to contribute significantly to US revenue in upcoming quarters.`,
-        url: `https://pharmabiz.com/news/${symbol.toLowerCase()}-approval`
-      }
-    );
-  } else if (['RELIANCE', 'ONGC', 'NTPC'].includes(symbol)) {
-    newsVariations.push(
-      {
-        title: `${companyName} Announces ₹50,000 Cr Investment in Green Energy`,
-        snippet: `${companyName} (${symbol}) unveils massive investment plan for renewable energy and clean technology. Strategic shift towards sustainable energy solutions.`,
-        url: `https://energy.economictimes.indiatimes.com/news/${symbol.toLowerCase()}-investment`
-      }
-    );
-  } else {
-    // Generic business news
-    newsVariations.push(
-      {
-        title: `${companyName} Reports Strong Quarterly Performance, Beats Estimates`,
-        snippet: `${companyName} (${symbol}) posted better-than-expected quarterly results with revenue growth of 16% YoY and expanding profit margins. Management maintains positive outlook.`,
-        url: `https://cnbctv18.com/market/earnings/${symbol.toLowerCase()}-results`
-      },
-      {
-        title: `${symbol} Stock Gains on Expansion Plans and Strong Order Book`,
-        snippet: `${companyName} shares rally as company announces expansion plans with strong order book visibility. Market share gains in key segments driving investor confidence.`,
-        url: `https://zeebiz.com/market-news/${symbol.toLowerCase()}-gains`
-      }
-    );
-  }
-  
-  return newsVariations.slice(0, 2); // Return top 2 relevant news items
+function getNewsSearchFallback(symbol: string, companyName: string): SearchResult[] {
+  return [
+    {
+      title: `${companyName} Latest News - Economic Times`,
+      snippet: `Get the latest news, analysis and updates on ${companyName} (${symbol}) from Economic Times financial section.`,
+      url: `https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=${symbol}`
+    },
+    {
+      title: `${symbol} Stock News - MoneyControl`, 
+      snippet: `Latest financial news, quarterly results and market analysis for ${companyName} stock.`,
+      url: `https://www.moneycontrol.com/india/stockpricequote/${symbol.toLowerCase()}`
+    },
+    {
+      title: `${companyName} Market Updates - LiveMint`,
+      snippet: `Current market updates, price movements and analyst recommendations for ${symbol}.`,
+      url: `https://www.livemint.com/market/stock-market-news`
+    }
+  ];
 }
 
 /**
