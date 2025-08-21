@@ -1125,9 +1125,12 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
     const webResultsSection = webResultsMatch[0];
     
     // Match multiple formats: standard markdown links and custom format
-    const resultMatches = [
-      ...webResultsSection.matchAll(/\*\*(.*?)\*\*\n([\s\S]*?)(?:\n🔗 \[Read more\]\((.*?)\)|\[Read more\]\((.*?)\))/g)
-    ];
+    const regex = /\*\*(.*?)\*\*\n([\s\S]*?)(?:\n🔗 \[Read more\]\((.*?)\)|\[Read more\]\((.*?)\))/g;
+    const resultMatches: RegExpMatchArray[] = [];
+    let match;
+    while ((match = regex.exec(webResultsSection)) !== null) {
+      resultMatches.push(match);
+    }
     
     resultMatches.forEach((match) => {
       const title = match[1];
@@ -1154,8 +1157,10 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
   }
   
   // Also extract any other URLs mentioned in the text
-  const additionalUrlMatches = text.matchAll(/🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g);
-  for (const match of additionalUrlMatches) {
+  const urlRegex = /🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
+  let urlMatch;
+  while ((urlMatch = urlRegex.exec(text)) !== null) {
+    const match = urlMatch;
     const linkText = match[1];
     const url = match[2];
     
