@@ -1156,6 +1156,56 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
     });
   }
   
+  // Also extract links that appear at the end of responses without formal headers
+  // Pattern: Title followed by snippet and 🔗 [Read more](url)
+  const endLinksRegex = /(.*?)\n(.*?)\n🔗 \[Read more\]\((https?:\/\/[^\s)]+)\)/g;
+  let endMatch;
+  while ((endMatch = endLinksRegex.exec(text)) !== null) {
+    const title = endMatch[1].trim();
+    const snippet = endMatch[2].trim();
+    const url = endMatch[3];
+    
+    if (title && url && !webSources.some(source => source.url === url)) {
+      let domain = '';
+      try {
+        domain = new URL(url).hostname.replace('www.', '');
+      } catch (e) {
+        domain = url.split('/')[2] || '';
+      }
+      
+      webSources.push({
+        title: title,
+        snippet: snippet.substring(0, 150),
+        url: url,
+        domain: domain
+      });
+    }
+  }
+  
+  // Enhanced pattern to catch any remaining 🔗 links at the end
+  const simpleLinksRegex = /🔗 \[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let simpleMatch;
+  while ((simpleMatch = simpleLinksRegex.exec(text)) !== null) {
+    const title = simpleMatch[1];
+    const url = simpleMatch[2];
+    
+    if (title && url && !webSources.some(source => source.url === url)) {
+      let domain = '';
+      try {
+        domain = new URL(url).hostname.replace('www.', '');
+      } catch (e) {
+        domain = url.split('/')[2] || '';
+      }
+      
+      webSources.push({
+        title: title,
+        snippet: 'Click to read the full article',
+        url: url,
+        domain: domain
+      });
+    }
+  }
+  
   // Also extract any other URLs mentioned in the text
   const urlRegex = /🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
   let urlMatch;
