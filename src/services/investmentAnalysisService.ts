@@ -170,6 +170,26 @@ export class InvestmentAnalysisService {
       console.log(`🔍 Getting enhanced technical analysis for ${symbol}...`);
       const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice);
       
+      // Get real 30-day performance from historical data
+      console.log(`📊 Calculating actual 30-day performance for ${symbol}...`);
+      const historicalData = await GrowwApiService.getHistoricalData(symbol, 30);
+      let actual30DayPerformance = 0;
+      
+      if (historicalData && historicalData.length > 1) {
+        const oldestPrice = historicalData[0].close;
+        const currentPrice = historicalData[historicalData.length - 1].close;
+        actual30DayPerformance = ((currentPrice - oldestPrice) / oldestPrice) * 100;
+        console.log(`✅ Calculated 30-day performance: ${actual30DayPerformance > 0 ? '+' : ''}${actual30DayPerformance.toFixed(2)}%`);
+      } else {
+        console.warn(`⚠️ Could not calculate 30-day performance for ${symbol} - insufficient historical data`);
+        // Fallback: try to get it from basic technical analysis
+        const basicTechnicalAnalysis = GrowwApiService.performTechnicalAnalysis(historicalData || [], symbol);
+        if (basicTechnicalAnalysis && basicTechnicalAnalysis.priceChange30Days !== undefined) {
+          actual30DayPerformance = basicTechnicalAnalysis.priceChange30Days;
+          console.log(`🔄 Using fallback 30-day performance: ${actual30DayPerformance > 0 ? '+' : ''}${actual30DayPerformance.toFixed(2)}%`);
+        }
+      }
+
       // Convert to legacy format for compatibility
       const technicalAnalysis: TechnicalAnalysis = {
         trend: enhancedTechnicalAnalysis.trend,
@@ -179,7 +199,7 @@ export class InvestmentAnalysisService {
         sma50: enhancedTechnicalAnalysis.sma50,
         rsi: enhancedTechnicalAnalysis.rsi,
         volatility: enhancedTechnicalAnalysis.volatility,
-        priceChange30Days: 0, // Will be calculated from real data
+        priceChange30Days: Math.round(actual30DayPerformance * 100) / 100, // Use actual calculated value
         volumeAverage: quote.volume || 0,
         recommendation: enhancedTechnicalAnalysis.recommendation,
         confidence: enhancedTechnicalAnalysis.confidence
@@ -510,10 +530,16 @@ export class InvestmentAnalysisService {
       const analysis = this.analyzeWebSearchResults(allResults, symbol);
       
       return {
-        results: allResults,
+        results: allResults.map(result => ({
+          ...result,
+          // Clean up title and snippet for better display
+          title: result.title.replace(/[^\w\s-]/g, '').trim(),
+          snippet: result.snippet.replace(/[^\w\s-.,]/g, '').substring(0, 150).trim()
+        })),
         analysis,
         total_results: allResults.length,
-        research_timestamp: new Date().toISOString()
+        research_timestamp: new Date().toISOString(),
+        source_summary: `Based on analysis of ${allResults.length} financial sources including market research and analyst reports`
       };
 
     } catch (error) {
@@ -563,7 +589,7 @@ export class InvestmentAnalysisService {
         }
       });
 
-      // Extract key insights
+      // Extract key insights with more specific financial metrics
       if (content.includes('target price') || content.includes('price target')) {
         keyInsights.push('Analyst price targets mentioned');
       }
@@ -572,6 +598,30 @@ export class InvestmentAnalysisService {
       }
       if (content.includes('dividend')) {
         keyInsights.push('Dividend information available');
+      }
+      if (content.includes('eps') || content.includes('earnings per share')) {
+        keyInsights.push('EPS (Earnings Per Share) data available');
+      }
+      if (content.includes('roe') || content.includes('return on equity')) {
+        keyInsights.push('ROE (Return on Equity) metrics available');
+      }
+      if (content.includes('pe ratio') || content.includes('p/e') || content.includes('price to earnings')) {
+        keyInsights.push('P/E ratio valuation data available');
+      }
+      if (content.includes('revenue growth') || content.includes('sales growth')) {
+        keyInsights.push('Revenue growth metrics available');
+      }
+      if (content.includes('net profit') || content.includes('profit margin')) {
+        keyInsights.push('Profitability metrics available');
+      }
+      if (content.includes('free cash flow') || content.includes('fcf')) {
+        keyInsights.push('Free Cash Flow analysis available');
+      }
+      if (content.includes('institutional') || content.includes('mutual fund')) {
+        keyInsights.push('Institutional holding data available');
+      }
+      if (content.includes('ebit') || content.includes('operating margin')) {
+        keyInsights.push('EBIT margin and operational metrics available');
       }
     });
 
@@ -632,12 +682,25 @@ export class InvestmentAnalysisService {
         ${JSON.stringify(comprehensiveData.historicalPerformance, null, 2)}
 
         === TECHNICAL ANALYSIS DATA ===
-        ${JSON.stringify(data.technicalAnalysis, null, 2)}
+        Current Price: ₹${data.quote?.currentPrice || 'N/A'}
+        30-Day Performance: ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}%
+        RSI: ${data.technicalAnalysis?.rsi?.toFixed(1) || 'N/A'}
+        SMA20: ₹${data.technicalAnalysis?.sma20?.toFixed(2) || 'N/A'}
+        SMA50: ₹${data.technicalAnalysis?.sma50?.toFixed(2) || 'N/A'}
+        Support: ₹${data.technicalAnalysis?.support || 'N/A'}
+        Resistance: ₹${data.technicalAnalysis?.resistance || 'N/A'}
+        Volatility: ${data.technicalAnalysis?.volatility?.toFixed(1) || 'N/A'}%
+        Trend: ${data.technicalAnalysis?.trend || 'N/A'}
+        Volume Average: ${data.technicalAnalysis?.volumeAverage?.toLocaleString() || 'N/A'}
 
         === COMPREHENSIVE WEB RESEARCH ===
-        Market Sentiment: ${comprehensiveData.webResearch?.sentiment || 'N/A'}
-        Key Factors: ${comprehensiveData.webResearch?.keyFactors?.join(', ') || 'N/A'}
-        Analyst Outlook: ${comprehensiveData.webResearch?.reason || 'N/A'}
+        Market Sentiment: ${comprehensiveData.webResearch?.analysis?.sentiment || 'N/A'}
+        Confidence: ${comprehensiveData.webResearch?.analysis?.confidence || 'N/A'}%
+        Key Factors: ${comprehensiveData.webResearch?.analysis?.key_insights?.join(', ') || 'N/A'}
+        Performance Indicators: ${comprehensiveData.webResearch?.analysis?.performance_indicators?.join(', ') || 'N/A'}
+        
+        Research Sources Found: ${comprehensiveData.webResearch?.results?.length || 0} verified market sources
+        Source Quality: ${comprehensiveData.webResearch?.results?.length > 3 ? 'High' : 'Moderate'} - Multiple financial publications and analyst reports
 
         === NEWS & MARKET SENTIMENT ===
         ${data.stockNews?.map((news: any) => `• ${news.headline} [${news.sentiment}] - ${news.source}`).join('\n') || 'No recent news available'}
@@ -645,15 +708,22 @@ export class InvestmentAnalysisService {
         === PROFESSIONAL ANALYSIS REQUIREMENTS ===
         As a senior analyst, provide a comprehensive analysis that includes:
 
-        1. **TECHNICAL ANALYSIS**: Analyze RSI (${data.technicalAnalysis?.rsi}), moving averages, support (₹${data.technicalAnalysis?.support}) & resistance (₹${data.technicalAnalysis?.resistance}), volume trends, and price patterns. Be specific about what the technical indicators are telling us RIGHT NOW.
+        1. **30-DAY PERFORMANCE ANALYSIS**: The stock has moved ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}% over the past 30 days. Analyze this performance in context:
+           - Is this outperforming or underperforming the broader market?
+           - What does this momentum tell us about investor sentiment?
+           - Is this a sustainable trend or potential reversal candidate?
 
-        2. **TREND ANALYSIS**: Based on price action, moving averages, and momentum - determine if this is truly BULLISH/BEARISH/SIDEWAYS. Don't default to sideways - analyze the actual data.
+        2. **TECHNICAL ANALYSIS**: Analyze RSI (${data.technicalAnalysis?.rsi?.toFixed(1) || 'N/A'}), moving averages, support (₹${data.technicalAnalysis?.support || 'N/A'}) & resistance (₹${data.technicalAnalysis?.resistance || 'N/A'}), volume trends, and price patterns. Be specific about what the technical indicators are telling us RIGHT NOW.
 
-        3. **RISK ASSESSMENT**: Evaluate volatility (${data.technicalAnalysis?.volatility}%), market cap risk, liquidity risk, sector-specific risks, and current market conditions affecting this specific stock.
+        3. **TREND ANALYSIS**: Based on price action, moving averages, and momentum - determine if this is truly BULLISH/BEARISH/SIDEWAYS. The 30-day performance of ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}% should be a key factor.
 
-        4. **PERFORMANCE CONTEXT**: How is this stock performing vs broader market? Is it outperforming or underperforming? What's the trajectory?
+        4. **RISK ASSESSMENT**: Evaluate volatility (${data.technicalAnalysis?.volatility?.toFixed(1) || 'N/A'}%), market cap risk, liquidity risk, sector-specific risks, and current market conditions affecting this specific stock.
 
-        5. **ENTRY/EXIT STRATEGY**: Based on support/resistance levels and technical patterns, what are ideal entry points, profit targets, and stop-loss levels?
+        5. **PERFORMANCE CONTEXT**: With ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}% performance over 30 days, how is this stock positioned? What's driving this performance?
+
+        6. **ENTRY/EXIT STRATEGY**: Based on support/resistance levels and technical patterns, what are ideal entry points, profit targets, and stop-loss levels?
+
+        7. **SOURCE-BASED INSIGHTS**: With ${comprehensiveData.webResearch?.results?.length || 0} market research sources analyzed, integrate findings from financial publications and analyst reports. Use specific data points from market research to support your recommendation.
 
         Think step-by-step like a professional trader:
         • What story does the price action tell?
@@ -661,6 +731,8 @@ export class InvestmentAnalysisService {
         • What does market sentiment suggest?
         • What are the immediate risks and opportunities?
         • How does this fit in a diversified portfolio?
+
+        **IMPORTANT**: Your analysis should be comprehensive and data-driven. When providing reasoning, reference the web research findings and market sources when relevant. The response will include source links automatically, so focus on the analytical insights.
 
         Provide your analysis in this exact JSON format:
         {
@@ -681,8 +753,27 @@ export class InvestmentAnalysisService {
             "volatility_analysis": "Current volatility vs historical, what it means",
             "liquidity_risk": "Volume analysis and liquidity assessment"
           },
-          "reasoning": ["Detailed technical point 1", "Market sentiment factor 2", "Risk-reward analysis 3", "Strategic consideration 4"]
+          "reasoning": ["Detailed technical point 1", "Market sentiment factor 2", "Risk-reward analysis 3", "Strategic consideration 4"],
+          "key_analysis": [
+            "Fundamental factor based on company financials and market position",
+            "Technical factor based on price action and indicators", 
+            "Market factor based on sector trends and sentiment",
+            "Performance factor based on historical returns and growth metrics"
+          ],
+          "key_insights": [
+            "Company business overview and competitive positioning",
+            "EPS, ROE, P/E ratio or other key financial metrics if available from research",
+            "Revenue/profit growth trends and margin analysis",
+            "Dividend yield, institutional holdings, or cash flow insights if mentioned in sources"
+          ]
         }
+
+        **EXAMPLE FORMAT FOR INSIGHTS** (similar to professional brokerage reports):
+        - "EPS (earnings per share) stands at ₹XX. This indicates the company's profit allocation per share"
+        - "Company has maintained a strong Return on Equity of XX%, indicating management's ability to generate profits"
+        - "Revenue has grown at a compounded rate of XX% annually over the past 3 years"
+        - "Company reported [strong/weak] results with net profit [growth/decline] of XX% compared to previous quarter"
+        - "Institutional holding has [increased/decreased] by XX% indicating [positive/negative] institutional sentiment"
       `;
       
       const response = await this.callOpenAI(prompt);
@@ -1452,13 +1543,14 @@ export class InvestmentAnalysisService {
       
       // Define comprehensive search queries for market research with fundamental focus
       const searchQueries = [
-        `${companyName} ${symbol} stock analysis latest target price PE ratio 2025`,
-        `${symbol} quarterly results earnings growth revenue profit margin financial performance`,
-        `${companyName} debt equity ratio ROE ROA financial health balance sheet analysis`,
-        `${symbol} brokerage recommendation analyst rating price target upgrade downgrade`,
-        `${companyName} business growth expansion plans competitive advantage market leadership`,
-        `${symbol} dividend yield payout ratio cash flow free cash flow analysis`,
-        `${companyName} industry outlook sector trends market share competitive position 2025`
+        `${companyName} ${symbol} stock analysis latest target price PE ratio EPS earnings per share 2025`,
+        `${symbol} quarterly results earnings growth revenue profit margin net profit decline growth 2025`,
+        `${companyName} debt equity ratio ROE ROA return on equity financial health balance sheet analysis`,
+        `${symbol} brokerage recommendation analyst rating price target upgrade downgrade buy sell hold`,
+        `${companyName} business growth expansion plans competitive advantage market leadership industry position`,
+        `${symbol} dividend yield payout ratio cash flow free cash flow FCF yield institutional holding`,
+        `${companyName} P/FCF price to free cash flow EBIT margin revenue growth year over year quarterly`,
+        `${symbol} stock performance 30 day 6 months YTD 2024 2025 returns price movement technical analysis`
       ];
       
       const allResults = [];

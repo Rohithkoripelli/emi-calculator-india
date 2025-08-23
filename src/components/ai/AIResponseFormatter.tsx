@@ -1366,6 +1366,86 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+const KeyAnalysisCard: React.FC<{ text: string }> = ({ text }) => {
+  // Extract key analysis points from the text
+  const analysisMatch = text.match(/## 🎯 Key Analysis[\s\S]*?(?=##|⚠️|$)/);
+  if (!analysisMatch) return null;
+  
+  const analysisSection = analysisMatch[0];
+  const analysisPoints = analysisSection
+    .split('\n')
+    .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-'))
+    .map(line => line.replace(/^[•-]\s*/, '').trim());
+  
+  if (analysisPoints.length === 0) return null;
+  
+  return (
+    <div className="my-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-600/10 dark:to-blue-600/10 rounded-xl border border-green-200 dark:border-green-600/30">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-lg">🎯</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-dark-text-primary">Key Analysis</h3>
+          <p className="text-sm text-gray-600 dark:text-dark-text-secondary">Based on fundamental, technical, and market factors</p>
+        </div>
+      </div>
+      
+      <div className="space-y-3">
+        {analysisPoints.map((point, index) => (
+          <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {index + 1}
+            </div>
+            <p className="text-gray-800 dark:text-dark-text-primary text-sm leading-relaxed">{point}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const KeyInsightsCard: React.FC<{ text: string }> = ({ text }) => {
+  // Extract key insights from the text
+  const insightsMatch = text.match(/## 💡 Key Insights[\s\S]*?(?=##|⚠️|$)/);
+  if (!insightsMatch) return null;
+  
+  const insightsSection = insightsMatch[0];
+  const insightPoints = insightsSection
+    .split('\n')
+    .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-'))
+    .map(line => line.replace(/^[•-]\s*/, '').trim());
+  
+  if (insightPoints.length === 0) return null;
+  
+  return (
+    <div className="my-6 p-6 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-600/10 dark:to-indigo-600/10 rounded-xl border border-purple-200 dark:border-purple-600/30">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-lg">💡</span>
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-dark-text-primary">Key Insights</h3>
+          <p className="text-sm text-gray-600 dark:text-dark-text-secondary">Financial metrics and business fundamentals</p>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        {insightPoints.map((insight, index) => (
+          <div key={index} className="p-4 bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"></div>
+              </div>
+              <p className="text-gray-800 dark:text-dark-text-primary text-sm leading-relaxed font-medium">{insight}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   // Split text into lines and format each line
   const lines = text.split('\n').filter(line => line.trim());
@@ -1679,6 +1759,12 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       
       {/* Research Insights Card for investment analysis */}
       <ResearchInsightsCard text={formattedText} />
+      
+      {/* Key Analysis Card for stock recommendations */}
+      <KeyAnalysisCard text={formattedText} />
+      
+      {/* Key Insights Card for detailed financial metrics */}
+      <KeyInsightsCard text={formattedText} />
       
       {/* Key Metrics Cards */}
       {keyMetrics.length > 0 && <LoanMetricsCard metrics={keyMetrics} />}
