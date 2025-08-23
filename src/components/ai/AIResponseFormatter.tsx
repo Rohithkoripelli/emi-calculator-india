@@ -1123,37 +1123,81 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
   const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/);
   if (webResultsMatch) {
     const webResultsSection = webResultsMatch[0];
+    console.log('🔍 WebSourcesCard: Found Market Research Sources section');
+    console.log('📝 Section content preview:', webResultsSection.substring(0, 500));
     
-    // Match multiple formats: standard markdown links and custom format
-    const regex = /\*\*(.*?)\*\*\n([\s\S]*?)(?:\n🔗 \[Read more\]\((.*?)\)|\[Read more\]\((.*?)\))/g;
-    const resultMatches: RegExpMatchArray[] = [];
-    let match;
-    while ((match = regex.exec(webResultsSection)) !== null) {
-      resultMatches.push(match);
+    // Try multiple regex patterns to match different formats
+    const patterns = [
+      // Format: **Title**\nSnippet\n🔗 [Read more](url)
+      /\*\*(.*?)\*\*\n(.*?)🔗 \[Read more\]\((.*?)\)/g,
+      // Format: **Title**\n\nSnippet\n\n🔗 [Read more](url)
+      /\*\*(.*?)\*\*\n\n(.*?)\n\n🔗 \[Read more\]\((.*?)\)/g,
+      // Format: **Title**\nSnippet\n🔗 [Read more]
+      /\*\*(.*?)\*\*\n(.*?)🔗 \[Read more\]/g,
+      // Loose format to catch any title followed by text
+      /\*\*(.*?)\*\*[\s\n]+(.*?)(?=\*\*|$)/gs
+    ];
+    
+    let foundMatches = false;
+    for (const regex of patterns) {
+      const resultMatches: RegExpMatchArray[] = [];
+      let match;
+      while ((match = regex.exec(webResultsSection)) !== null) {
+        resultMatches.push(match);
+        foundMatches = true;
+      }
+      
+      if (resultMatches.length > 0) {
+        console.log(`✅ Found ${resultMatches.length} matches with pattern ${patterns.indexOf(regex) + 1}`);
+        
+        resultMatches.forEach((match, index) => {
+          const title = match[1]?.trim();
+          let snippet = match[2]?.trim().replace(/\n+/g, ' ').substring(0, 200) || '';
+          let url = match[3]?.trim() || '';
+          
+          // If no URL found, try to extract it from the snippet or use a placeholder
+          if (!url && snippet.includes('http')) {
+            const urlMatch = snippet.match(/(https?:\/\/[^\s)]+)/);
+            if (urlMatch) {
+              url = urlMatch[1];
+            }
+          }
+          
+          // Clean up snippet
+          snippet = snippet
+            .replace(/🔗.*$/g, '') // Remove any 🔗 parts
+            .replace(/https?:\/\/[^\s]+/g, '') // Remove URLs from snippet
+            .trim();
+          
+          if (title && !webSources.some(source => source.title === title)) {
+            // Extract domain from URL for display
+            let domain = 'Financial Source';
+            if (url) {
+              try {
+                domain = new URL(url).hostname.replace('www.', '');
+              } catch (e) {
+                domain = url.split('/')[2]?.replace('www.', '') || 'Financial Source';
+              }
+            }
+            
+            console.log(`📊 Adding web source ${index + 1}: ${title}`);
+            webSources.push({
+              title: title,
+              snippet: snippet || 'Click to read the full financial analysis and market research',
+              url: url || '#', // Use placeholder if no URL
+              domain: domain
+            });
+          }
+        });
+        
+        break; // Stop after first successful pattern
+      }
     }
     
-    resultMatches.forEach((match) => {
-      const title = match[1];
-      const snippet = match[2] ? match[2].trim().replace(/\n+/g, ' ').substring(0, 150) : '';
-      const url = match[3] || match[4];
-      
-      if (title && url && !webSources.some(source => source.url === url)) {
-        // Extract domain from URL for display
-        let domain = '';
-        try {
-          domain = new URL(url).hostname.replace('www.', '');
-        } catch (e) {
-          domain = url.split('/')[2] || '';
-        }
-        
-        webSources.push({
-          title: title.trim(),
-          snippet: snippet || 'Click to read the full article',
-          url: url,
-          domain: domain
-        });
-      }
-    });
+    if (!foundMatches) {
+      console.log('⚠️ No matches found with any pattern');
+      console.log('📝 Full section for debugging:', webResultsSection);
+    }
   }
   
   // Also extract links that appear at the end of responses without formal headers
@@ -1231,10 +1275,14 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
     }
   }
   
-  // Limit to 6 sources for optimal display
+  // Limit to 6 sources for optimal display (3 cards per row x 2 rows)
   const uniqueSources = webSources.slice(0, 6);
   
-  if (uniqueSources.length === 0) return null;
+  console.log(`🌐 WebSourcesCard: Found ${uniqueSources.length} unique sources`);
+  if (uniqueSources.length === 0) {
+    console.log('⚠️ WebSourcesCard: No sources to display');
+    return null;
+  }
   
   return (
     <div className="mt-12 mb-8">
@@ -1256,8 +1304,8 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
         <div className="w-full h-px bg-gradient-to-r from-blue-500/20 via-blue-500/50 to-blue-500/20"></div>
       </div>
       
-      {/* Sources Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Sources Grid - 3 cards per row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 lg:gap-6">
         {uniqueSources.map((source, index) => {
           // Get domain-specific styling
           const getDomainStyling = (domain: string) => {
@@ -1297,8 +1345,12 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
           return (
             <div
               key={index}
-              className={`group relative ${styling.bg} ${styling.border} border-2 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 hover:scale-[1.02]`}
-              onClick={() => window.open(source.url, '_blank', 'noopener,noreferrer')}
+              className={`group relative ${styling.bg} ${styling.border} border-2 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 ${source.url && source.url !== '#' ? 'cursor-pointer' : 'cursor-default'} transform hover:-translate-y-1 hover:scale-[1.02]`}
+              onClick={() => {
+                if (source.url && source.url !== '#') {
+                  window.open(source.url, '_blank', 'noopener,noreferrer');
+                }
+              }}
             >
               {/* Card Header */}
               <div className="flex items-start gap-4 mb-4">
@@ -1327,15 +1379,32 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
                 
                 {/* Action Button */}
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Click to read full article
-                  </span>
-                  <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300 transition-colors duration-300">
-                    <span className="text-sm font-semibold">Open</span>
-                    <svg className="w-4 h-4 transform group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </div>
+                  {source.url && source.url !== '#' ? (
+                    <>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Click to read full article
+                      </span>
+                      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 group-hover:text-blue-800 dark:group-hover:text-blue-300 transition-colors duration-300">
+                        <span className="text-sm font-semibold">Open</span>
+                        <svg className="w-4 h-4 transform group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Research source referenced
+                      </span>
+                      <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
+                        <span className="text-sm font-medium">Preview</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -1744,13 +1813,21 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   
   // Remove the web research sections from the text to avoid duplication
   // The WebSourcesCard will handle displaying them at the end
+  console.log('🧹 Cleaning text, original length:', formattedText.length);
   const textWithoutWebSources = formattedText
-    .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|⚠️|$)/g, '') // Remove news sentiment section
-    .replace(/## 🌐 Market Research Sources[^#]*?(?=##|⚠️|$)/g, '') // Remove web research section
+    .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|⚠️|$)/gs, '') // Remove news sentiment section
+    .replace(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/g, '') // Remove web research section - improved
+    .replace(/Based on comprehensive web research using \d+ search queries:[\s\S]*?(?=##|⚠️|$)/g, '') // Remove research intro
+    .replace(/\*\*.*?\*\*\n.*?\n🔗 \[Read more\].*?\n/g, '') // Remove individual source entries
     .replace(/🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '') // Remove inline links
+    .replace(/🔗\s*\[Read more\]/g, '') // Remove "Read more" links without URLs
     .replace(/\[Read more\]\([^)]+\)/g, '') // Remove "Read more" links
     .replace(/\n\n\n+/g, '\n\n') // Clean up extra newlines
-    .replace(/^\s*\n/gm, ''); // Remove empty lines at start
+    .replace(/^\s*\n/gm, '') // Remove empty lines at start
+    .trim();
+  
+  console.log('🧹 Cleaned text length:', textWithoutWebSources.length);
+  console.log('🔍 Web sources section removed?', !textWithoutWebSources.includes('Market Research Sources'));
   
   return (
     <div className="space-y-4">
