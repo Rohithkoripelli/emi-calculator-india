@@ -2192,7 +2192,25 @@ export class InvestmentAnalysisService {
           console.log(`⚠️ Risk Level: ${parsed.risk_assessment.risk_level || 'N/A'}`);
         }
         
-        return parsed;
+        // Convert key_analysis and key_insights to formatted sections for display
+        let enhancedReasoning = parsed.reasoning || [];
+        
+        // Add Key Analysis section if present
+        if (parsed.key_analysis && parsed.key_analysis.length > 0) {
+          console.log(`🎯 Key Analysis found: ${parsed.key_analysis.length} points`);
+          enhancedReasoning.push(`\n## 🎯 Key Analysis\n${parsed.key_analysis.map((point: string) => `• ${point}`).join('\n')}\n`);
+        }
+        
+        // Add Key Insights section if present
+        if (parsed.key_insights && parsed.key_insights.length > 0) {
+          console.log(`💡 Key Insights found: ${parsed.key_insights.length} points`);
+          enhancedReasoning.push(`\n## 💡 Key Insights\n${parsed.key_insights.map((insight: string) => `• ${insight}`).join('\n')}\n`);
+        }
+        
+        return {
+          ...parsed,
+          reasoning: enhancedReasoning
+        };
       } else {
         console.log(`⚠️ OpenAI response missing required fields:`, parsed);
         return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);

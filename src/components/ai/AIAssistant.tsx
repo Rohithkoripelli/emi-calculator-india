@@ -633,11 +633,38 @@ Present results in a clear table format with before/after comparison.
     }
     response += '\n';
     
-    // Reasoning
+    // Enhanced Reasoning with Key Analysis and Key Insights
     response += `### 📝 Key Reasoning:\n`;
-    recommendation.reasoning.forEach((reason, index) => {
+    
+    // Filter out markdown sections and regular reasoning
+    const regularReasons = recommendation.reasoning.filter((reason: string) => 
+      !reason.includes('## 🎯 Key Analysis') && !reason.includes('## 💡 Key Insights')
+    );
+    
+    const keyAnalysisSection = recommendation.reasoning.find((reason: string) => 
+      reason.includes('## 🎯 Key Analysis')
+    );
+    
+    const keyInsightsSection = recommendation.reasoning.find((reason: string) => 
+      reason.includes('## 💡 Key Insights')
+    );
+    
+    // Display regular reasoning points first
+    regularReasons.forEach((reason, index) => {
       response += `${index + 1}. ${reason}\n`;
     });
+    
+    response += '\n';
+    
+    // Add Key Analysis section if present
+    if (keyAnalysisSection) {
+      response += keyAnalysisSection + '\n';
+    }
+    
+    // Add Key Insights section if present
+    if (keyInsightsSection) {
+      response += keyInsightsSection + '\n';
+    }
     response += '\n';
     
     // Technical Analysis
