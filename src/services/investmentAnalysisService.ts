@@ -557,8 +557,22 @@ export class InvestmentAnalysisService {
     const keyInsights: string[] = [];
     const performanceIndicators: string[] = [];
 
+    // Extract specific financial metrics from search results
+    const financialMetrics = {
+      eps: null as number | null,
+      pe_ratio: null as number | null,
+      roe: null as number | null,
+      revenue_growth: null as number | null,
+      profit_growth: null as number | null,
+      dividend_yield: null as number | null,
+      market_cap: null as string | null,
+      institutional_holding: null as number | null,
+      price_target: null as number | null
+    };
+
     results.forEach(result => {
       const content = (result.title + ' ' + result.snippet).toLowerCase();
+      const originalContent = result.title + ' ' + result.snippet;
       
       // Enhanced sentiment analysis
       const bullishTerms = ['buy', 'bullish', 'upgrade', 'outperform', 'positive', 'strong', 'growth', 'rally', 'rise', 'gain'];
@@ -571,6 +585,85 @@ export class InvestmentAnalysisService {
       bearishTerms.forEach(term => {
         if (content.includes(term)) negativeSignals++;
       });
+
+      // Extract specific financial metrics
+      // Extract EPS (Earnings Per Share)
+      if (!financialMetrics.eps) {
+        const epsPatterns = [
+          /(?:eps|earnings per share).*?(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)/i,
+          /earnings.*?₹\s*(\d+(?:\.\d+)?)/i,
+          /eps.*?(\d+(?:\.\d+)?)/i
+        ];
+        for (const pattern of epsPatterns) {
+          const match = originalContent.match(pattern);
+          if (match) {
+            financialMetrics.eps = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
+
+      // Extract P/E Ratio
+      if (!financialMetrics.pe_ratio) {
+        const pePatterns = [
+          /(?:p\/e|pe ratio|price.*earnings).*?(\d+(?:\.\d+)?)/i,
+          /trading.*?(\d+(?:\.\d+)?).*?times/i
+        ];
+        for (const pattern of pePatterns) {
+          const match = originalContent.match(pattern);
+          if (match) {
+            financialMetrics.pe_ratio = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
+
+      // Extract ROE (Return on Equity)
+      if (!financialMetrics.roe) {
+        const roePatterns = [
+          /(?:roe|return on equity).*?(\d+(?:\.\d+)?)%?/i,
+          /equity.*?return.*?(\d+(?:\.\d+)?)%/i
+        ];
+        for (const pattern of roePatterns) {
+          const match = originalContent.match(pattern);
+          if (match) {
+            financialMetrics.roe = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
+
+      // Extract Revenue Growth
+      if (!financialMetrics.revenue_growth) {
+        const revenuePatterns = [
+          /(?:revenue|sales).*?(?:growth|grew|increased?).*?(\d+(?:\.\d+)?)%/i,
+          /topline.*?grew.*?(\d+(?:\.\d+)?)%/i,
+          /revenue.*?up.*?(\d+(?:\.\d+)?)%/i
+        ];
+        for (const pattern of revenuePatterns) {
+          const match = originalContent.match(pattern);
+          if (match) {
+            financialMetrics.revenue_growth = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
+
+      // Extract Profit Growth (can be negative)
+      if (!financialMetrics.profit_growth) {
+        const profitPatterns = [
+          /(?:profit|net profit|earnings).*?(?:growth|grew|increased?|declined?|fell).*?([+-]?\d+(?:\.\d+)?)%/i,
+          /profit.*?([+-]?\d+(?:\.\d+)?)%/i,
+          /earnings.*?([+-]?\d+(?:\.\d+)?)%/i
+        ];
+        for (const pattern of profitPatterns) {
+          const match = originalContent.match(pattern);
+          if (match) {
+            financialMetrics.profit_growth = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
 
       // Extract performance indicators
       const performancePatterns = [
@@ -630,6 +723,9 @@ export class InvestmentAnalysisService {
     
     const sentimentStrength = Math.abs(positiveSignals - negativeSignals);
 
+    console.log(`💰 Extracted financial metrics for ${symbol}:`, financialMetrics);
+    console.log(`📊 Found metrics: EPS=${financialMetrics.eps}, ROE=${financialMetrics.roe}%, Revenue Growth=${financialMetrics.revenue_growth}%`);
+
     return {
       sentiment,
       sentiment_strength: sentimentStrength,
@@ -637,6 +733,7 @@ export class InvestmentAnalysisService {
       negative_signals: negativeSignals,
       key_insights: Array.from(new Set(keyInsights)),
       performance_indicators: Array.from(new Set(performanceIndicators)),
+      financial_metrics: financialMetrics, // Add the extracted financial metrics
       confidence: Math.min(100, (positiveSignals + negativeSignals) * 8)
     };
   }
@@ -701,6 +798,15 @@ export class InvestmentAnalysisService {
         
         Research Sources Found: ${comprehensiveData.webResearch?.results?.length || 0} verified market sources
         Source Quality: ${comprehensiveData.webResearch?.results?.length > 3 ? 'High' : 'Moderate'} - Multiple financial publications and analyst reports
+
+        === EXTRACTED FINANCIAL METRICS (FROM WEB RESEARCH) ===
+        EPS (Earnings Per Share): ${comprehensiveData.webResearch?.analysis?.financial_metrics?.eps ? `₹${comprehensiveData.webResearch.analysis.financial_metrics.eps}` : 'Not found in research'}
+        P/E Ratio: ${comprehensiveData.webResearch?.analysis?.financial_metrics?.pe_ratio || 'Not found in research'}
+        ROE (Return on Equity): ${comprehensiveData.webResearch?.analysis?.financial_metrics?.roe ? `${comprehensiveData.webResearch.analysis.financial_metrics.roe}%` : 'Not found in research'}
+        Revenue Growth: ${comprehensiveData.webResearch?.analysis?.financial_metrics?.revenue_growth ? `${comprehensiveData.webResearch.analysis.financial_metrics.revenue_growth}%` : 'Not found in research'}
+        Profit Growth: ${comprehensiveData.webResearch?.analysis?.financial_metrics?.profit_growth ? `${comprehensiveData.webResearch.analysis.financial_metrics.profit_growth}%` : 'Not found in research'}
+        Market Cap: ${comprehensiveData.webResearch?.analysis?.financial_metrics?.market_cap || 'Not found in research'}
+        Price Target: ${comprehensiveData.webResearch?.analysis?.financial_metrics?.price_target ? `₹${comprehensiveData.webResearch.analysis.financial_metrics.price_target}` : 'Not found in research'}
 
         === NEWS & MARKET SENTIMENT ===
         ${data.stockNews?.map((news: any) => `• ${news.headline} [${news.sentiment}] - ${news.source}`).join('\n') || 'No recent news available'}
@@ -768,12 +874,17 @@ export class InvestmentAnalysisService {
           ]
         }
 
-        **EXAMPLE FORMAT FOR INSIGHTS** (similar to professional brokerage reports):
-        - "EPS (earnings per share) stands at ₹XX. This indicates the company's profit allocation per share"
-        - "Company has maintained a strong Return on Equity of XX%, indicating management's ability to generate profits"
-        - "Revenue has grown at a compounded rate of XX% annually over the past 3 years"
-        - "Company reported [strong/weak] results with net profit [growth/decline] of XX% compared to previous quarter"
-        - "Institutional holding has [increased/decreased] by XX% indicating [positive/negative] institutional sentiment"
+        **CRITICAL INSTRUCTIONS FOR KEY INSIGHTS**:
+        Use ACTUAL financial metrics from the "EXTRACTED FINANCIAL METRICS" section above. DO NOT use placeholders like "XX" or "XX%". 
+        
+        Examples of CORRECT format:
+        - If EPS found: "EPS (earnings per share) stands at ₹[ACTUAL_VALUE]. This indicates the company's profit allocation per share"
+        - If ROE found: "Company has maintained a Return on Equity of [ACTUAL_VALUE]%, indicating management's ability to generate profits"  
+        - If Revenue Growth found: "Revenue has grown at a rate of [ACTUAL_VALUE]% based on recent financial data"
+        - If Profit Growth found: "Company reported net profit growth/decline of [ACTUAL_VALUE]% in recent results"
+        - If no data found: "Financial metric data not available in current research sources"
+        
+        **NEVER use "XX", "XX%", or any placeholders. Always use the actual extracted values or state "data not available".**
       `;
       
       const response = await this.callOpenAI(prompt);
@@ -1543,14 +1654,14 @@ export class InvestmentAnalysisService {
       
       // Define comprehensive search queries for market research with fundamental focus
       const searchQueries = [
-        `${companyName} ${symbol} stock analysis latest target price PE ratio EPS earnings per share 2025`,
-        `${symbol} quarterly results earnings growth revenue profit margin net profit decline growth 2025`,
-        `${companyName} debt equity ratio ROE ROA return on equity financial health balance sheet analysis`,
-        `${symbol} brokerage recommendation analyst rating price target upgrade downgrade buy sell hold`,
-        `${companyName} business growth expansion plans competitive advantage market leadership industry position`,
-        `${symbol} dividend yield payout ratio cash flow free cash flow FCF yield institutional holding`,
-        `${companyName} P/FCF price to free cash flow EBIT margin revenue growth year over year quarterly`,
-        `${symbol} stock performance 30 day 6 months YTD 2024 2025 returns price movement technical analysis`
+        `${companyName} ${symbol} EPS earnings per share ₹ rupees Q1 Q2 Q3 Q4 2024 2025 financial results`,
+        `${symbol} quarterly results revenue growth profit margin net profit percentage YoY quarter`,
+        `${companyName} ROE return on equity percentage financial ratios profitability metrics balance sheet`,
+        `${symbol} PE ratio price earnings valuation compared to industry average stock analysis`,
+        `${companyName} revenue growth sales growth topline percentage annual quarterly financial performance`,
+        `${symbol} dividend yield institutional holding mutual fund investment FII DII percentage holdings`,
+        `${companyName} EBIT margin operating profit cash flow free cash flow yield financial health`,
+        `${symbol} analyst rating target price brokerage recommendation buy sell hold upgrade downgrade`
       ];
       
       const allResults = [];
