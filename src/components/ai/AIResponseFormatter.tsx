@@ -1365,6 +1365,9 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
     return null;
   }
   
+  console.log('🎨 WebSourcesCard: Rendering with', uniqueSources.length, 'sources');
+  console.log('📋 WebSourcesCard: Source titles:', uniqueSources.map(s => s.title));
+
   return (
     <div className="mt-12 mb-8">
       {/* Header Section */}
@@ -1903,11 +1906,16 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
   const textWithoutWebSources = formattedText
     .replace(/## 📰 Recent News Sentiment[^#]*?(?=##|⚠️|$)/gs, '') // Remove news sentiment section
     .replace(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/g, '') // Remove web research section - improved
-    .replace(/Based on comprehensive web research using \d+ search queries:[\s\S]*?(?=##|⚠️|$)/g, '') // Remove research intro
+    .replace(/Based on comprehensive web research using \d+ search queries:[\s\S]*?(?=##|⚠️|$)/g, '') // Remove research intro and all content after it
+    .replace(/Market Research Sources[\s\S]*?(?=⚠️|$)/g, '') // Remove any remaining Market Research Sources content  
     .replace(/\*\*.*?\*\*\n.*?\n🔗 \[Read more\].*?\n/g, '') // Remove individual source entries
     .replace(/🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '') // Remove inline links
     .replace(/🔗\s*\[Read more\]/g, '') // Remove "Read more" links without URLs
     .replace(/\[Read more\]\([^)]+\)/g, '') // Remove "Read more" links
+    .replace(/Apollo Micro Systems.*?🔗.*?\n/g, '') // Remove specific source entries
+    .replace(/Mkt Cap:.*?🔗.*?\n/g, '') // Remove market cap entries
+    .replace(/Check out the latest.*?🔗.*?\n/g, '') // Remove quarterly result entries
+    .replace(/🔗.*?\n/g, '') // Remove any remaining 🔗 lines
     .replace(/\n\n\n+/g, '\n\n') // Clean up extra newlines
     .replace(/^\s*\n/gm, '') // Remove empty lines at start
     .trim();
