@@ -706,9 +706,10 @@ Present results in a clear table format with before/after comparison.
         response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
         
         analysis.web_research.search_results.forEach((result, index) => {
+          console.log(`🔗 Processing web source ${index + 1}:`, { title: result.title, url: result.url, hasUrl: !!result.url });
           response += `**${result.title}**\n`;
           response += `${result.snippet}\n`;
-          response += `🔗 [Read more](${result.url})\n\n`;
+          response += `🔗 [Read more](${result.url || '#'})\n\n`;
         });
       }
     }

@@ -1224,29 +1224,73 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
       
       console.log('📋 Found', sourceLines.length, 'potential source lines');
       
-      sourceLines.forEach((line, index) => {
-        const trimmedLine = line.trim();
-        if (trimmedLine && !trimmedLine.startsWith('🔗') && index < 6) { // Limit to 6 sources
-          // Try to extract title and URL from various formats
-          let title = trimmedLine;
-          let snippet = 'Click to read the full financial analysis';
+      // Process source lines in pairs (title + snippet, then URL)
+      for (let i = 0; i < sourceLines.length && webSources.length < 6; i++) {
+        const currentLine = sourceLines[i].trim();
+        const nextLine = sourceLines[i + 1]?.trim() || '';
+        
+        // Skip empty lines and lines that are just 🔗
+        if (!currentLine || currentLine.startsWith('🔗')) continue;
+        
+        // Look for title lines (not containing 🔗)
+        if (!currentLine.includes('🔗')) {
+          let title = currentLine;
+          let snippet = nextLine && !nextLine.includes('🔗') ? nextLine : 'Financial analysis and market research data';
           let url = '#';
+          
+          // Look ahead for a 🔗 link in the next few lines
+          for (let j = i + 1; j < Math.min(i + 4, sourceLines.length); j++) {
+            const lookAheadLine = sourceLines[j];
+            if (lookAheadLine && lookAheadLine.includes('🔗')) {
+              // Try to extract URL from the 🔗 line
+              const urlMatch = lookAheadLine.match(/🔗\s*\[.*?\]\((https?:\/\/[^\s)]+)\)/);
+              if (urlMatch) {
+                url = urlMatch[1];
+                console.log(`🔗 Extracted URL for "${title.substring(0, 30)}...": ${url}`);
+                break;
+              } else {
+                // Sometimes the URL might be in the text after 🔗 without markdown format
+                const urlPattern = /(https?:\/\/[^\s]+)/;
+                const urlInText = lookAheadLine.match(urlPattern);
+                if (urlInText) {
+                  url = urlInText[1];
+                  console.log(`🔗 Found URL in text for "${title.substring(0, 30)}...": ${url}`);
+                  break;
+                }
+              }
+            }
+          }
           
           // Clean up title
           title = title.replace(/^\*\*|\*\*$/g, '').trim();
-          title = title.split('\n')[0].trim(); // Take first line as title
+          title = title.split('\n')[0].trim();
+          
+          // Clean up snippet
+          if (snippet.includes('🔗')) {
+            snippet = snippet.split('🔗')[0].trim();
+          }
           
           if (title && title.length > 10) {
-            console.log(`📊 Adding fallback source ${index + 1}: ${title.substring(0, 50)}...`);
+            let domain = 'Financial Source';
+            if (url !== '#') {
+              try {
+                domain = new URL(url).hostname.replace('www.', '');
+              } catch (e) {
+                console.warn('Invalid URL for domain extraction:', url);
+                domain = 'Financial Source';
+              }
+            }
+            
+            console.log(`📊 Adding fallback source ${webSources.length + 1}: "${title.substring(0, 50)}..." with URL: ${url}`);
             webSources.push({
-              title: title.substring(0, 100), // Limit title length
-              snippet: snippet,
+              title: title.substring(0, 100),
+              snippet: snippet.substring(0, 150) || 'Financial analysis and market research data',
               url: url,
-              domain: 'Financial Source'
+              domain: domain
             });
           }
         }
-      });
+      }
     }
   }
   
