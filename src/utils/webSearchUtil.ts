@@ -214,40 +214,70 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
 }
 
 /**
- * WebFetch function for scraping web content using AI analysis
+ * WebFetch function for scraping web content from Screener.in
  * Used by ScreenerDataService to extract financial metrics from web pages
  * 
- * Note: This function requires a backend API endpoint to perform actual web scraping
- * since direct web scraping from browser is restricted by CORS policies.
+ * This function now calls the backend API for actual web scraping
  */
 export async function WebFetch(url: string, prompt: string): Promise<string> {
   try {
-    console.log(`🌐 WebFetch: Request to analyze content from ${url}`);
+    console.log(`🌐 WebFetch: Analyzing content from ${url}`);
     console.log(`📝 Analysis prompt: ${prompt.substring(0, 100)}...`);
     
-    // Since this is a frontend function, we need to simulate the web fetch
-    // In production, this would call a backend API that uses web scraping tools
-    console.warn(`⚠️ WebFetch: Frontend cannot directly scrape websites due to CORS. This would require a backend API.`);
+    // Extract stock symbol from Screener.in URL
+    const screenerMatch = url.match(/screener\.in\/company\/([^\/]+)/);
     
-    // Return a structured response indicating that real web scraping is not available
-    const unavailableResponse = {
-      error: "Web scraping not available",
-      message: "Direct web scraping from browser is not supported due to CORS restrictions. This requires a backend implementation.",
-      url: url,
-      timestamp: new Date().toISOString(),
-      note: "The system will fall back to existing web research and financial data sources"
-    };
-    
-    return JSON.stringify(unavailableResponse, null, 2);
+    if (screenerMatch) {
+      const stockSymbol = screenerMatch[1];
+      console.log(`📊 Detected Screener.in request for stock: ${stockSymbol}`);
+      
+      // Call the backend API for Screener.in data extraction
+      const response = await fetch('/api/screener-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stockSymbol })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown API error' }));
+        throw new Error(`API Error ${response.status}: ${errorData.error || response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.metrics) {
+        console.log(`✅ Successfully extracted Screener.in data for ${stockSymbol}`);
+        // Return the metrics in JSON format as expected by ScreenerDataService
+        return JSON.stringify(data.metrics, null, 2);
+      } else {
+        throw new Error(data.message || 'Failed to extract metrics');
+      }
+    } else {
+      // For non-Screener.in URLs, return appropriate message
+      console.warn(`⚠️ WebFetch: URL not supported for scraping: ${url}`);
+      
+      const unsupportedResponse = {
+        error: "URL not supported",
+        message: "WebFetch currently only supports Screener.in URLs for financial data extraction.",
+        url: url,
+        timestamp: new Date().toISOString(),
+        note: "The system will fall back to existing web research and financial data sources"
+      };
+      
+      return JSON.stringify(unsupportedResponse, null, 2);
+    }
     
   } catch (error) {
     console.error(`❌ WebFetch error for ${url}:`, error);
     
-    // Return a structured error response
+    // Return a structured error response that maintains compatibility
     const errorResponse = {
       error: `Unable to fetch data from ${url}`,
       message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: "The system will fall back to existing web research and financial data sources"
     };
     
     return JSON.stringify(errorResponse, null, 2);
