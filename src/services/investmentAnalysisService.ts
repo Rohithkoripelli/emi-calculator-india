@@ -7,6 +7,7 @@ import { GrowwApiService, StockQuote, HistoricalCandle, TechnicalAnalysis } from
 import { NewsSearchService, TrendingStock, StockNews, MarketTrends } from './newsSearchService';
 import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
 import { EnhancedTechnicalAnalysisService } from './enhancedTechnicalAnalysis';
+import { ScreenerDataService } from './screenerDataService';
 
 interface StockAnalysisReport {
   stock_info: {
@@ -205,24 +206,34 @@ export class InvestmentAnalysisService {
         confidence: enhancedTechnicalAnalysis.confidence
       };
       
-      // Step 4: Conduct comprehensive web research for market analysis
+      // Step 4: Get comprehensive financial metrics from Screener.in
+      console.log(`📊 Fetching comprehensive financial metrics from Screener.in for ${symbol}...`);
+      const screenerData = await ScreenerDataService.getFinancialMetrics(symbol);
+      if (screenerData) {
+        console.log(`✅ Successfully retrieved Screener.in data for ${symbol}:`, screenerData);
+      } else {
+        console.log(`⚠️ No Screener.in data available for ${symbol}`);
+      }
+      
+      // Step 5: Conduct comprehensive web research for market analysis
       console.log(`🔍 Conducting comprehensive web research for ${symbol}...`);
       const webResearch = await this.conductWebResearch(symbol, companyInfo.name);
       
-      // Step 5: Get news and sentiment analysis (now enhanced with web research)
+      // Step 6: Get news and sentiment analysis (now enhanced with web research)
       const stockNews = await NewsSearchService.getStockNews(symbol, companyInfo.name);
       const newsSentiment = this.analyzeNewsSentiment(stockNews);
       
-      // Step 6: Generate comprehensive recommendation using all data
+      // Step 7: Generate comprehensive recommendation using all data
       const recommendation = await this.generateStockRecommendation({
         quote,
         technicalAnalysis,
         stockNews,
         companyInfo,
-        enhancedTechnicalAnalysis // Pass the enhanced analysis for accurate targets
+        enhancedTechnicalAnalysis, // Pass the enhanced analysis for accurate targets
+        screenerData // Pass Screener.in financial metrics
       });
       
-      // Step 6: Compile the analysis report
+      // Step 8: Compile the analysis report
       const report: StockAnalysisReport = {
         stock_info: {
           symbol: symbol,
@@ -239,7 +250,7 @@ export class InvestmentAnalysisService {
           market_cap_value: quote.marketCap,
           week_52_high: quote.week52High,
           week_52_low: quote.week52Low,
-          pe_ratio: null // Would need additional data source
+          pe_ratio: screenerData?.pe || null // From Screener.in
         },
         news_sentiment: newsSentiment,
         recommendation: recommendation,
@@ -790,6 +801,30 @@ export class InvestmentAnalysisService {
         Trend: ${data.technicalAnalysis?.trend || 'N/A'}
         Volume Average: ${data.technicalAnalysis?.volumeAverage?.toLocaleString() || 'N/A'}
 
+        === SCREENER.IN COMPREHENSIVE FINANCIAL METRICS ===
+        ${data.screenerData ? 
+          `✅ VERIFIED FINANCIAL DATA FROM SCREENER.IN:
+          Market Cap: ${data.screenerData.marketCap || 'N/A'}
+          Current Price: ₹${data.screenerData.currentPrice || 'N/A'}
+          EPS (Earnings Per Share): ₹${data.screenerData.eps || 'N/A'}
+          P/E Ratio: ${data.screenerData.pe || 'N/A'}
+          ROE (Return on Equity): ${data.screenerData.roe || 'N/A'}%
+          ROCE (Return on Capital Employed): ${data.screenerData.roce || 'N/A'}%
+          Book Value: ₹${data.screenerData.bookValue || 'N/A'}
+          Dividend Yield: ${data.screenerData.dividendYield || 'N/A'}%
+          Revenue Growth: ${data.screenerData.revenueGrowth || 'N/A'}%
+          Profit Growth: ${data.screenerData.profitGrowth || 'N/A'}%
+          Debt to Equity: ${data.screenerData.debtToEquity || 'N/A'}
+          Current Ratio: ${data.screenerData.currentRatio || 'N/A'}
+          P/BV (Price to Book Value): ${data.screenerData.pbv || 'N/A'}
+          EV/EBITDA: ${data.screenerData.evEbitda || 'N/A'}
+          Sector: ${data.screenerData.sector || 'N/A'}
+          Industry: ${data.screenerData.industry || 'N/A'}
+          Last Updated: ${data.screenerData.lastUpdated || 'N/A'}`
+        : 
+          '⚠️ SCREENER.IN DATA NOT AVAILABLE - Using fallback analysis'
+        }
+        
         === COMPREHENSIVE WEB RESEARCH ===
         Market Sentiment: ${comprehensiveData.webResearch?.analysis?.sentiment || 'N/A'}
         Confidence: ${comprehensiveData.webResearch?.analysis?.confidence || 'N/A'}%
@@ -914,16 +949,17 @@ export class InvestmentAnalysisService {
         }
 
         **CRITICAL INSTRUCTIONS FOR KEY INSIGHTS**:
-        Use ACTUAL financial metrics from the "EXTRACTED FINANCIAL METRICS" section above. DO NOT use placeholders like "XX" or "XX%". 
+        PRIORITIZE Screener.in data which provides VERIFIED financial metrics. Fall back to web research data only if Screener.in data is unavailable.
         
-        Examples of CORRECT format:
-        - If EPS found: "EPS (earnings per share) stands at ₹[ACTUAL_VALUE]. This indicates the company's profit allocation per share"
-        - If ROE found: "Company has maintained a Return on Equity of [ACTUAL_VALUE]%, indicating management's ability to generate profits"  
-        - If Revenue Growth found: "Revenue has grown at a rate of [ACTUAL_VALUE]% based on recent financial data"
-        - If Profit Growth found: "Company reported net profit growth/decline of [ACTUAL_VALUE]% in recent results"
-        - If no data found: "Financial metric data not available in current research sources"
+        Examples of CORRECT format using Screener.in data:
+        - If Screener EPS found: "EPS (earnings per share) stands at ₹${data.screenerData?.eps || '[VALUE_FROM_WEB_RESEARCH]'}. This indicates the company's profit allocation per share"
+        - If Screener ROE found: "Company has maintained a Return on Equity of ${data.screenerData?.roe || '[VALUE_FROM_WEB_RESEARCH]'}%, indicating management's ability to generate profits"  
+        - If Screener Revenue Growth found: "Revenue has grown at a rate of ${data.screenerData?.revenueGrowth || '[VALUE_FROM_WEB_RESEARCH]'}% based on Screener.in financial data"
+        - If Screener Profit Growth found: "Company reported net profit growth of ${data.screenerData?.profitGrowth || '[VALUE_FROM_WEB_RESEARCH]'}% in recent results"
+        - If Screener P/E found: "Stock is trading at a P/E ratio of ${data.screenerData?.pe || '[VALUE_FROM_WEB_RESEARCH]'}, indicating the valuation relative to earnings"
+        - If Screener ROCE found: "Return on Capital Employed is ${data.screenerData?.roce || '[VALUE_FROM_WEB_RESEARCH]'}%, showing efficiency in capital utilization"
         
-        **NEVER use "XX", "XX%", or any placeholders. Always use the actual extracted values or state "data not available".**
+        **NEVER use "XX", "XX%", or any placeholders. Always use the actual values from Screener.in first, then web research, or state "data not available".**
       `;
       
       const response = await this.callOpenAI(prompt);

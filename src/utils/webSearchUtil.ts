@@ -212,3 +212,44 @@ function getNewsSearchFallback(symbol: string, companyName: string): SearchResul
 export async function searchWeb(query: string, maxResults: number = 5): Promise<SearchResult[]> {
   return WebSearch(query, maxResults);
 }
+
+/**
+ * WebFetch function for scraping web content using AI analysis
+ * Used by ScreenerDataService to extract financial metrics from web pages
+ * 
+ * Note: This function requires a backend API endpoint to perform actual web scraping
+ * since direct web scraping from browser is restricted by CORS policies.
+ */
+export async function WebFetch(url: string, prompt: string): Promise<string> {
+  try {
+    console.log(`🌐 WebFetch: Request to analyze content from ${url}`);
+    console.log(`📝 Analysis prompt: ${prompt.substring(0, 100)}...`);
+    
+    // Since this is a frontend function, we need to simulate the web fetch
+    // In production, this would call a backend API that uses web scraping tools
+    console.warn(`⚠️ WebFetch: Frontend cannot directly scrape websites due to CORS. This would require a backend API.`);
+    
+    // Return a structured response indicating that real web scraping is not available
+    const unavailableResponse = {
+      error: "Web scraping not available",
+      message: "Direct web scraping from browser is not supported due to CORS restrictions. This requires a backend implementation.",
+      url: url,
+      timestamp: new Date().toISOString(),
+      note: "The system will fall back to existing web research and financial data sources"
+    };
+    
+    return JSON.stringify(unavailableResponse, null, 2);
+    
+  } catch (error) {
+    console.error(`❌ WebFetch error for ${url}:`, error);
+    
+    // Return a structured error response
+    const errorResponse = {
+      error: `Unable to fetch data from ${url}`,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    };
+    
+    return JSON.stringify(errorResponse, null, 2);
+  }
+}
