@@ -831,14 +831,53 @@ export class InvestmentAnalysisService {
 
         7. **SOURCE-BASED INSIGHTS**: With ${comprehensiveData.webResearch?.results?.length || 0} market research sources analyzed, integrate findings from financial publications and analyst reports. Use specific data points from market research to support your recommendation.
 
-        Think step-by-step like a professional trader:
-        • What story does the price action tell?
-        • Are technical indicators aligned or conflicting?
-        • What does market sentiment suggest?
-        • What are the immediate risks and opportunities?
-        • How does this fit in a diversified portfolio?
+        **CRITICAL DECISION FRAMEWORK - Use these specific criteria to determine BUY/SELL/HOLD:**
 
-        **IMPORTANT**: Your analysis should be comprehensive and data-driven. When providing reasoning, reference the web research findings and market sources when relevant. The response will include source links automatically, so focus on the analytical insights.
+        **BUY Recommendation Criteria (Must meet at least 2 of these):**
+        - 30-day performance > +10% OR strong bullish trend with momentum
+        - RSI between 40-70 with upward momentum (not oversold/overbought)
+        - Stock trading above 20-day SMA with increasing volume
+        - Positive web research sentiment or analyst upgrades
+        - Breaking resistance levels or holding support well
+        - Any positive fundamental metrics from web research (revenue growth, profit growth, etc.)
+        - Bullish trend direction confirmed
+
+        **SELL Recommendation Criteria (Must meet at least 2 of these):**
+        - 30-day performance < -10% OR strong bearish trend continuing  
+        - RSI > 75 (overbought) OR RSI < 25 (oversold without reversal)
+        - Stock trading below 20-day SMA with declining momentum
+        - Negative web research sentiment or analyst downgrades
+        - Breaking key support levels
+        - Poor fundamentals from research: negative revenue/profit growth
+        - High volatility (>6%) with bearish trend
+
+        **HOLD Recommendation Criteria:**
+        - Performance between -15% to +15% with sideways trend
+        - Mixed technical signals (some bullish, some bearish)
+        - RSI between 40-70 with neutral momentum
+        - Uncertain market sentiment or mixed analyst views
+        - Trading within support/resistance range without clear breakout
+
+        **DO NOT DEFAULT TO HOLD - Make a clear BUY/SELL decision when data supports it!**
+        
+        **MANDATORY EXAMPLES - FOLLOW THESE PATTERNS:**
+        - Stock up +20% in 30 days, RSI 60, bullish trend → **MUST BE BUY**
+        - Stock down -20% in 30 days, RSI 30, bearish trend → **MUST BE SELL**  
+        - Stock up +5% in 30 days, RSI 50, mixed signals → **CAN BE HOLD**
+        
+        **ABSOLUTELY CRITICAL:** 
+        - If 30-day performance > +15%, strongly consider BUY
+        - If 30-day performance < -15%, strongly consider SELL
+        - Do not recommend HOLD for strongly trending stocks!
+
+        **Current stock data summary for YOUR decision:**
+        - 30-day performance: ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}%
+        - RSI: ${data.technicalAnalysis?.rsi?.toFixed(1) || 'N/A'}
+        - Price vs SMA20: ${data.quote?.currentPrice && data.technicalAnalysis?.sma20 ? (data.quote.currentPrice > data.technicalAnalysis.sma20 ? 'ABOVE' : 'BELOW') : 'N/A'}
+        - Volatility: ${data.technicalAnalysis?.volatility?.toFixed(1) || 'N/A'}%
+        - Web sentiment: ${comprehensiveData.webResearch?.analysis?.sentiment || 'N/A'}
+        
+        **MANDATORY**: Count how many BUY criteria vs SELL criteria this stock meets and recommend accordingly!
 
         Provide your analysis in this exact JSON format:
         {
@@ -2027,10 +2066,38 @@ export class InvestmentAnalysisService {
       };
     }
     
-    // Enhanced fallback analysis with web research integration
+    // Enhanced fallback analysis with web research integration - DO NOT DEFAULT TO HOLD
     let action = 'HOLD';
     let confidence = 55;
     let reasoning = [];
+    
+    // Performance-based decision logic
+    const performance30Day = data.technicalAnalysis?.priceChange30Days || 0;
+    const rsi = data.technicalAnalysis?.rsi || 50;
+    const trend = data.technicalAnalysis?.trend || 'SIDEWAYS';
+    
+    console.log(`🎯 Fallback analysis for ${symbol}: Performance=${performance30Day}%, RSI=${rsi}, Trend=${trend}`);
+    
+    // Strong performance-based recommendations
+    if (performance30Day > 15) {
+      action = 'BUY';
+      confidence = Math.min(85, 60 + (performance30Day - 15) * 2);
+      reasoning.push(`Strong 30-day performance of +${performance30Day.toFixed(1)}% indicates bullish momentum`);
+    } else if (performance30Day < -15) {
+      action = 'SELL';
+      confidence = Math.min(85, 60 + Math.abs(performance30Day + 15) * 2);
+      reasoning.push(`Poor 30-day performance of ${performance30Day.toFixed(1)}% indicates bearish trend`);
+    } else if (performance30Day > 8 && trend === 'BULLISH' && rsi < 70) {
+      action = 'BUY';
+      confidence = 65;
+      reasoning.push(`Positive performance (+${performance30Day.toFixed(1)}%) with bullish trend and healthy RSI`);
+    } else if (performance30Day < -8 && trend === 'BEARISH' && rsi > 30) {
+      action = 'SELL';
+      confidence = 65;
+      reasoning.push(`Negative performance (${performance30Day.toFixed(1)}%) with bearish trend`);
+    }
+    
+    console.log(`🎯 Fallback decision: ${action} with ${confidence}% confidence`);
     
     // Incorporate web research findings if available
     if (webResearchRecommendation) {
