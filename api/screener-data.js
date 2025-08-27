@@ -28,15 +28,8 @@ function extractFinancialMetrics(html, stockSymbol) {
       console.log(`📍 Found company name: ${companyName}`);
     }
     
-    // Extract current price (first number is usually the current price)
-    const priceText = $('.number').first().text().trim();
-    if (priceText) {
-      const price = parseFloat(priceText.replace(/,/g, ''));
-      if (!isNaN(price)) {
-        metrics.currentPrice = price;
-        console.log(`💰 Found current price: ₹${metrics.currentPrice}`);
-      }
-    }
+    // Skip current price extraction - use Groww API for real-time pricing
+    // Screener.in may have delayed price data
     
     // Extract market cap
     const marketCapElement = $('span:contains("Market Cap"), td:contains("Market Cap"), li:contains("Market Cap")');

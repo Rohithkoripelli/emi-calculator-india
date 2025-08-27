@@ -866,53 +866,81 @@ export class InvestmentAnalysisService {
 
         7. **SOURCE-BASED INSIGHTS**: With ${comprehensiveData.webResearch?.results?.length || 0} market research sources analyzed, integrate findings from financial publications and analyst reports. Use specific data points from market research to support your recommendation.
 
-        **CRITICAL DECISION FRAMEWORK - Use these specific criteria to determine BUY/SELL/HOLD:**
+        **COMPREHENSIVE INVESTMENT DECISION FRAMEWORK:**
+        You now have access to REAL VERIFIED financial data from multiple sources. Make intelligent investment decisions using this data hierarchy:
 
-        **BUY Recommendation Criteria (Must meet at least 2 of these):**
-        - 30-day performance > +10% OR strong bullish trend with momentum
-        - RSI between 40-70 with upward momentum (not oversold/overbought)
-        - Stock trading above 20-day SMA with increasing volume
-        - Positive web research sentiment or analyst upgrades
-        - Breaking resistance levels or holding support well
-        - Any positive fundamental metrics from web research (revenue growth, profit growth, etc.)
-        - Bullish trend direction confirmed
+        **🏆 TIER 1 DATA (HIGHEST PRIORITY - REAL VERIFIED METRICS):**
+        ${data.screenerData ? `
+        ✅ SCREENER.IN VERIFIED FUNDAMENTALS:
+        - EPS: ₹${data.screenerData.eps || 'N/A'} (Earnings power per share)
+        - P/E Ratio: ${data.screenerData.pe || 'N/A'} (Valuation multiple - compare to industry avg ~15-25)
+        - ROE: ${data.screenerData.roe || 'N/A'}% (Management efficiency - good if >15%)
+        - ROCE: ${data.screenerData.roce || 'N/A'}% (Capital utilization - good if >12%)
+        - Book Value: ₹${data.screenerData.bookValue || 'N/A'} (Asset backing per share)
+        - Dividend Yield: ${data.screenerData.dividendYield || 'N/A'}% (Income component)
+        - Revenue Growth: ${data.screenerData.revenueGrowth || 'N/A'}% (Business expansion)
+        - Profit Growth: ${data.screenerData.profitGrowth || 'N/A'}% (Earnings momentum)
+        - Debt/Equity: ${data.screenerData.debtToEquity || 'N/A'} (Financial health - lower is better)
+        - Current Ratio: ${data.screenerData.currentRatio || 'N/A'} (Liquidity - should be >1.5)
+        ` : '⚠️ SCREENER.IN DATA NOT AVAILABLE'}
 
-        **SELL Recommendation Criteria (Must meet at least 2 of these):**
-        - 30-day performance < -10% OR strong bearish trend continuing  
-        - RSI > 75 (overbought) OR RSI < 25 (oversold without reversal)
-        - Stock trading below 20-day SMA with declining momentum
-        - Negative web research sentiment or analyst downgrades
-        - Breaking key support levels
-        - Poor fundamentals from research: negative revenue/profit growth
-        - High volatility (>6%) with bearish trend
-
-        **HOLD Recommendation Criteria:**
-        - Performance between -15% to +15% with sideways trend
-        - Mixed technical signals (some bullish, some bearish)
-        - RSI between 40-70 with neutral momentum
-        - Uncertain market sentiment or mixed analyst views
-        - Trading within support/resistance range without clear breakout
-
-        **DO NOT DEFAULT TO HOLD - Make a clear BUY/SELL decision when data supports it!**
-        
-        **MANDATORY EXAMPLES - FOLLOW THESE PATTERNS:**
-        - Stock up +20% in 30 days, RSI 60, bullish trend → **MUST BE BUY**
-        - Stock down -20% in 30 days, RSI 30, bearish trend → **MUST BE SELL**  
-        - Stock up +5% in 30 days, RSI 50, mixed signals → **CAN BE HOLD**
-        
-        **ABSOLUTELY CRITICAL:** 
-        - If 30-day performance > +15%, strongly consider BUY
-        - If 30-day performance < -15%, strongly consider SELL
-        - Do not recommend HOLD for strongly trending stocks!
-
-        **Current stock data summary for YOUR decision:**
-        - 30-day performance: ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}%
-        - RSI: ${data.technicalAnalysis?.rsi?.toFixed(1) || 'N/A'}
-        - Price vs SMA20: ${data.quote?.currentPrice && data.technicalAnalysis?.sma20 ? (data.quote.currentPrice > data.technicalAnalysis.sma20 ? 'ABOVE' : 'BELOW') : 'N/A'}
+        **📊 TIER 2 DATA (TECHNICAL & MOMENTUM):**
+        - Real-time Price: ₹${data.quote?.currentPrice || 'N/A'} (from Groww API)
+        - 30-Day Performance: ${data.technicalAnalysis?.priceChange30Days > 0 ? '+' : ''}${data.technicalAnalysis?.priceChange30Days?.toFixed(2) || 'N/A'}%
+        - RSI: ${data.technicalAnalysis?.rsi?.toFixed(1) || 'N/A'} (momentum indicator)
+        - Support: ₹${data.technicalAnalysis?.support || 'N/A'} | Resistance: ₹${data.technicalAnalysis?.resistance || 'N/A'}
+        - SMA20: ₹${data.technicalAnalysis?.sma20?.toFixed(2) || 'N/A'} | SMA50: ₹${data.technicalAnalysis?.sma50?.toFixed(2) || 'N/A'}
         - Volatility: ${data.technicalAnalysis?.volatility?.toFixed(1) || 'N/A'}%
-        - Web sentiment: ${comprehensiveData.webResearch?.analysis?.sentiment || 'N/A'}
-        
-        **MANDATORY**: Count how many BUY criteria vs SELL criteria this stock meets and recommend accordingly!
+        - Volume Trend: ${data.technicalAnalysis?.volumeAverage?.toLocaleString() || 'N/A'}
+
+        **🎯 INTELLIGENT DECISION CRITERIA:**
+
+        **STRONG BUY Signals (Need 4+ factors):**
+        1. P/E < 20 AND ROE > 15% (undervalued with good returns)
+        2. Revenue Growth > 15% AND Profit Growth > 10% (strong business growth)
+        3. 30-day performance > +10% with RSI 45-65 (momentum with room to grow)
+        4. Current price > SMA20 > SMA50 (uptrend confirmed)
+        5. Debt/Equity < 0.5 AND Current Ratio > 1.5 (strong financial health)
+        6. EPS growing YoY AND dividend yield > 1% (earnings + income)
+
+        **BUY Signals (Need 3+ factors):**
+        1. P/E < 25 AND ROE > 12% (reasonable valuation)
+        2. Revenue/Profit growth positive (business expanding)
+        3. RSI 40-70 with positive momentum (not overbought/oversold)
+        4. Price holding above key support levels (technical strength)
+        5. Low debt with good liquidity ratios (financial stability)
+
+        **SELL Signals (Need 3+ factors):**
+        1. P/E > 40 with declining ROE < 10% (overvalued with poor returns)
+        2. Revenue/Profit growth negative for 2+ quarters (business deteriorating)
+        3. RSI > 75 OR 30-day performance < -15% (overbought or weak momentum)
+        4. High debt/equity > 1.0 with current ratio < 1.2 (financial stress)
+        5. Price breaking key support with high volatility (technical breakdown)
+
+        **HOLD Criteria:**
+        - Mixed signals from fundamental and technical analysis
+        - Fair valuation with stable but not exciting growth
+        - Consolidating price action in trading range
+
+        **⚠️ CRITICAL ANALYSIS REQUIREMENTS:**
+        1. **VALUATION ANALYSIS**: Compare P/E to industry standards. Is EPS sustainable?
+        2. **GROWTH QUALITY**: Is revenue growth translating to profit growth? Margin trends?
+        3. **FINANCIAL HEALTH**: Debt levels manageable? Cash flow positive?
+        4. **TECHNICAL CONFIRMATION**: Do charts confirm fundamental story?
+        5. **RISK-REWARD**: What's the upside potential vs downside risk?
+
+        **🧠 DECISION LOGIC:**
+        - If you have solid fundamental data (Screener.in), weight it 60%
+        - Technical indicators should confirm or contradict fundamentals (40%)
+        - Always explain WHY you're making the recommendation
+        - Give specific target prices based on P/E expansion/contraction
+        - Set stop losses based on technical support levels
+
+        **CURRENT STOCK QUICK ASSESSMENT:**
+        ${data.screenerData ? `
+        Fundamentals Score: ${data.screenerData.pe && data.screenerData.pe < 25 ? '✅' : '⚠️'} P/E, ${data.screenerData.roe && data.screenerData.roe > 15 ? '✅' : '⚠️'} ROE, ${data.screenerData.revenueGrowth && data.screenerData.revenueGrowth > 0 ? '✅' : '⚠️'} Growth
+        ` : ''}
+        Technical Score: ${data.technicalAnalysis?.priceChange30Days && data.technicalAnalysis.priceChange30Days > 0 ? '✅' : '⚠️'} Momentum, ${data.technicalAnalysis?.rsi && data.technicalAnalysis.rsi >= 40 && data.technicalAnalysis.rsi <= 70 ? '✅' : '⚠️'} RSI
 
         Provide your analysis in this exact JSON format:
         {
@@ -948,18 +976,23 @@ export class InvestmentAnalysisService {
           ]
         }
 
-        **CRITICAL INSTRUCTIONS FOR KEY INSIGHTS**:
-        PRIORITIZE Screener.in data which provides VERIFIED financial metrics. Fall back to web research data only if Screener.in data is unavailable.
+        **MANDATORY KEY INSIGHTS GENERATION:**
+        Use ACTUAL VERIFIED DATA from Screener.in to generate meaningful insights. No more placeholders or generic statements!
         
-        Examples of CORRECT format using Screener.in data:
-        - If Screener EPS found: "EPS (earnings per share) stands at ₹${data.screenerData?.eps || '[VALUE_FROM_WEB_RESEARCH]'}. This indicates the company's profit allocation per share"
-        - If Screener ROE found: "Company has maintained a Return on Equity of ${data.screenerData?.roe || '[VALUE_FROM_WEB_RESEARCH]'}%, indicating management's ability to generate profits"  
-        - If Screener Revenue Growth found: "Revenue has grown at a rate of ${data.screenerData?.revenueGrowth || '[VALUE_FROM_WEB_RESEARCH]'}% based on Screener.in financial data"
-        - If Screener Profit Growth found: "Company reported net profit growth of ${data.screenerData?.profitGrowth || '[VALUE_FROM_WEB_RESEARCH]'}% in recent results"
-        - If Screener P/E found: "Stock is trading at a P/E ratio of ${data.screenerData?.pe || '[VALUE_FROM_WEB_RESEARCH]'}, indicating the valuation relative to earnings"
-        - If Screener ROCE found: "Return on Capital Employed is ${data.screenerData?.roce || '[VALUE_FROM_WEB_RESEARCH]'}%, showing efficiency in capital utilization"
+        ${data.screenerData ? `
+        **REQUIRED FINANCIAL INSIGHTS (Use these actual numbers):**
+        - "EPS (earnings per share) stands at ₹${data.screenerData.eps}. ${data.screenerData.eps > 5 ? 'Strong earnings power per share indicates healthy profitability' : data.screenerData.eps > 1 ? 'Moderate earnings per share showing decent profitability' : 'Low EPS suggests limited profitability per share'}"
+        - "Company trades at a P/E ratio of ${data.screenerData.pe}. ${data.screenerData.pe < 15 ? 'This appears undervalued compared to market averages' : data.screenerData.pe > 30 ? 'This shows premium valuation requiring strong growth justification' : 'This represents fair market valuation'}"
+        - "Return on Equity (ROE) is ${data.screenerData.roe}%. ${data.screenerData.roe > 15 ? 'Excellent management efficiency in generating returns from equity' : data.screenerData.roe > 10 ? 'Good return generation capability from shareholder equity' : 'ROE below industry standards may indicate efficiency challenges'}"
+        - "Return on Capital Employed (ROCE) stands at ${data.screenerData.roce}%. ${data.screenerData.roce > 15 ? 'Superior capital utilization efficiency' : data.screenerData.roce > 10 ? 'Adequate capital deployment efficiency' : 'Below-average capital utilization efficiency'}"
+        ${data.screenerData.revenueGrowth ? `- "Revenue growth of ${data.screenerData.revenueGrowth}% ${data.screenerData.revenueGrowth > 15 ? 'demonstrates strong business expansion momentum' : data.screenerData.revenueGrowth > 5 ? 'shows moderate business growth trajectory' : 'indicates slower business growth pace'}"` : ''}
+        ${data.screenerData.profitGrowth ? `- "Profit growth of ${data.screenerData.profitGrowth}% ${data.screenerData.profitGrowth > 20 ? 'reflects excellent earnings expansion' : data.screenerData.profitGrowth > 10 ? 'shows healthy profit growth momentum' : 'indicates modest profit growth'}"` : ''}
+        ${data.screenerData.dividendYield ? `- "Dividend yield of ${data.screenerData.dividendYield}% ${data.screenerData.dividendYield > 2 ? 'provides attractive income component for investors' : data.screenerData.dividendYield > 0.5 ? 'offers modest dividend income' : 'minimal dividend income for investors'}"` : ''}
+        ${data.screenerData.debtToEquity ? `- "Debt-to-equity ratio of ${data.screenerData.debtToEquity} ${data.screenerData.debtToEquity < 0.5 ? 'indicates conservative financial leverage and strong balance sheet' : data.screenerData.debtToEquity < 1 ? 'shows moderate debt levels within acceptable range' : 'reflects higher leverage requiring careful monitoring'}"` : ''}
+        ` : '**NO SCREENER.IN DATA**: Using web research insights as fallback'}
         
-        **NEVER use "XX", "XX%", or any placeholders. Always use the actual values from Screener.in first, then web research, or state "data not available".**
+        **NEVER USE**: "XX", "XX%", "[VALUE]", or any placeholders
+        **ALWAYS USE**: Actual numerical values from Screener.in data with intelligent commentary
       `;
       
       const response = await this.callOpenAI(prompt);
