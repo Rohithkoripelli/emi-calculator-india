@@ -236,6 +236,7 @@ interface ComparisonData {
 
 interface AIResponseFormatterProps {
   text: string;
+  stockAnalysis?: any; // Add optional stockAnalysis prop
 }
 
 const formatCurrency = (amount: string): string => {
@@ -1115,20 +1116,47 @@ const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
+const WebSourcesCard: React.FC<{ text: string; stockAnalysis?: any }> = ({ text, stockAnalysis }) => {
   // Extract web sources from different sections with improved parsing
   const webSources: Array<{ title: string; snippet: string; url: string; domain?: string }> = [];
   
   console.log('🌐 WebSourcesCard: Processing text of length:', text.length);
-  console.log('🔍 WebSourcesCard: Text contains "Market Research Sources"?', text.includes('Market Research Sources'));
-  console.log('🔍 WebSourcesCard: Text contains "🌐"?', text.includes('🌐'));
-  console.log('🔍 WebSourcesCard: First 2000 chars:', text.substring(0, 2000));
+  console.log('🔍 WebSourcesCard: StockAnalysis available?', !!stockAnalysis);
+  console.log('🔍 WebSourcesCard: Web research data?', !!stockAnalysis?.web_research);
   
-  // Extract from Market Research Sources section with better regex
-  const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/);
-  console.log('🔍 WebSourcesCard: Market Research Sources match found?', !!webResultsMatch);
+  // First priority: Use stockAnalysis web_research data if available
+  if (stockAnalysis?.web_research?.search_results && stockAnalysis.web_research.search_results.length > 0) {
+    console.log('✅ Using direct web research data from stockAnalysis');
+    stockAnalysis.web_research.search_results.forEach((result: any, index: number) => {
+      if (result.title && result.url && webSources.length < 6) {
+        let domain = 'Financial Source';
+        try {
+          domain = new URL(result.url).hostname.replace('www.', '');
+        } catch (e) {
+          domain = 'Financial Source';
+        }
+        
+        console.log(`📊 Adding direct source ${index + 1}: "${result.title.substring(0, 50)}..." with URL: ${result.url}`);
+        webSources.push({
+          title: result.title,
+          snippet: result.snippet || 'Financial analysis and market research data',
+          url: result.url,
+          domain: domain
+        });
+      }
+    });
+  }
   
-  if (webResultsMatch) {
+  // Fallback: Extract from Market Research Sources section with better regex
+  if (webSources.length === 0) {
+    console.log('🔄 No direct web research data, falling back to text parsing');
+    console.log('🔍 WebSourcesCard: Text contains "Market Research Sources"?', text.includes('Market Research Sources'));
+    console.log('🔍 WebSourcesCard: Text contains "🌐"?', text.includes('🌐'));
+    
+    const webResultsMatch = text.match(/## 🌐 Market Research Sources[\s\S]*?(?=##|⚠️|$)/);
+    console.log('🔍 WebSourcesCard: Market Research Sources match found?', !!webResultsMatch);
+    
+    if (webResultsMatch) {
     const webResultsSection = webResultsMatch[0];
     console.log('🔍 WebSourcesCard: Found Market Research Sources section');
     console.log('📝 Section content preview:', webResultsSection.substring(0, 500));
@@ -1242,22 +1270,23 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
           for (let j = i + 1; j < Math.min(i + 4, sourceLines.length); j++) {
             const lookAheadLine = sourceLines[j];
             if (lookAheadLine && lookAheadLine.includes('🔗')) {
-              // Try to extract URL from the 🔗 line
-              const urlMatch = lookAheadLine.match(/🔗\s*\[.*?\]\((https?:\/\/[^\s)]+)\)/);
-              if (urlMatch) {
-                url = urlMatch[1];
-                console.log(`🔗 Extracted URL for "${title.substring(0, 30)}...": ${url}`);
-                break;
-              } else {
-                // Sometimes the URL might be in the text after 🔗 without markdown format
-                const urlPattern = /(https?:\/\/[^\s]+)/;
-                const urlInText = lookAheadLine.match(urlPattern);
-                if (urlInText) {
-                  url = urlInText[1];
-                  console.log(`🔗 Found URL in text for "${title.substring(0, 30)}...": ${url}`);
+              // Try to extract URL from the 🔗 line - improved patterns
+              const urlPatterns = [
+                /🔗\s*\[.*?\]\((https?:\/\/[^\s)]+)\)/,  // Standard markdown
+                /🔗\s*\[Read more\]\((https?:\/\/[^\s)]+)\)/, // Read more format
+                /(https?:\/\/[^\s)]+)/, // Any URL in the line
+              ];
+              
+              for (const pattern of urlPatterns) {
+                const urlMatch = lookAheadLine.match(pattern);
+                if (urlMatch) {
+                  url = urlMatch[1];
+                  console.log(`🔗 Extracted URL for "${title.substring(0, 30)}...": ${url}`);
                   break;
                 }
               }
+              
+              if (url !== '#') break; // Stop if we found a URL
             }
           }
           
@@ -1343,6 +1372,7 @@ const WebSourcesCard: React.FC<{ text: string }> = ({ text }) => {
       });
     }
   }
+  } // Close the fallback if block
   
   // Also extract any other URLs mentioned in the text
   const urlRegex = /🔗\s*\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g;
@@ -1931,7 +1961,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
   return <div className="space-y-3">{processedElements}</div>;
 };
 
-export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }) => {
+export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text, stockAnalysis }) => {
   // Apply financial formatting to fix interest rates, EMI values, and currency display
   const formattedText = formatFinancialText(text);
   
@@ -2001,7 +2031,7 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text }
       <EnhancedText text={textWithoutWebSources} />
       
       {/* Web Sources Card - positioned at the very end of the response */}
-      <WebSourcesCard text={formattedText} />
+      <WebSourcesCard text={formattedText} stockAnalysis={stockAnalysis} />
     </div>
   );
 };

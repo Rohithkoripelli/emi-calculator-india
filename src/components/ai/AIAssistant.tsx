@@ -1041,7 +1041,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
                   <p className="whitespace-pre-wrap text-sm">{message.text}</p>
                 ) : (
                   <div className="text-sm">
-                    <AIResponseFormatter text={message.text} />
+                    <AIResponseFormatter text={message.text} stockAnalysis={message.stockAnalysis} />
                     {message.isStreaming && (
                       <div className="flex items-center space-x-2 mt-2">
                         <div className="animate-pulse flex space-x-1">
