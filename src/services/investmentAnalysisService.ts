@@ -2219,8 +2219,8 @@ export class InvestmentAnalysisService {
       };
     }
     
-    // Enhanced fallback analysis with web research integration - DO NOT DEFAULT TO HOLD
-    let action = 'HOLD';
+    // Enhanced fallback analysis with web research integration - Use neutral starting point
+    let action = '';  // Will be determined based on analysis
     let confidence = 55;
     let reasoning = [];
     
@@ -2231,23 +2231,31 @@ export class InvestmentAnalysisService {
     
     console.log(`🎯 Fallback analysis for ${symbol}: Performance=${performance30Day}%, RSI=${rsi}, Trend=${trend}`);
     
-    // Strong performance-based recommendations
-    if (performance30Day > 15) {
+    // Enhanced performance-based recommendations with lower thresholds
+    if (performance30Day > 10) {
       action = 'BUY';
-      confidence = Math.min(85, 60 + (performance30Day - 15) * 2);
+      confidence = Math.min(85, 65 + (performance30Day - 10) * 2);
       reasoning.push(`Strong 30-day performance of +${performance30Day.toFixed(1)}% indicates bullish momentum`);
-    } else if (performance30Day < -15) {
+    } else if (performance30Day < -10) {
       action = 'SELL';
-      confidence = Math.min(85, 60 + Math.abs(performance30Day + 15) * 2);
+      confidence = Math.min(85, 65 + Math.abs(performance30Day + 10) * 2);
       reasoning.push(`Poor 30-day performance of ${performance30Day.toFixed(1)}% indicates bearish trend`);
-    } else if (performance30Day > 8 && trend === 'BULLISH' && rsi < 70) {
+    } else if (performance30Day > 5 && trend === 'BULLISH' && rsi < 70) {
       action = 'BUY';
-      confidence = 65;
+      confidence = 68;
       reasoning.push(`Positive performance (+${performance30Day.toFixed(1)}%) with bullish trend and healthy RSI`);
-    } else if (performance30Day < -8 && trend === 'BEARISH' && rsi > 30) {
+    } else if (performance30Day < -5 && trend === 'BEARISH' && rsi > 30) {
       action = 'SELL';
-      confidence = 65;
+      confidence = 68;
       reasoning.push(`Negative performance (${performance30Day.toFixed(1)}%) with bearish trend`);
+    } else if (performance30Day > 2) {
+      action = 'BUY';
+      confidence = 62;
+      reasoning.push(`Moderate positive performance (+${performance30Day.toFixed(1)}%) suggests upward potential`);
+    } else if (performance30Day < -2) {
+      action = 'SELL';
+      confidence = 62;
+      reasoning.push(`Moderate negative performance (${performance30Day.toFixed(1)}%) suggests caution`);
     }
     
     console.log(`🎯 Fallback decision: ${action} with ${confidence}% confidence`);
@@ -2275,24 +2283,69 @@ export class InvestmentAnalysisService {
       }
     }
     
-    // Simplified fallback analysis when web research is unavailable
-    if (action === 'HOLD' && !webResearchRecommendation) {
-      // Use basic technical analysis for fallback
+    // Enhanced fallback analysis - avoid defaulting to HOLD
+    if (!action && !webResearchRecommendation) {
+      // Use comprehensive technical analysis for fallback
       if (price > 0) {
+        let score = 0;
+        
+        // Technical scoring system
         if (tech?.support && price < tech.support * 1.02) {
-          action = 'BUY';
-          confidence = 65;
-          reasoning.push(`Near support levels - potential opportunity`);
+          score += 25;
+          reasoning.push(`Near support levels - potential buying opportunity`);
         } else if (tech?.resistance && price > tech.resistance * 0.98) {
-          action = 'SELL';
-          confidence = 65;
-          reasoning.push(`Near resistance levels - consider profit taking`);
-        } else {
-          // Conservative neutral stance
-          action = 'HOLD';
-          confidence = 60;
-          reasoning.push(`Balanced technical indicators - suggest holding position`);
+          score -= 25;
+          reasoning.push(`Near resistance levels - consider profit booking`);
         }
+        
+        // Performance momentum
+        if (performance30Day > 5) {
+          score += 20;
+          reasoning.push(`Positive momentum with +${performance30Day.toFixed(1)}% gains`);
+        } else if (performance30Day < -5) {
+          score -= 20;
+          reasoning.push(`Negative momentum with ${performance30Day.toFixed(1)}% decline`);
+        }
+        
+        // RSI analysis
+        if (rsi < 35) {
+          score += 15;
+          reasoning.push(`Oversold conditions (RSI: ${rsi})`);
+        } else if (rsi > 65) {
+          score -= 15;
+          reasoning.push(`Overbought conditions (RSI: ${rsi})`);
+        }
+        
+        // Determine action based on score
+        if (score >= 15) {
+          action = 'BUY';
+          confidence = Math.min(75, 60 + score);
+        } else if (score <= -15) {
+          action = 'SELL';
+          confidence = Math.min(75, 60 + Math.abs(score));
+        } else {
+          // Only HOLD if truly neutral conditions
+          action = 'HOLD';
+          confidence = 55;
+          reasoning.push(`Mixed technical signals suggest cautious approach`);
+        }
+      }
+    }
+    
+    // Final check - if still no action determined, make a decision based on basic metrics
+    if (!action) {
+      if (performance30Day > 0) {
+        action = 'BUY';
+        confidence = 60;
+        reasoning.push(`Positive performance suggests upward potential`);
+      } else if (performance30Day < 0) {
+        action = 'SELL';
+        confidence = 60;
+        reasoning.push(`Negative performance suggests downward risk`);
+      } else {
+        action = 'HOLD';
+        confidence = 50;
+        reasoning.push(`Neutral performance - maintain current position`);
       }
     }
     
@@ -2414,21 +2467,33 @@ export class InvestmentAnalysisService {
         }
       }
       
-      let recommendation = 'HOLD';
+      let recommendation = '';  // Will be determined by analysis
       let sentiment = 'Neutral';
       let reason = 'mixed market signals';
       
       console.log(`📊 Web research analysis for ${symbol}: bullish=${bullishIndicators}, bearish=${bearishIndicators}`);
       
-      // Balanced logic for web research recommendations
-      if (bearishIndicators > bullishIndicators * 1.5) {
+      // More aggressive logic for web research recommendations
+      if (bearishIndicators > bullishIndicators * 1.2) {  // Lower threshold
         recommendation = 'SELL';
         sentiment = 'Negative';
         reason = 'predominantly bearish market outlook';
-      } else if (bullishIndicators > bearishIndicators * 1.5) {
+      } else if (bullishIndicators > bearishIndicators * 1.2) {  // Lower threshold
         recommendation = 'BUY';
         sentiment = 'Positive';
         reason = 'predominantly bullish analyst sentiment';
+      } else if (bullishIndicators > bearishIndicators) {
+        recommendation = 'BUY';
+        sentiment = 'Mildly Positive';
+        reason = 'slight bullish bias in market sentiment';
+      } else if (bearishIndicators > bullishIndicators) {
+        recommendation = 'SELL';
+        sentiment = 'Mildly Negative';
+        reason = 'slight bearish bias in market sentiment';
+      } else {
+        recommendation = 'HOLD';
+        sentiment = 'Neutral';
+        reason = 'balanced market signals';
       }
       
       console.log(`📊 Web research recommendation for ${symbol}: ${recommendation} (${reason})`);

@@ -103,30 +103,38 @@ export class PersonalizedStockAnalysisService {
     analysis: StockAnalysisReport, 
     context: PersonalizedAnalysisContext
   ): number {
-    let score = 50; // Neutral starting point
+    let score = 40; // Lower starting point to allow more variation
     
-    // PE Ratio analysis - weighted by risk tolerance
+    // PE Ratio analysis - weighted by risk tolerance with stronger signals
     if (analysis.screenerData?.pe) {
       const pe = parseFloat(analysis.screenerData.pe);
       if (context.riskTolerance === 'low') {
         // Conservative investors prefer lower PE
-        if (pe < 15) score += 20;
-        else if (pe < 25) score += 10;
-        else if (pe > 40) score -= 15;
+        if (pe < 15) score += 30;  // Increased signal strength
+        else if (pe < 25) score += 15;
+        else if (pe > 40) score -= 25; // Stronger negative signal
       } else if (context.riskTolerance === 'high') {
         // Aggressive investors may accept higher PE for growth
-        if (pe < 10) score += 5; // Might be undervalued
-        else if (pe < 30) score += 15;
-        else if (pe < 50) score += 5;
+        if (pe < 10) score += 10; // Might be undervalued
+        else if (pe < 30) score += 25; // Stronger positive signal
+        else if (pe < 50) score += 10;
+        else score -= 15; // Very high PE is risky even for aggressive investors
+      } else { // medium risk tolerance
+        if (pe < 20) score += 20;
+        else if (pe < 30) score += 10;
+        else if (pe > 35) score -= 15;
       }
     }
     
-    // ROE analysis
+    // ROE analysis - stronger signals for profitability
     if (analysis.screenerData?.roe) {
       const roe = parseFloat(analysis.screenerData.roe);
-      if (roe > 20) score += 15;
+      if (roe > 25) score += 25;  // Excellent ROE
+      else if (roe > 20) score += 20;
       else if (roe > 15) score += 10;
-      else if (roe < 10) score -= 10;
+      else if (roe > 10) score += 5;
+      else if (roe < 5) score -= 20;  // Poor profitability
+      else score -= 10;
     }
     
     // Debt analysis - more important for risk-averse investors
@@ -149,7 +157,7 @@ export class PersonalizedStockAnalysisService {
     analysis: StockAnalysisReport, 
     context: PersonalizedAnalysisContext
   ): number {
-    let score = 50;
+    let score = 40; // Lower starting point for more range
     
     // Technical analysis is more important for short-term investors
     const technicalWeight = context.investmentPeriod === 'short-term' ? 1.5 : 0.8;
@@ -163,14 +171,17 @@ export class PersonalizedStockAnalysisService {
         const dayChange = analysis.stock_info.day_change_percent;
         
         if (context.investmentPeriod === 'short-term') {
-          // Short-term: Recent momentum is important
-          if (dayChange > 2) score += 15 * technicalWeight;
-          else if (dayChange > 0) score += 8 * technicalWeight;
-          else if (dayChange < -3) score -= 12 * technicalWeight;
+          // Short-term: Recent momentum is important - stronger signals
+          if (dayChange > 4) score += 25 * technicalWeight;
+          else if (dayChange > 2) score += 18 * technicalWeight;
+          else if (dayChange > 0) score += 10 * technicalWeight;
+          else if (dayChange < -4) score -= 20 * technicalWeight;
+          else if (dayChange < -2) score -= 12 * technicalWeight;
         } else {
-          // Long-term: Don't overreact to daily changes
-          if (dayChange > 5) score += 5 * technicalWeight;
-          else if (dayChange < -5) score -= 3 * technicalWeight;
+          // Long-term: Focus on sustained trends, not daily volatility
+          if (dayChange > 8) score += 10 * technicalWeight;  // Strong move might indicate trend
+          else if (dayChange < -8) score -= 8 * technicalWeight;
+          // Ignore smaller daily moves for long-term
         }
       }
     }
@@ -185,7 +196,7 @@ export class PersonalizedStockAnalysisService {
     analysis: StockAnalysisReport, 
     context: PersonalizedAnalysisContext
   ): number {
-    let score = 50;
+    let score = 40; // Lower starting point for more dynamic scoring
     
     // Volatility assessment (simplified)
     if (analysis.stock_info?.day_change_percent) {
@@ -228,7 +239,7 @@ export class PersonalizedStockAnalysisService {
     analysis: StockAnalysisReport, 
     context: PersonalizedAnalysisContext
   ): number {
-    let score = 50;
+    let score = 40; // Lower starting point for more variation
     
     // Adjust based on current holding status
     if (context.currentHolding === 'yes') {
@@ -297,13 +308,13 @@ export class PersonalizedStockAnalysisService {
   }
   
   /**
-   * Convert numerical score to recommendation
+   * Convert numerical score to recommendation - Optimized to reduce HOLD bias
    */
   private static getRecommendationFromScore(score: number): PersonalizedStockRecommendation['recommendation'] {
-    if (score >= 80) return 'STRONG_BUY';
-    if (score >= 65) return 'BUY';
-    if (score >= 40) return 'HOLD';
-    if (score >= 25) return 'SELL';
+    if (score >= 75) return 'STRONG_BUY';
+    if (score >= 60) return 'BUY';
+    if (score >= 45 && score <= 55) return 'HOLD';  // Narrow HOLD range
+    if (score >= 30) return 'SELL';
     return 'STRONG_SELL';
   }
   
