@@ -586,9 +586,9 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       const formattedResponse = PersonalizedStockAnalysisService.formatPersonalizedRecommendation(
         personalizedRecommendation,
         {
-          investmentPeriod: preferences.investmentPeriod,
-          currentHolding: preferences.currentHolding,
-          riskTolerance: preferences.riskTolerance,
+          investmentPeriod: preferences.investmentPeriod as 'short-term' | 'long-term',
+          currentHolding: preferences.currentHolding as 'yes' | 'no',
+          riskTolerance: preferences.riskTolerance as 'low' | 'medium' | 'high',
           stockSymbol: preferences.stockSymbol,
           stockName: preferences.stockName
         },

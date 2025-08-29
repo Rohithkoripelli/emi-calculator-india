@@ -42,9 +42,9 @@ export class PersonalizedStockAnalysisService {
     console.log('📊 User profile:', preferences);
     
     const context: PersonalizedAnalysisContext = {
-      investmentPeriod: preferences.investmentPeriod,
-      currentHolding: preferences.currentHolding,
-      riskTolerance: preferences.riskTolerance,
+      investmentPeriod: preferences.investmentPeriod as 'short-term' | 'long-term',
+      currentHolding: preferences.currentHolding as 'yes' | 'no',
+      riskTolerance: preferences.riskTolerance as 'low' | 'medium' | 'high',
       stockSymbol: preferences.stockSymbol,
       stockName: preferences.stockName
     };
@@ -383,7 +383,7 @@ export class PersonalizedStockAnalysisService {
         level = 'HIGH';
       } else if (dayChange < 1) {
         factors.push(`Low daily volatility (${dayChange.toFixed(1)}%)`);
-        if (level === 'MEDIUM') level = 'LOW';
+        level = 'LOW';
       }
     }
     
