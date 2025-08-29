@@ -1068,11 +1068,21 @@ const StockRecommendationBadge: React.FC<{ recommendation: string; confidence?: 
   let textColor = 'text-white';
   let icon = '📊';
   
-  if (rec.includes('BUY')) {
+  if (rec.includes('STRONG_BUY')) {
+    bgColor = 'bg-gradient-to-r from-emerald-600 to-green-800';
+    hoverColor = 'hover:from-emerald-700 hover:to-green-900';
+    textColor = 'text-white';
+    icon = '🚀';
+  } else if (rec.includes('STRONG_SELL')) {
+    bgColor = 'bg-gradient-to-r from-red-700 to-rose-800';
+    hoverColor = 'hover:from-red-800 hover:to-rose-900';
+    textColor = 'text-white';
+    icon = '💥';
+  } else if (rec.includes('BUY')) {
     bgColor = 'bg-gradient-to-r from-green-600 to-green-700';
     hoverColor = 'hover:from-green-700 hover:to-green-800';
     textColor = 'text-white';
-    icon = '🚀';
+    icon = '📈';
   } else if (rec.includes('SELL')) {
     bgColor = 'bg-gradient-to-r from-red-600 to-red-700';
     hoverColor = 'hover:from-red-700 hover:to-red-800';
@@ -2089,19 +2099,44 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
     
     // Handle regular paragraphs
     else {
-      // Check for stock recommendations
+      // Check for stock recommendations in various formats
       const buyMatch = trimmedLine.match(/\*\*Action:\*\*\s*(BUY|SELL|HOLD)/i);
       const actionMatch = trimmedLine.match(/Action:\s*(BUY|SELL|HOLD)/i);
       const recommendationMatch = trimmedLine.match(/Recommendation:\s*(BUY|SELL|HOLD)/i);
       
+      // Check for personalized recommendation format: ⏸️ HOLD 60% Confidence or 🚀 BUY 75% Confidence
+      const personalizedMatch = trimmedLine.match(/(⏸️|🚀|📉|🟢|🟡|🔴)\s*(STRONG_BUY|STRONG_SELL|BUY|SELL|HOLD)\s*(\d+)%?\s*Confidence/i);
+      
+      // Check for emoji-based recommendations: 🚀 BUY or ⏸️ HOLD
+      const emojiRecommendationMatch = trimmedLine.match(/(⏸️|🚀|📉)\s*(STRONG_BUY|STRONG_SELL|BUY|SELL|HOLD)/i);
+      
       // Check for confidence in recommendations
-      const confidenceMatch = trimmedLine.match(/\((\d+)%\s*confidence\)/i);
+      const confidenceMatch = trimmedLine.match(/(\d+)%\s*[Cc]onfidence/i) || trimmedLine.match(/\((\d+)%\s*confidence\)/i);
       const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : undefined;
       
-      if (buyMatch || actionMatch || recommendationMatch) {
-        const recommendation = (buyMatch || actionMatch || recommendationMatch)?.[1] || '';
-        const beforeText = trimmedLine.split(/Action:|Recommendation:/i)[0];
-        const afterText = trimmedLine.split(/(BUY|SELL|HOLD)/i)[2] || '';
+      if (buyMatch || actionMatch || recommendationMatch || personalizedMatch || emojiRecommendationMatch) {
+        let recommendation = '';
+        let beforeText = '';
+        let afterText = '';
+        let confidenceFromMatch = undefined;
+        
+        if (personalizedMatch) {
+          recommendation = personalizedMatch[2] || '';
+          confidenceFromMatch = personalizedMatch[3] ? parseInt(personalizedMatch[3]) : undefined;
+          beforeText = trimmedLine.split(/(⏸️|🚀|📉|🟢|🟡|🔴)/i)[0];
+          afterText = trimmedLine.split(/(\d+)%?\s*Confidence/i)[2] || '';
+        } else if (emojiRecommendationMatch) {
+          recommendation = emojiRecommendationMatch[2] || '';
+          beforeText = trimmedLine.split(/(⏸️|🚀|📉)/i)[0];
+          afterText = trimmedLine.split(/(BUY|SELL|HOLD)/i)[2] || '';
+        } else {
+          recommendation = (buyMatch || actionMatch || recommendationMatch)?.[1] || '';
+          beforeText = trimmedLine.split(/Action:|Recommendation:/i)[0];
+          afterText = trimmedLine.split(/(BUY|SELL|HOLD)/i)[2] || '';
+        }
+        
+        // Use confidence from match if available, otherwise use general confidence
+        const finalConfidence = confidenceFromMatch || confidence;
         
         processedElements.push(
           <div key={i} className="flex flex-col items-center justify-center space-y-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-600/10 dark:to-indigo-600/10 rounded-2xl border-2 border-blue-200 dark:border-blue-600/30 my-6">
@@ -2110,7 +2145,7 @@ const EnhancedTextContent: React.FC<{ text: string }> = ({ text }) => {
                 {beforeText.replace(/\*\*/g, '').trim()}
               </div>
             )}
-            <StockRecommendationBadge recommendation={recommendation} confidence={confidence} />
+            <StockRecommendationBadge recommendation={recommendation} confidence={finalConfidence} />
             {afterText && afterText.replace(/\([^)]*confidence\)/i, '').trim() && (
               <div className="text-center text-gray-600 dark:text-dark-text-secondary text-base max-w-2xl">
                 {afterText.replace(/\([^)]*confidence\)/i, '').trim()}
