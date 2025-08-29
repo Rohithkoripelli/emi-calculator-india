@@ -567,55 +567,116 @@ export class PersonalizedStockAnalysisService {
     context: PersonalizedAnalysisContext,
     originalAnalysis: StockAnalysisReport
   ): string {
-    const { recommendation, confidence, targetPrice, stopLoss, reasoning, riskAssessment, actionPlan, personalizedInsights } = personalizedRec;
+    const stock = originalAnalysis.stock_info;
+    const tech = originalAnalysis.technical_analysis;
+    const risk = originalAnalysis.risk_analysis;
     
-    const currentPrice = originalAnalysis.stock_info?.current_price || 0;
-    const recommendationEmoji = {
-      'STRONG_BUY': '🚀',
-      'BUY': '✅',
-      'HOLD': '⏸️',
-      'SELL': '⚠️',
-      'STRONG_SELL': '🛑'
-    }[recommendation];
+    // Use personalized recommendation instead of original
+    const personalizedRecommendation = {
+      action: personalizedRec.recommendation,
+      confidence: personalizedRec.confidence,
+      time_horizon: context.investmentPeriod === 'short-term' ? 'SHORT_TERM' : 'LONG_TERM',
+      target_price: personalizedRec.targetPrice,
+      stop_loss: personalizedRec.stopLoss,
+      reasoning: personalizedRec.reasoning
+    };
     
-    return `# ${recommendationEmoji} Personalized Investment Recommendation
-
-## 🎯 **${recommendation}** - ${confidence}% Confidence
-
-### 📊 **Your Investment Profile**
-- **Investment Period**: ${context.investmentPeriod === 'short-term' ? 'Short-term (1-12 months)' : 'Long-term (1+ years)'}
-- **Current Holding**: ${context.currentHolding === 'yes' ? 'Yes - You own this stock' : 'No - New investment consideration'}
-- **Risk Tolerance**: ${context.riskTolerance.charAt(0).toUpperCase() + context.riskTolerance.slice(1)} Risk
-
-### 💰 **Price Targets & Risk Management**
-- **Current Price**: ₹${currentPrice.toLocaleString('en-IN')}
-${targetPrice ? `- **Target Price**: ₹${targetPrice.toLocaleString('en-IN')} (${Math.round(((targetPrice - currentPrice) / currentPrice) * 100)}% upside)` : ''}
-${stopLoss ? `- **Stop Loss**: ₹${stopLoss.toLocaleString('en-IN')} (${Math.round(((currentPrice - stopLoss) / currentPrice) * 100)}% downside protection)` : ''}
-
-### 🧠 **Personalized Analysis**
-${reasoning.map(reason => `• ${reason}`).join('\n')}
-
-### ⚖️ **Risk Assessment: ${riskAssessment.level} RISK**
-${riskAssessment.factors.map(factor => `• ${factor}`).join('\n')}
-
-### 📋 **Action Plan**
-
-#### **Immediate Actions**
-${actionPlan.immediate.map(action => `• ${action}`).join('\n')}
-
-#### **Long-term Strategy**
-${actionPlan.longTerm.map(action => `• ${action}`).join('\n')}
-
-### 💡 **Personalized Insights for You**
-${personalizedInsights.map(insight => `• ${insight}`).join('\n')}
-
-### ⚠️ **Important Disclaimers**
-- This recommendation is personalized based on your stated preferences
-- Consider your complete financial situation before making investment decisions
-- Stock markets are subject to risks; past performance doesn't guarantee future results
-- Consider consulting with a financial advisor for comprehensive portfolio advice
-- Review and update your investment thesis regularly based on changing circumstances
-
-*This analysis is tailored specifically for your investment profile: ${context.riskTolerance} risk tolerance, ${context.investmentPeriod} investment horizon, ${context.currentHolding === 'yes' ? 'existing holder' : 'potential new investor'}.*`;
+    let response = `# 📊 ${stock.company_name} (${stock.symbol}) Analysis\n\n`;
+    
+    // Current Price and Change
+    response += `## 💰 Current Market Data\n`;
+    response += `**Current Price:** ₹${stock.current_price}\n`;
+    response += `**Day Change:** ${stock.day_change >= 0 ? '+' : ''}₹${stock.day_change.toFixed(2)} (${stock.day_change_percent >= 0 ? '+' : ''}${stock.day_change_percent.toFixed(2)}%)\n`;
+    response += `**Sector:** ${stock.sector} | **Market Cap:** ${stock.market_cap}\n\n`;
+    
+    // Add personalized profile section
+    response += `## 👤 Your Investment Profile\n`;
+    response += `**Investment Period:** ${context.investmentPeriod === 'short-term' ? 'Short-term (1-12 months)' : 'Long-term (1+ years)'}\n`;
+    response += `**Current Holding:** ${context.currentHolding === 'yes' ? 'Yes - You own this stock' : 'No - New investment consideration'}\n`;
+    response += `**Risk Tolerance:** ${context.riskTolerance.charAt(0).toUpperCase() + context.riskTolerance.slice(1)} Risk\n\n`;
+    
+    // Personalized Recommendation
+    response += `## 🎯 Personalized Recommendation\n`;
+    response += `**Action:** ${personalizedRecommendation.action} (${personalizedRecommendation.confidence}% confidence)\n`;
+    response += `**Time Horizon:** ${personalizedRecommendation.time_horizon.replace('_', ' ')}\n`;
+    
+    if (personalizedRecommendation.target_price) {
+      response += `**Target Price:** ₹${personalizedRecommendation.target_price.toFixed(2)}\n`;
+    }
+    if (personalizedRecommendation.stop_loss) {
+      response += `**Stop Loss:** ₹${personalizedRecommendation.stop_loss.toFixed(2)}\n`;
+    }
+    response += '\n';
+    
+    // Enhanced Reasoning with personalized insights
+    response += `### 📝 Key Reasoning:\n`;
+    personalizedRec.reasoning.forEach((reason, index) => {
+      response += `${index + 1}. ${reason}\n`;
+    });
+    response += '\n';
+    
+    // Add personalized insights as Key Analysis
+    if (personalizedRec.personalizedInsights.length > 0) {
+      response += `## 🎯 Key Personalized Analysis\n`;
+      personalizedRec.personalizedInsights.forEach((insight, index) => {
+        response += `• ${insight}\n`;
+      });
+      response += '\n';
+    }
+    
+    // Technical Analysis (original format)
+    if (tech) {
+      response += `## 📈 Technical Analysis\n`;
+      response += `**Trend:** ${tech.trend} | **RSI:** ${tech.rsi.toFixed(1)}\n`;
+      response += `**Support:** ₹${tech.support} | **Resistance:** ₹${tech.resistance}\n`;
+      response += `**30-Day Performance:** ${tech.priceChange30Days >= 0 ? '+' : ''}${tech.priceChange30Days.toFixed(1)}%\n`;
+      response += `**Volatility:** ${tech.volatility.toFixed(1)}%\n\n`;
+    }
+    
+    // Personalized Risk Assessment
+    response += `## ⚠️ Personalized Risk Assessment\n`;
+    response += `**Risk Level:** ${personalizedRec.riskAssessment.level}\n`;
+    response += `**Key Risks for Your Profile:**\n`;
+    personalizedRec.riskAssessment.factors.forEach((riskFactor, index) => {
+      response += `• ${riskFactor}\n`;
+    });
+    response += '\n';
+    
+    // Action Plan
+    if (personalizedRec.actionPlan.immediate.length > 0) {
+      response += `## 📋 Personalized Action Plan\n`;
+      response += `**Immediate Actions:**\n`;
+      personalizedRec.actionPlan.immediate.forEach((action, index) => {
+        response += `• ${action}\n`;
+      });
+      
+      if (personalizedRec.actionPlan.longTerm.length > 0) {
+        response += `\n**Long-term Considerations:**\n`;
+        personalizedRec.actionPlan.longTerm.forEach((action, index) => {
+          response += `• ${action}\n`;
+        });
+      }
+      response += '\n';
+    }
+    
+    // Add news sentiment and web research (original format)
+    if (originalAnalysis.news_sentiment.key_news.length > 0 || (originalAnalysis.web_research && originalAnalysis.web_research.search_results.length > 0)) {
+      if (originalAnalysis.news_sentiment.key_news.length > 0) {
+        response += `## 📰 Recent News Sentiment: ${originalAnalysis.news_sentiment.overall_sentiment}\n`;
+        originalAnalysis.news_sentiment.key_news.slice(0, 3).forEach((news, index) => {
+          response += `${index + 1}. **${news.sentiment}**: ${news.headline}\n`;
+        });
+        response += '\n';
+      }
+      
+      if (originalAnalysis.web_research && originalAnalysis.web_research.search_results.length > 0) {
+        response += `## 🌐 Market Research Sources\n`;
+        response += `Based on comprehensive web research using ${originalAnalysis.web_research.search_queries.length} search queries:\n\n`;
+      }
+    }
+    
+    response += `\n---\n*This analysis is personalized for your investment profile: ${context.investmentPeriod} investor with ${context.riskTolerance} risk tolerance.*`;
+    
+    return response;
   }
 }
