@@ -53,6 +53,7 @@ interface StockAnalysisReport {
     }>;
     search_queries: string[];
   };
+  screenerData?: any; // Screener.in financial metrics
 }
 
 interface InvestmentRecommendation {
@@ -255,7 +256,8 @@ export class InvestmentAnalysisService {
         news_sentiment: newsSentiment,
         recommendation: recommendation,
         risk_analysis: this.assessRiskLevel(quote, technicalAnalysis, newsSentiment),
-        web_research: webResearch
+        web_research: webResearch,
+        screenerData: screenerData // Include Screener.in financial metrics
       };
       
       console.log(`✅ Analysis complete for ${symbol}: ${recommendation.action} (${recommendation.confidence}% confidence)`);

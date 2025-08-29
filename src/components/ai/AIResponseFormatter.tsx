@@ -1116,6 +1116,162 @@ const ResearchInsightsCard: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
+const CompanyFundamentalsCard: React.FC<{ stockAnalysis?: any }> = ({ stockAnalysis }) => {
+  // Extract fundamental data from stockAnalysis and screenerData
+  if (!stockAnalysis) return null;
+  
+  const fundamentals = {
+    companyName: stockAnalysis.stock_info?.company_name || 'N/A',
+    currentPrice: stockAnalysis.stock_info?.current_price || null,
+    marketCap: stockAnalysis.screenerData?.marketCap || 'N/A',
+    eps: stockAnalysis.screenerData?.eps || null,
+    pe: stockAnalysis.screenerData?.pe || null,
+    roe: stockAnalysis.screenerData?.roe || null,
+    roce: stockAnalysis.screenerData?.roce || null,
+    bookValue: stockAnalysis.screenerData?.bookValue || null,
+    dividendYield: stockAnalysis.screenerData?.dividendYield || null,
+    revenueGrowth: stockAnalysis.screenerData?.revenueGrowth || null,
+    profitGrowth: stockAnalysis.screenerData?.profitGrowth || null,
+    debtToEquity: stockAnalysis.screenerData?.debtToEquity || null,
+    currentRatio: stockAnalysis.screenerData?.currentRatio || null
+  };
+  
+  // Only show if we have some meaningful data
+  const hasData = fundamentals.eps || fundamentals.pe || fundamentals.roe || fundamentals.currentPrice;
+  if (!hasData) return null;
+  
+  const formatValue = (value: any, suffix: string = ''): string => {
+    if (value === null || value === undefined || value === 'N/A') return 'N/A';
+    if (typeof value === 'number') {
+      return suffix === '₹' ? `₹${value.toFixed(2)}` : `${value}${suffix}`;
+    }
+    return `${value}${suffix}`;
+  };
+  
+  return (
+    <div className="my-6 p-6 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-600/10 dark:to-blue-600/10 rounded-xl border border-emerald-200 dark:border-emerald-600/30">
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-xl">🏢</span>
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-dark-text-primary">Company Fundamentals</h3>
+          <p className="text-sm text-gray-600 dark:text-dark-text-secondary">Real financial metrics from verified sources</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {/* Company Name - Full width on mobile */}
+        <div className="col-span-2 md:col-span-3 lg:col-span-4 bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+          <div className="text-lg font-bold text-gray-900 dark:text-dark-text-primary">{fundamentals.companyName}</div>
+          <div className="text-sm text-gray-500 dark:text-dark-text-muted">Listed Company</div>
+        </div>
+        
+        {/* Financial Metrics Grid */}
+        {fundamentals.currentPrice && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatValue(fundamentals.currentPrice, '₹')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">Current Price</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Real-time</div>
+          </div>
+        )}
+        
+        <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{fundamentals.marketCap}</div>
+          <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">Market Cap</div>
+          <div className="text-xs text-gray-500 dark:text-dark-text-muted">Total value</div>
+        </div>
+        
+        {fundamentals.eps && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatValue(fundamentals.eps, '₹')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">EPS</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Earnings per share</div>
+          </div>
+        )}
+        
+        {fundamentals.pe && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatValue(fundamentals.pe)}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">P/E Ratio</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Price to earnings</div>
+          </div>
+        )}
+        
+        {fundamentals.roe && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatValue(fundamentals.roe, '%')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">ROE</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Return on equity</div>
+          </div>
+        )}
+        
+        {fundamentals.roce && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{formatValue(fundamentals.roce, '%')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">ROCE</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Return on capital</div>
+          </div>
+        )}
+        
+        {fundamentals.bookValue && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatValue(fundamentals.bookValue, '₹')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">Book Value</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Asset backing</div>
+          </div>
+        )}
+        
+        {fundamentals.dividendYield && (
+          <div className="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border">
+            <div className="text-2xl font-bold text-pink-600 dark:text-pink-400">{formatValue(fundamentals.dividendYield, '%')}</div>
+            <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">Dividend Yield</div>
+            <div className="text-xs text-gray-500 dark:text-dark-text-muted">Income component</div>
+          </div>
+        )}
+      </div>
+      
+      {/* Additional metrics row if available */}
+      {(fundamentals.revenueGrowth || fundamentals.profitGrowth || fundamentals.debtToEquity || fundamentals.currentRatio) && (
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+          {fundamentals.revenueGrowth && (
+            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatValue(fundamentals.revenueGrowth, '%')}</div>
+              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Revenue Growth</div>
+            </div>
+          )}
+          
+          {fundamentals.profitGrowth && (
+            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+              <div className="text-lg font-bold text-green-600 dark:text-green-400">{formatValue(fundamentals.profitGrowth, '%')}</div>
+              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Profit Growth</div>
+            </div>
+          )}
+          
+          {fundamentals.debtToEquity && (
+            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+              <div className="text-lg font-bold text-red-600 dark:text-red-400">{formatValue(fundamentals.debtToEquity)}</div>
+              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Debt/Equity</div>
+            </div>
+          )}
+          
+          {fundamentals.currentRatio && (
+            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
+              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{formatValue(fundamentals.currentRatio)}</div>
+              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Current Ratio</div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="mt-4 text-xs text-gray-500 dark:text-dark-text-muted italic flex items-center space-x-2">
+        <span>📊</span>
+        <span>Data sourced from Screener.in and Groww API • Real-time pricing • Verified fundamentals</span>
+      </div>
+    </div>
+  );
+};
+
 const WebSourcesCard: React.FC<{ text: string; stockAnalysis?: any }> = ({ text, stockAnalysis }) => {
   // Extract web sources from different sections with improved parsing
   const webSources: Array<{ title: string; snippet: string; url: string; domain?: string }> = [];
@@ -2029,6 +2185,9 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text, 
       
       {/* Enhanced Text Formatting - using cleaned text without web sources */}
       <EnhancedText text={textWithoutWebSources} />
+      
+      {/* Company Fundamentals Card - shows real financial data */}
+      <CompanyFundamentalsCard stockAnalysis={stockAnalysis} />
       
       {/* Web Sources Card - positioned at the very end of the response */}
       <WebSourcesCard text={formattedText} stockAnalysis={stockAnalysis} />
