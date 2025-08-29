@@ -114,11 +114,12 @@ export class PersonalizedStockAnalysisService {
         else if (pe < 25) score += 15;
         else if (pe > 40) score -= 25; // Stronger negative signal
       } else if (context.riskTolerance === 'high') {
-        // Aggressive investors may accept higher PE for growth
-        if (pe < 10) score += 10; // Might be undervalued
-        else if (pe < 30) score += 25; // Stronger positive signal
-        else if (pe < 50) score += 10;
-        else score -= 15; // Very high PE is risky even for aggressive investors
+        // Aggressive investors focus on growth over valuation - especially for short-term momentum
+        if (pe < 10) score += 15; // Might be undervalued
+        else if (pe < 30) score += 30; // Stronger positive signal
+        else if (pe < 80) score += 15; // Accept higher PE for growth
+        else if (pe < 150) score += 5;  // Very high PE but acceptable for momentum plays
+        else score -= 10; // Extremely high PE - still risky
       } else { // medium risk tolerance
         if (pe < 20) score += 20;
         else if (pe < 30) score += 10;
@@ -159,10 +160,21 @@ export class PersonalizedStockAnalysisService {
   ): number {
     let score = 40; // Lower starting point for more range
     
-    // Technical analysis is more important for short-term investors
-    const technicalWeight = context.investmentPeriod === 'short-term' ? 1.5 : 0.8;
+    // Technical analysis is much more important for short-term high-risk investors
+    const technicalWeight = context.investmentPeriod === 'short-term' ? 
+      (context.riskTolerance === 'high' ? 2.0 : 1.5) : 0.8;
     
-    // Moving averages
+    // Check for 30-day performance momentum first - this is crucial for momentum stocks
+    if (analysis.technical_analysis?.priceChange30Days) {
+      const momentum30Day = analysis.technical_analysis.priceChange30Days;
+      if (momentum30Day > 40) score += 50 * technicalWeight;  // Exceptional momentum
+      else if (momentum30Day > 25) score += 35 * technicalWeight;
+      else if (momentum30Day > 15) score += 25 * technicalWeight;
+      else if (momentum30Day > 5) score += 15 * technicalWeight;
+      else if (momentum30Day < -15) score -= 25 * technicalWeight;
+    }
+    
+    // Moving averages and daily momentum
     if (analysis.stock_info?.current_price) {
       const currentPrice = analysis.stock_info.current_price;
       
@@ -171,12 +183,14 @@ export class PersonalizedStockAnalysisService {
         const dayChange = analysis.stock_info.day_change_percent;
         
         if (context.investmentPeriod === 'short-term') {
-          // Short-term: Recent momentum is important - stronger signals
-          if (dayChange > 4) score += 25 * technicalWeight;
-          else if (dayChange > 2) score += 18 * technicalWeight;
-          else if (dayChange > 0) score += 10 * technicalWeight;
-          else if (dayChange < -4) score -= 20 * technicalWeight;
-          else if (dayChange < -2) score -= 12 * technicalWeight;
+          // Short-term: Recent momentum is crucial - very strong signals
+          if (dayChange > 8) score += 40 * technicalWeight;  // Exceptional momentum
+          else if (dayChange > 5) score += 30 * technicalWeight;
+          else if (dayChange > 3) score += 25 * technicalWeight;
+          else if (dayChange > 1) score += 15 * technicalWeight;
+          else if (dayChange > 0) score += 8 * technicalWeight;
+          else if (dayChange < -5) score -= 25 * technicalWeight;
+          else if (dayChange < -3) score -= 15 * technicalWeight;
         } else {
           // Long-term: Focus on sustained trends, not daily volatility
           if (dayChange > 8) score += 10 * technicalWeight;  // Strong move might indicate trend
@@ -241,7 +255,7 @@ export class PersonalizedStockAnalysisService {
   ): number {
     let score = 40; // Lower starting point for more variation
     
-    // Adjust based on current holding status
+    // Adjust based on current holding status and risk profile
     if (context.currentHolding === 'yes') {
       // For existing holders, bias slightly towards hold/buy more
       score += 5;
@@ -251,9 +265,20 @@ export class PersonalizedStockAnalysisService {
         score += 8;
       }
     } else {
-      // For new investors, be more selective
-      if (analysis.screenerData?.pe && parseFloat(analysis.screenerData.pe) > 30) {
-        score -= 5; // Be cautious about high PE for new entry
+      // For new investors - different approach based on risk tolerance
+      if (context.riskTolerance === 'high') {
+        // High-risk investors can take advantage of momentum even with high valuations
+        if (analysis.technical_analysis?.priceChange30Days && analysis.technical_analysis.priceChange30Days > 30) {
+          score += 20; // Boost for exceptional momentum
+        }
+        if (analysis.stock_info?.day_change_percent && analysis.stock_info.day_change_percent > 5) {
+          score += 10; // Additional boost for strong daily performance
+        }
+      } else {
+        // Be cautious about high PE for conservative new entry
+        if (analysis.screenerData?.pe && parseFloat(analysis.screenerData.pe) > 30) {
+          score -= 5;
+        }
       }
     }
     
@@ -284,9 +309,10 @@ export class PersonalizedStockAnalysisService {
       weights.risk = 0.2;
       weights.personalized = 0.15;
     } else {
-      weights.fundamental = 0.3;
-      weights.technical = 0.35;
-      weights.risk = 0.2;
+      // For short-term, prioritize technical analysis over fundamentals
+      weights.fundamental = 0.25;
+      weights.technical = 0.45;  // Increased technical weight
+      weights.risk = 0.15;
       weights.personalized = 0.15;
     }
     
@@ -295,6 +321,12 @@ export class PersonalizedStockAnalysisService {
       weights.risk = 0.3;
       weights.fundamental = 0.4;
       weights.technical = 0.15;
+      weights.personalized = 0.15;
+    } else if (context.riskTolerance === 'high') {
+      // High-risk investors care more about momentum than fundamentals
+      weights.fundamental = 0.2;
+      weights.technical = 0.5;   // Prioritize technical signals
+      weights.risk = 0.15;
       weights.personalized = 0.15;
     }
     
