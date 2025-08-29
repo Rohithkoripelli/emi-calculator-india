@@ -6,7 +6,7 @@ import { AIResponseFormatter } from './AIResponseFormatter';
 // Import new services
 import { GrowwApiService, StockQuote, TechnicalAnalysis } from '../../services/growwApiService';
 import { NewsSearchService, TrendingStock, StockNews } from '../../services/newsSearchService';
-import { InvestmentAnalysisService, StockAnalysisReport, InvestmentRecommendation } from '../../services/investmentAnalysisService';
+import { InvestmentAnalysisService, StockAnalysisReport, InvestmentRecommendation, UserInvestmentPreferences } from '../../services/investmentAnalysisService';
 import { PortfolioAllocationService, StructuredPortfolioResponse } from '../../services/portfolioAllocationService';
 import { ExcelBasedStockAnalysisService } from '../../services/excelBasedStockAnalysis';
 import { IntentAnalysisService, QueryIntent } from '../../services/intentAnalysisService';
@@ -569,8 +569,8 @@ Please provide these details so I can give you a comprehensive portfolio recomme
           : msg
       ));
 
-      // Get comprehensive stock analysis first
-      const stockAnalysis = await InvestmentAnalysisService.analyzeStock(preferences.stockSymbol);
+      // Get comprehensive stock analysis with user preferences
+      const stockAnalysis = await InvestmentAnalysisService.analyzeStock(preferences.stockSymbol, preferences);
       
       if (!stockAnalysis) {
         throw new Error(`Unable to analyze ${preferences.stockSymbol}. Please check if it's a valid stock symbol.`);

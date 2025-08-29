@@ -127,6 +127,17 @@ interface InvestmentRecommendation {
   next_steps: string[];
 }
 
+/**
+ * User investment preferences for personalized analysis
+ */
+export interface UserInvestmentPreferences {
+  investmentPeriod: 'short-term' | 'long-term';
+  currentHolding: 'yes' | 'no';
+  riskTolerance: 'low' | 'medium' | 'high';
+  stockSymbol: string;
+  stockName: string;
+}
+
 export class InvestmentAnalysisService {
   private static readonly OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
   
@@ -148,7 +159,7 @@ export class InvestmentAnalysisService {
   /**
    * Analyze a specific stock with comprehensive data
    */
-  static async analyzeStock(symbol: string): Promise<StockAnalysisReport | null> {
+  static async analyzeStock(symbol: string, userPreferences?: UserInvestmentPreferences): Promise<StockAnalysisReport | null> {
     try {
       console.log(`🔍 Starting comprehensive analysis for ${symbol}...`);
       
@@ -231,7 +242,8 @@ export class InvestmentAnalysisService {
         stockNews,
         companyInfo,
         enhancedTechnicalAnalysis, // Pass the enhanced analysis for accurate targets
-        screenerData // Pass Screener.in financial metrics
+        screenerData, // Pass Screener.in financial metrics
+        userPreferences // Pass user investment preferences for personalized analysis
       });
       
       // Step 8: Compile the analysis report
@@ -995,6 +1007,76 @@ export class InvestmentAnalysisService {
         
         **NEVER USE**: "XX", "XX%", "[VALUE]", or any placeholders
         **ALWAYS USE**: Actual numerical values from Screener.in data with intelligent commentary
+
+        ${data.userPreferences ? `
+        === 👤 USER INVESTMENT PROFILE & PREFERENCES ===
+        **CRITICAL: This analysis must be tailored to the following user profile:**
+        
+        **Investment Horizon:** ${data.userPreferences.investmentPeriod === 'short-term' ? 'SHORT-TERM (1-12 months)' : 'LONG-TERM (1+ years)'}
+        **Current Holdings:** ${data.userPreferences.currentHolding === 'yes' ? 'YES - User currently owns this stock' : 'NO - New investment consideration'}
+        **Risk Tolerance:** ${data.userPreferences.riskTolerance.toUpperCase()} RISK TOLERANCE
+        
+        **🎯 PERSONALIZED ANALYSIS REQUIREMENTS:**
+        
+        ${data.userPreferences.investmentPeriod === 'short-term' ? `
+        **SHORT-TERM INVESTOR FOCUS (1-12 months):**
+        - Prioritize technical analysis and momentum indicators over long-term fundamentals
+        - Focus on RSI, moving averages, support/resistance for entry/exit timing
+        - Consider quarterly earnings potential and short-term catalysts
+        - Weight technical factors 70%, fundamentals 30% in recommendation
+        - Target price should be achievable within 6-12 months
+        - Stop loss should be tighter (5-10% range) for capital preservation
+        ` : `
+        **LONG-TERM INVESTOR FOCUS (1+ years):**
+        - Emphasize fundamental analysis, business quality, and growth prospects
+        - Focus on ROE, profit growth, debt levels, competitive moats
+        - Consider long-term industry trends and company strategic position
+        - Weight fundamentals 70%, technical factors 30% in recommendation  
+        - Target price can reflect 2-3 year growth potential
+        - Stop loss can be wider (15-20% range) for long-term wealth building
+        `}
+        
+        ${data.userPreferences.currentHolding === 'yes' ? `
+        **CURRENT HOLDER CONSIDERATIONS:**
+        - Provide specific guidance on whether to HOLD, ADD more shares, or SELL position
+        - Consider portfolio concentration and position sizing
+        - Evaluate cost averaging opportunities if stock has declined
+        - Address position management and profit-taking strategies
+        - Compare current levels to user's likely average purchase price
+        ` : `
+        **NEW INVESTOR CONSIDERATIONS:**
+        - Focus on optimal entry points and timing
+        - Provide clear justification for initiating a new position
+        - Consider position sizing relative to overall portfolio
+        - Address dollar-cost averaging vs lump sum investment
+        - Highlight key levels to watch for better entry opportunities
+        `}
+        
+        ${data.userPreferences.riskTolerance === 'low' ? `
+        **LOW RISK TOLERANCE ADJUSTMENTS:**
+        - Recommend only if stock shows strong fundamentals with limited downside
+        - Emphasize dividend yield, stable earnings, and blue-chip qualities
+        - Set conservative target prices and tighter stop losses
+        - Focus on capital preservation over aggressive growth
+        - Highlight quality metrics: ROE >15%, low debt/equity, stable margins
+        ` : data.userPreferences.riskTolerance === 'high' ? `
+        **HIGH RISK TOLERANCE ADJUSTMENTS:**
+        - Can recommend growth stocks with higher volatility for better returns
+        - Focus on earnings growth, revenue expansion, and market share gains
+        - Allow for wider stop losses and more aggressive target prices
+        - Consider momentum plays and technical breakouts
+        - Emphasize growth potential over dividend income
+        ` : `
+        **MODERATE RISK TOLERANCE ADJUSTMENTS:**
+        - Balance growth potential with stability and risk management
+        - Focus on quality growth stocks with reasonable valuations
+        - Set moderate target prices with balanced stop loss levels
+        - Consider both technical momentum and fundamental strength
+        - Look for stocks with good risk-reward ratio
+        `}
+        
+        **⚠️ MANDATORY: Your recommendation MUST reflect this user profile. A short-term, high-risk investor needs different advice than a long-term, conservative investor for the SAME stock.**
+        ` : ''}
       `;
       
       const response = await this.callOpenAI(prompt);
