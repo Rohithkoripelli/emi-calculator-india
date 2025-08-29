@@ -11,6 +11,12 @@ import { PortfolioAllocationService, StructuredPortfolioResponse } from '../../s
 import { ExcelBasedStockAnalysisService } from '../../services/excelBasedStockAnalysis';
 import { IntentAnalysisService, QueryIntent } from '../../services/intentAnalysisService';
 import { StockComparisonService, StockComparison } from '../../services/stockComparisonService';
+import InvestmentQuestionnaire, { InvestmentPreferences } from './InvestmentQuestionnaire';
+import { detectGenericInvestmentQuery } from '../../utils/investmentQuestionDetector';
+import { TailoredInvestmentService } from '../../services/tailoredInvestmentService';
+import StockAnalysisQuestionnaire, { StockAnalysisPreferences } from './StockAnalysisQuestionnaire';
+import { detectStockAnalysisQuery } from '../../utils/stockAnalysisQuestionDetector';
+import { PersonalizedStockAnalysisService } from '../../services/personalizedStockAnalysisService';
 
 interface Message {
   id: string;
@@ -22,6 +28,17 @@ interface Message {
   investmentRecommendation?: InvestmentRecommendation;
   isStreaming?: boolean;
   isComplete?: boolean;
+  showQuestionnaire?: boolean;
+  questionnaireData?: {
+    originalQuery: string;
+    extractedAmount?: number;
+  };
+  showStockQuestionnaire?: boolean;
+  stockQuestionnaireData?: {
+    originalQuery: string;
+    stockSymbol: string;
+    stockName: string;
+  };
 }
 
 
@@ -140,11 +157,48 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   };
 
   /**
-   * Handle stock analysis queries
+   * Handle stock analysis queries with optional questionnaire
    */
-  const handleStockAnalysis = async (stockSymbol: string, aiMessageId: string) => {
+  const handleStockAnalysis = async (stockSymbol: string, aiMessageId: string, originalQuery?: string) => {
     try {
       console.log(`📊 Starting stock analysis for ${stockSymbol}...`);
+      
+      // Check if this is a buy/sell recommendation query that needs questionnaire
+      if (originalQuery) {
+        const stockAnalysisCheck = detectStockAnalysisQuery(originalQuery);
+        console.log('🔍 Stock analysis detection:', stockAnalysisCheck);
+        
+        if (stockAnalysisCheck.needsQuestionnaire && stockAnalysisCheck.confidence >= 65) {
+          console.log('✅ Detected buy/sell query, showing stock questionnaire');
+          
+          // Get company name from ExcelBasedStockAnalysisService
+          const companyInfo = ExcelBasedStockAnalysisService.getCompanyBySymbol(stockSymbol);
+          const stockName = companyInfo?.name || stockSymbol;
+          
+          // Show stock analysis questionnaire
+          const questionnaireResponse = `I'd like to give you personalized advice for **${stockName}** (${stockSymbol})! 
+
+Let me ask you a few quick questions to provide the most relevant buy/sell recommendation based on your investment profile and situation.`;
+
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { 
+                  ...msg, 
+                  text: questionnaireResponse, 
+                  isStreaming: false, 
+                  isComplete: true,
+                  showStockQuestionnaire: true,
+                  stockQuestionnaireData: {
+                    originalQuery,
+                    stockSymbol,
+                    stockName
+                  }
+                }
+              : msg
+          ));
+          return;
+        }
+      }
       
       // Update message to show progress
       setMessages(prev => prev.map(msg => 
@@ -291,7 +345,37 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
     try {
       console.log(`💼 Generating investment recommendation for query: "${query}"`);
       
-      // If no amount specified, ask for clarification
+      // First, check if this is a generic investment query that should trigger questionnaire
+      const genericCheck = detectGenericInvestmentQuery(query);
+      console.log('🔍 Generic investment detection:', genericCheck);
+      
+      if (genericCheck.isGeneric && genericCheck.confidence >= 75) {
+        console.log('✅ Detected generic investment query, showing questionnaire');
+        
+        // Show interactive questionnaire
+        const questionnaireResponse = `I'd love to help you create a personalized investment strategy! 
+
+Let me ask you a few quick questions to provide the best recommendations tailored to your goals and preferences.`;
+
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId 
+            ? { 
+                ...msg, 
+                text: questionnaireResponse, 
+                isStreaming: false, 
+                isComplete: true,
+                showQuestionnaire: true,
+                questionnaireData: {
+                  originalQuery: query,
+                  extractedAmount: genericCheck.extractedAmount || amount
+                }
+              }
+            : msg
+        ));
+        return;
+      }
+      
+      // If no amount specified and not a generic query, ask for clarification
       if (!amount) {
         const clarificationResponse = `I'd be happy to help you with investment recommendations! 
 
@@ -382,6 +466,182 @@ Please provide these details so I can give you a comprehensive portfolio recomme
           : msg
       ));
     }
+  };
+
+  /**
+   * Handle questionnaire completion with tailored recommendations
+   */
+  const handleQuestionnaireComplete = async (preferences: InvestmentPreferences, messageId: string) => {
+    try {
+      console.log('📋 Processing questionnaire completion:', preferences);
+      
+      // Find the original query from the message
+      const message = messages.find(msg => msg.id === messageId);
+      const originalQuery = message?.questionnaireData?.originalQuery || 'investment recommendation';
+      
+      // Update message to show progress
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: `🎯 Creating your personalized investment strategy...\n\n• Analyzing your preferences\n• Selecting stocks from chosen sectors\n• Calculating optimal portfolio allocation\n• Generating tailored recommendations`,
+              showQuestionnaire: false,
+              isStreaming: true,
+              isComplete: false
+            }
+          : msg
+      ));
+
+      // Generate tailored recommendation
+      const tailoredRecommendation = await TailoredInvestmentService.generateTailoredRecommendation(
+        preferences,
+        originalQuery
+      );
+
+      // Format the recommendation for display
+      const formattedResponse = TailoredInvestmentService.formatTailoredRecommendation(tailoredRecommendation);
+
+      // Update message with final recommendation
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: formattedResponse,
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+
+    } catch (error) {
+      console.error('❌ Error processing questionnaire:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: `❌ Sorry, I couldn't process your investment preferences. ${error instanceof Error ? error.message : 'Please try again.'}\n\nYou can try asking a more specific investment question or restart the questionnaire.`,
+              showQuestionnaire: false,
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+    }
+  };
+
+  /**
+   * Handle questionnaire cancellation
+   */
+  const handleQuestionnaireCancel = (messageId: string) => {
+    console.log('❌ User cancelled questionnaire');
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { 
+            ...msg, 
+            text: `No problem! Feel free to ask me specific investment questions like:\n\n• "Should I buy Reliance stock?"\n• "Compare TCS vs Infosys"\n• "Analyze HDFC Bank for long-term investment"\n\nOr ask me about any other financial topics - I'm here to help! 😊`,
+            showQuestionnaire: false,
+            isStreaming: false, 
+            isComplete: true 
+          }
+        : msg
+    ));
+  };
+
+  /**
+   * Handle stock questionnaire completion with personalized analysis
+   */
+  const handleStockQuestionnaireComplete = async (preferences: StockAnalysisPreferences, messageId: string) => {
+    try {
+      console.log('📋 Processing stock questionnaire completion:', preferences);
+      
+      // Update message to show progress
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: `🎯 Creating personalized analysis for **${preferences.stockName}**...\n\n• Analyzing based on your ${preferences.investmentPeriod} investment horizon\n• Considering your ${preferences.riskTolerance} risk tolerance\n• Factoring in your current holding status\n• Generating tailored buy/sell recommendation`,
+              showStockQuestionnaire: false,
+              isStreaming: true,
+              isComplete: false
+            }
+          : msg
+      ));
+
+      // Get comprehensive stock analysis first
+      const stockAnalysis = await InvestmentAnalysisService.analyzeStock(preferences.stockSymbol);
+      
+      if (!stockAnalysis) {
+        throw new Error(`Unable to analyze ${preferences.stockSymbol}. Please check if it's a valid stock symbol.`);
+      }
+
+      // Generate personalized recommendation
+      const personalizedRecommendation = PersonalizedStockAnalysisService.generatePersonalizedRecommendation(
+        stockAnalysis,
+        preferences
+      );
+
+      // Format the personalized analysis
+      const formattedResponse = PersonalizedStockAnalysisService.formatPersonalizedRecommendation(
+        personalizedRecommendation,
+        {
+          investmentPeriod: preferences.investmentPeriod,
+          currentHolding: preferences.currentHolding,
+          riskTolerance: preferences.riskTolerance,
+          stockSymbol: preferences.stockSymbol,
+          stockName: preferences.stockName
+        },
+        stockAnalysis
+      );
+
+      // Update message with final personalized analysis
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: formattedResponse,
+              stockAnalysis: stockAnalysis, // Include original analysis for Company Fundamentals card
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+
+    } catch (error) {
+      console.error('❌ Error processing stock questionnaire:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: `❌ Sorry, I couldn't analyze ${preferences.stockName}. ${error instanceof Error ? error.message : 'Please try again.'}\n\nYou can try:\n• Asking about a different stock\n• Using a more specific stock symbol\n• Asking general investment questions`,
+              showStockQuestionnaire: false,
+              isStreaming: false, 
+              isComplete: true 
+            }
+          : msg
+      ));
+    }
+  };
+
+  /**
+   * Handle stock questionnaire cancellation
+   */
+  const handleStockQuestionnaireCancel = (messageId: string) => {
+    console.log('❌ User cancelled stock questionnaire');
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId 
+        ? { 
+            ...msg, 
+            text: `No problem! I can still provide a standard analysis. Feel free to ask:\n\n• "Analyze ${msg.stockQuestionnaireData?.stockName || 'any stock'}" (standard analysis)\n• "What's the current price of this stock?"\n• "Compare it with other stocks"\n\nOr ask about any other investment topics! 😊`,
+            showStockQuestionnaire: false,
+            isStreaming: false, 
+            isComplete: true 
+          }
+        : msg
+    ));
   };
 
   /**
@@ -867,7 +1127,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
           
           if (stockSymbol) {
             console.log(`✅ Stock symbol identified: ${stockSymbol} from query: "${userMessage}"`);
-            await handleStockAnalysis(stockSymbol, aiMessageId);
+            await handleStockAnalysis(stockSymbol, aiMessageId, userMessage);
           } else {
             // Stock not found in Excel database - try web search to find correct symbol
             console.log(`🔍 Stock not found in Excel database, searching web for: "${userMessage}"`);
@@ -896,7 +1156,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
                 
                 if (foundSymbol) {
                   console.log(`✅ Google search found symbol: ${foundSymbol} for query: "${userMessage}"`);
-                  await handleStockAnalysis(foundSymbol, aiMessageId);
+                  await handleStockAnalysis(foundSymbol, aiMessageId, userMessage);
                 } else {
                   throw new Error(`Could not find stock symbol for "${companyQuery}". Please try with more specific company names or known stock symbols.`);
                 }
@@ -1042,6 +1302,30 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
                 ) : (
                   <div className="text-sm">
                     <AIResponseFormatter text={message.text} stockAnalysis={message.stockAnalysis} />
+                    
+                    {/* Investment Questionnaire */}
+                    {message.showQuestionnaire && (
+                      <div className="mt-4">
+                        <InvestmentQuestionnaire
+                          initialAmount={message.questionnaireData?.extractedAmount}
+                          onComplete={(preferences) => handleQuestionnaireComplete(preferences, message.id)}
+                          onCancel={() => handleQuestionnaireCancel(message.id)}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Stock Analysis Questionnaire */}
+                    {message.showStockQuestionnaire && message.stockQuestionnaireData && (
+                      <div className="mt-4">
+                        <StockAnalysisQuestionnaire
+                          stockSymbol={message.stockQuestionnaireData.stockSymbol}
+                          stockName={message.stockQuestionnaireData.stockName}
+                          onComplete={(preferences) => handleStockQuestionnaireComplete(preferences, message.id)}
+                          onCancel={() => handleStockQuestionnaireCancel(message.id)}
+                        />
+                      </div>
+                    )}
+                    
                     {message.isStreaming && (
                       <div className="flex items-center space-x-2 mt-2">
                         <div className="animate-pulse flex space-x-1">

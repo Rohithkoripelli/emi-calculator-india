@@ -196,6 +196,27 @@ const tableStyles = `
   overflow: hidden !important;
 }
 
+/* URL overflow protection */
+.ai-response-content {
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.ai-response-content a,
+.ai-response-content code,
+.ai-response-content pre {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: pre-wrap !important;
+}
+
+/* Web source cards URL handling */
+.web-source-url {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+}
+
 /* Custom scrollbar for better UX */
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
@@ -313,8 +334,14 @@ const cleanMarkdownArtifacts = (text: string): string => {
   cleanText = cleanText.replace(/\s{3,}/g, ' ');
   cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
   
-  // Clean up any remaining markdown link formatting [text](url)
+  // Clean up any remaining markdown link formatting [text](url) and handle long URLs
   cleanText = cleanText.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  
+  // Break long URLs that might cause overflow in text content
+  cleanText = cleanText.replace(/(https?:\/\/[^\s]{50,})/g, (match) => {
+    // Add word-break opportunities in long URLs
+    return match.replace(/([\/\-_=&?])/g, '$1\u200B'); // Add zero-width space after URL separators
+  });
   
   return cleanText.trim();
 };
@@ -1691,6 +1718,15 @@ const WebSourcesCard: React.FC<{ text: string; stockAnalysis?: any }> = ({ text,
                   {source.snippet}
                 </p>
                 
+                {/* URL Display (truncated) */}
+                {source.url && source.url !== '#' && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded border">
+                    <span className="web-source-url">
+                      {source.url.length > 60 ? `${source.url.substring(0, 57)}...` : source.url}
+                    </span>
+                  </div>
+                )}
+                
                 {/* Action Button */}
                 <div className="flex items-center justify-between pt-2">
                   {source.url && source.url !== '#' ? (
@@ -2161,7 +2197,7 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text, 
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 ai-response-content">
       {/* Inject CSS styles for financial tables */}
       <style dangerouslySetInnerHTML={{ __html: tableStyles }} />
       
