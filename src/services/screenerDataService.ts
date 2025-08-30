@@ -77,34 +77,35 @@ export class ScreenerDataService {
       
       // Use WebFetch to get and parse the Screener.in page
       const prompt = `
-        IMPORTANT: Analyze the COMPLETE Screener.in page for stock ${stockSymbol}, including ALL sections from top to bottom.
-        This page contains quarterly results in the MIDDLE section and shareholding pattern data - you must capture this data from the full page.
+        IMPORTANT: Analyze the COMPLETE Screener.in page for stock ${stockSymbol} from TOP to BOTTOM.
+        This is a long page with multiple sections - you MUST scroll through ALL content to find the data.
         
         Extract comprehensive financial metrics from the ENTIRE page:
         
-        BASIC METRICS:
+        BASIC METRICS (Located in TOP section):
         - Market Cap (₹ Cr)
         - Current Price (₹)
         - Book Value (₹)
         - Dividend Yield (%)
         - Face Value (₹)
         
-        PROFITABILITY RATIOS:
+        PROFITABILITY RATIOS (Located in TOP section):
         - EPS (Earnings Per Share) in ₹
         - P/E Ratio
         - ROE (Return on Equity) %
         - ROCE (Return on Capital Employed) %
         
-        FINANCIAL HEALTH:
+        FINANCIAL HEALTH (Located in TOP section):
         - Debt to Equity Ratio
         - Current Ratio
         
-        OTHER RATIOS:
+        OTHER RATIOS (Located in TOP section):
         - P/BV (Price to Book Value)
         - EV/EBITDA
         
         QUARTERLY RESULTS (CRITICAL - Located in MIDDLE section of page):
-        Look in the middle section of the page for the quarterly results table.
+        Scroll down to the MIDDLE section of the page to find the quarterly results table.
+        This is NOT at the top - you need to look in the middle area of the long page.
         Extract exactly 4 quarters from the most recent quarterly results table:
         - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")  
         - Revenue/Sales/Total Income (in ₹ Cr)
@@ -112,8 +113,9 @@ export class ScreenerDataService {
         - EPS (Earnings Per Share in ₹)
         Look for section headers: "Quarterly Results", "Profit & Loss", "P&L Statement", or quarterly data tables.
         
-        SHAREHOLDING PATTERN (CRITICAL - Located in MIDDLE-TO-BOTTOM section of page):
-        Look for the shareholding pattern section, usually after the quarterly results in the middle section.
+        SHAREHOLDING PATTERN (CRITICAL - Located at the BOTTOM section of page):
+        Continue scrolling to the BOTTOM of the page to find the shareholding pattern section.
+        This is located AFTER the quarterly results section, near the end of the page.
         Extract current shareholding breakdown with percentages:
         - Promoters/Promoter Group %
         - Foreign Institutional Investors (FII/Foreign) %  
@@ -123,7 +125,12 @@ export class ScreenerDataService {
         - Others/Bodies Corporate % (if any)
         Look for: "Shareholding Pattern", "Ownership Structure", "Shareholder Details".
         
-        IMPORTANT: If you cannot find quarterly results or shareholding data, return null for these fields.
+        IMPORTANT: You MUST scroll through the ENTIRE page content to find all sections.
+        - TOP section: Basic metrics, ratios
+        - MIDDLE section: Quarterly results 
+        - BOTTOM section: Shareholding pattern
+        
+        If you cannot find quarterly results or shareholding data, return null for these fields.
         The quarterly results and shareholding arrays are MANDATORY if the data exists on the page.
         
         COMPANY INFO:
