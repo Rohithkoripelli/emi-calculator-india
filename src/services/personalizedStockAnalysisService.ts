@@ -64,7 +64,21 @@ export class PersonalizedStockAnalysisService {
       context
     );
     
-    const recommendation = this.getRecommendationFromScore(overallScore);
+    // Force decisive recommendations - avoid HOLD bias completely
+    let adjustedScore = overallScore;
+    
+    // Push scores away from the narrow HOLD range (49-50)
+    if (overallScore >= 49 && overallScore <= 50) {
+      // If exactly in HOLD range, push to BUY or SELL based on slight bias
+      if (overallScore >= 49.5) {
+        adjustedScore = 51; // Push to BUY
+      } else {
+        adjustedScore = 48; // Push to SELL  
+      }
+    }
+    
+    const recommendation = this.getRecommendationFromScore(adjustedScore);
+    console.log(`🎯 Score: ${overallScore} → Adjusted: ${adjustedScore} → Recommendation: ${recommendation}`);
     const confidence = this.calculateConfidence(overallScore, context);
     
     // Generate reasoning and insights
@@ -340,13 +354,13 @@ export class PersonalizedStockAnalysisService {
   }
   
   /**
-   * Convert numerical score to recommendation - Eliminate HOLD bias completely
+   * Convert numerical score to recommendation - Almost eliminate HOLD completely
    */
   private static getRecommendationFromScore(score: number): PersonalizedStockRecommendation['recommendation'] {
-    if (score >= 70) return 'STRONG_BUY';
-    if (score >= 55) return 'BUY';
-    if (score >= 48 && score <= 52) return 'HOLD';  // Very narrow HOLD range - only for truly neutral
-    if (score >= 35) return 'SELL';
+    if (score >= 65) return 'STRONG_BUY';
+    if (score >= 51) return 'BUY';
+    if (score >= 49 && score <= 50) return 'HOLD';  // Only 2-point range - extremely rare
+    if (score >= 30) return 'SELL';
     return 'STRONG_SELL';
   }
   
