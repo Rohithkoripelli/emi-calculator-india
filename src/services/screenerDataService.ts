@@ -113,8 +113,14 @@ export class ScreenerDataService {
         3. Find the "EPS in Rs" row - extract values from LAST 4 COLUMNS and label as "eps"
         4. Quarter names are in the column headers of those LAST 4 COLUMNS
         
-        Extract exactly like this structure:
-        - Quarter names from the last 4 column headers
+        CRITICAL COLUMN ORDER: The LAST column is the LATEST/MOST RECENT quarter.
+        - Last column (rightmost) = Latest quarter (e.g., Jun 2025)
+        - 2nd last column = Previous quarter (e.g., Mar 2025) 
+        - 3rd last column = Quarter before that (e.g., Dec 2024)
+        - 4th last column = Oldest of the 4 quarters (e.g., Sep 2024)
+        
+        Return quarters in LATEST-TO-OLDEST order (most recent first):
+        - Quarter names from the last 4 column headers (latest first)
         - Sales/Revenue values from "Sales" row, last 4 columns (in ₹ Cr)
         - Net Profit values from "Net Profit" row, last 4 columns (in ₹ Cr)
         - EPS values from "EPS in Rs" row, last 4 columns (in ₹)
