@@ -3,7 +3,21 @@
  * Dynamically constructs URLs and scrapes financial data from Screener.in
  */
 
-interface ScreenerFinancialMetrics {
+export interface QuarterlyResult {
+  quarter: string;
+  revenue: number;
+  profit: number;
+  eps: number;
+  percentageChange?: number;
+}
+
+export interface ShareholdingPattern {
+  category: string;
+  percentage: number;
+  shares?: number;
+}
+
+export interface ScreenerFinancialMetrics {
   // Basic metrics
   marketCap?: string;
   currentPrice?: number;
@@ -28,6 +42,10 @@ interface ScreenerFinancialMetrics {
   // Other metrics
   pbv?: number; // Price to Book Value
   evEbitda?: number;
+  
+  // New additions
+  quarterlyResults?: QuarterlyResult[];
+  shareholdingPattern?: ShareholdingPattern[];
   
   // Metadata
   companyName?: string;
@@ -76,10 +94,6 @@ export class ScreenerDataService {
         - ROE (Return on Equity) %
         - ROCE (Return on Capital Employed) %
         
-        GROWTH METRICS:
-        - Revenue Growth % (YoY or 3-year CAGR)
-        - Profit Growth % (YoY or 3-year CAGR)
-        
         FINANCIAL HEALTH:
         - Debt to Equity Ratio
         - Current Ratio
@@ -87,6 +101,21 @@ export class ScreenerDataService {
         OTHER RATIOS:
         - P/BV (Price to Book Value)
         - EV/EBITDA
+        
+        QUARTERLY RESULTS (Last 4 quarters):
+        Look for quarterly results table and extract:
+        - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")
+        - Revenue (in ₹ Cr)
+        - Profit (in ₹ Cr) 
+        - EPS (in ₹)
+        
+        SHAREHOLDING PATTERN:
+        Look for shareholding pattern section and extract:
+        - Promoters %
+        - FII (Foreign Institutional Investors) %
+        - DII (Domestic Institutional Investors) %
+        - Public %
+        - Others %
         
         COMPANY INFO:
         - Company Name
@@ -106,8 +135,18 @@ export class ScreenerDataService {
           "roce": 12.8,
           "bookValue": 245.6,
           "dividendYield": 1.2,
-          "revenueGrowth": 18.5,
-          "profitGrowth": 22.3,
+          "quarterlyResults": [
+            {"quarter": "Mar 2024", "revenue": 1250.5, "profit": 235.8, "eps": 12.4},
+            {"quarter": "Dec 2023", "revenue": 1180.2, "profit": 210.3, "eps": 11.1},
+            {"quarter": "Sep 2023", "revenue": 1095.7, "profit": 198.5, "eps": 10.5},
+            {"quarter": "Jun 2023", "revenue": 1020.3, "profit": 185.2, "eps": 9.8}
+          ],
+          "shareholdingPattern": [
+            {"category": "Promoters", "percentage": 52.5},
+            {"category": "FII", "percentage": 18.3},
+            {"category": "DII", "percentage": 12.7},
+            {"category": "Public", "percentage": 16.5}
+          ],
           "companyName": "Vimta Labs Limited",
           "sector": "Healthcare",
           "industry": "Testing Services"
@@ -224,14 +263,50 @@ export class ScreenerDataService {
       displayMetrics.push(`Company maintains a dividend yield of ${metrics.dividendYield}%, providing regular income to shareholders`);
     }
     
-    if (metrics.revenueGrowth !== undefined) {
-      displayMetrics.push(`Revenue has grown at ${metrics.revenueGrowth}% indicating business expansion`);
-    }
-    
-    if (metrics.profitGrowth !== undefined) {
-      displayMetrics.push(`Profit growth stands at ${metrics.profitGrowth}% showing earnings momentum`);
-    }
+    // Revenue and profit growth removed as requested
     
     return displayMetrics;
+  }
+  
+  /**
+   * Format quarterly results for table display
+   */
+  static formatQuarterlyResultsTable(quarterlyResults: QuarterlyResult[]): string {
+    if (!quarterlyResults || quarterlyResults.length === 0) {
+      return '';
+    }
+    
+    let table = `
+## 📊 Quarterly Results (Last 4 Quarters)
+
+| Quarter | Revenue (₹ Cr) | Profit (₹ Cr) | EPS (₹) |
+|---------|---------------|---------------|---------|`;
+    
+    quarterlyResults.forEach(quarter => {
+      table += `\n| ${quarter.quarter} | ${quarter.revenue.toFixed(2)} | ${quarter.profit.toFixed(2)} | ${quarter.eps.toFixed(2)} |`;
+    });
+    
+    return table + '\n';
+  }
+  
+  /**
+   * Format shareholding pattern for table display
+   */
+  static formatShareholdingPatternTable(shareholdingPattern: ShareholdingPattern[]): string {
+    if (!shareholdingPattern || shareholdingPattern.length === 0) {
+      return '';
+    }
+    
+    let table = `
+## 👥 Shareholding Pattern
+
+| Category | Percentage |
+|----------|------------|`;
+    
+    shareholdingPattern.forEach(holder => {
+      table += `\n| ${holder.category} | ${holder.percentage.toFixed(2)}% |`;
+    });
+    
+    return table + '\n';
   }
 }

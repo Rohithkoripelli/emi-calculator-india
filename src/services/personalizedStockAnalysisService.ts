@@ -340,13 +340,13 @@ export class PersonalizedStockAnalysisService {
   }
   
   /**
-   * Convert numerical score to recommendation - Optimized to reduce HOLD bias
+   * Convert numerical score to recommendation - Eliminate HOLD bias completely
    */
   private static getRecommendationFromScore(score: number): PersonalizedStockRecommendation['recommendation'] {
-    if (score >= 75) return 'STRONG_BUY';
-    if (score >= 60) return 'BUY';
-    if (score >= 45 && score <= 55) return 'HOLD';  // Narrow HOLD range
-    if (score >= 30) return 'SELL';
+    if (score >= 70) return 'STRONG_BUY';
+    if (score >= 55) return 'BUY';
+    if (score >= 48 && score <= 52) return 'HOLD';  // Very narrow HOLD range - only for truly neutral
+    if (score >= 35) return 'SELL';
     return 'STRONG_SELL';
   }
   

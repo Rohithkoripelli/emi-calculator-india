@@ -1268,23 +1268,9 @@ const CompanyFundamentalsCard: React.FC<{ stockAnalysis?: any }> = ({ stockAnaly
         )}
       </div>
       
-      {/* Additional metrics row if available */}
-      {(fundamentals.revenueGrowth || fundamentals.profitGrowth || fundamentals.debtToEquity || fundamentals.currentRatio) && (
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {fundamentals.revenueGrowth && (
-            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
-              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatValue(fundamentals.revenueGrowth, '%')}</div>
-              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Revenue Growth</div>
-            </div>
-          )}
-          
-          {fundamentals.profitGrowth && (
-            <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
-              <div className="text-lg font-bold text-green-600 dark:text-green-400">{formatValue(fundamentals.profitGrowth, '%')}</div>
-              <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Profit Growth</div>
-            </div>
-          )}
-          
+      {/* Additional metrics row if available (removed revenue and profit growth as requested) */}
+      {(fundamentals.debtToEquity || fundamentals.currentRatio) && (
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-2 gap-4">
           {fundamentals.debtToEquity && (
             <div className="bg-white dark:bg-dark-surface p-3 rounded-lg border border-gray-200 dark:border-dark-border">
               <div className="text-lg font-bold text-red-600 dark:text-red-400">{formatValue(fundamentals.debtToEquity)}</div>
@@ -1298,6 +1284,64 @@ const CompanyFundamentalsCard: React.FC<{ stockAnalysis?: any }> = ({ stockAnaly
               <div className="text-xs text-gray-600 dark:text-dark-text-secondary">Current Ratio</div>
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Quarterly Results Table */}
+      {stockAnalysis.screenerData?.quarterlyResults && stockAnalysis.screenerData.quarterlyResults.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary mb-4 flex items-center">
+            📊 Quarterly Results (Last 4 Quarters)
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quarter</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Revenue (₹ Cr)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit (₹ Cr)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">EPS (₹)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {stockAnalysis.screenerData.quarterlyResults.map((quarter: any, index: number) => (
+                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-dark-text-primary">{quarter.quarter}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-dark-text-secondary">{quarter.revenue.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-dark-text-secondary">{quarter.profit.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-dark-text-secondary">{quarter.eps.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Shareholding Pattern Table */}
+      {stockAnalysis.screenerData?.shareholdingPattern && stockAnalysis.screenerData.shareholdingPattern.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary mb-4 flex items-center">
+            👥 Shareholding Pattern
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white dark:bg-dark-surface rounded-lg border border-gray-200 dark:border-dark-border">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Category</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Percentage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {stockAnalysis.screenerData.shareholdingPattern.map((holder: any, index: number) => (
+                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-dark-text-primary">{holder.category}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-dark-text-secondary">{holder.percentage.toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       
