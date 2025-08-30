@@ -104,26 +104,33 @@ export class ScreenerDataService {
         - EV/EBITDA
         
         QUARTERLY RESULTS (CRITICAL - Located in MIDDLE section of page):
-        Scroll down to the MIDDLE section of the page to find the quarterly results table.
-        This is NOT at the top - you need to look in the middle area of the long page.
-        Extract exactly 4 quarters from the most recent quarterly results table:
-        - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")  
-        - Revenue/Sales/Total Income (in ₹ Cr)
-        - Net Profit/PAT (in ₹ Cr) 
-        - EPS (Earnings Per Share in ₹)
-        Look for section headers: "Quarterly Results", "Profit & Loss", "P&L Statement", or quarterly data tables.
+        Scroll down to the MIDDLE section to find the "Quarterly Results" table.
+        From this table, extract data from the LAST 4 COLUMNS only (most recent quarters):
+        
+        IMPORTANT TABLE EXTRACTION RULES:
+        1. Find the "Sales" row - extract values from LAST 4 COLUMNS and label as "revenue"
+        2. Find the "Net Profit" row - extract values from LAST 4 COLUMNS and label as "profit"  
+        3. Find the "EPS in Rs" row - extract values from LAST 4 COLUMNS and label as "eps"
+        4. Quarter names are in the column headers of those LAST 4 COLUMNS
+        
+        Extract exactly like this structure:
+        - Quarter names from the last 4 column headers
+        - Sales/Revenue values from "Sales" row, last 4 columns (in ₹ Cr)
+        - Net Profit values from "Net Profit" row, last 4 columns (in ₹ Cr)
+        - EPS values from "EPS in Rs" row, last 4 columns (in ₹)
         
         SHAREHOLDING PATTERN (CRITICAL - Located at the BOTTOM section of page):
-        Continue scrolling to the BOTTOM of the page to find the shareholding pattern section.
-        This is located AFTER the quarterly results section, near the end of the page.
-        Extract current shareholding breakdown with percentages:
-        - Promoters/Promoter Group %
-        - Foreign Institutional Investors (FII/Foreign) %  
-        - Domestic Institutional Investors (DII/Mutual Funds) %
-        - Public/Retail/Individual Investors %
-        - Government % (if listed)
-        - Others/Bodies Corporate % (if any)
-        Look for: "Shareholding Pattern", "Ownership Structure", "Shareholder Details".
+        Continue scrolling to the BOTTOM of the page to find the "Shareholding Pattern" table.
+        
+        IMPORTANT TABLE EXTRACTION RULES:
+        1. Find the "Shareholding Pattern" table
+        2. Extract data from the LAST COLUMN ONLY (most recent data)
+        3. Get ALL row names and their corresponding values from that last column
+        4. Include ALL categories shown in the table rows (Promoters, FII, DII, Public, Government, Others, etc.)
+        
+        Extract exactly like this structure:
+        - Category name from each row label
+        - Percentage value from the LAST COLUMN only for each row
         
         IMPORTANT: You MUST scroll through the ENTIRE page content to find all sections.
         - TOP section: Basic metrics, ratios

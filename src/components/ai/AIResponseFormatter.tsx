@@ -1180,7 +1180,7 @@ const CompanyFundamentalsCard: React.FC<{ stockAnalysis?: any }> = ({ stockAnaly
   const formatValue = (value: any, suffix: string = ''): string => {
     if (value === null || value === undefined || value === 'N/A') return 'N/A';
     if (typeof value === 'number') {
-      return suffix === '₹' ? `₹${value.toFixed(2)}` : `${value}${suffix}`;
+      return suffix === '₹' ? `₹${value.toFixed(2)}` : `${value.toFixed(2)}${suffix}`;
     }
     return `${value}${suffix}`;
   };
@@ -1298,9 +1298,9 @@ const CompanyFundamentalsCard: React.FC<{ stockAnalysis?: any }> = ({ stockAnaly
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Quarter</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Revenue (₹ Cr)</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit (₹ Cr)</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">EPS (₹)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sales (₹ Cr)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Net Profit (₹ Cr)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">EPS in Rs (₹)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
