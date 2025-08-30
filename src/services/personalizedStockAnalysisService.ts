@@ -64,21 +64,33 @@ export class PersonalizedStockAnalysisService {
       context
     );
     
-    // Force decisive recommendations - avoid HOLD bias completely
-    let adjustedScore = overallScore;
+    // Use OpenAI recommendation as primary, personalize the confidence and reasoning only
+    const originalRecommendation = stockAnalysis.recommendation?.action?.toUpperCase();
+    let recommendation: PersonalizedStockRecommendation['recommendation'];
     
-    // Push scores away from the narrow HOLD range (49-50)
-    if (overallScore >= 49 && overallScore <= 50) {
-      // If exactly in HOLD range, push to BUY or SELL based on slight bias
-      if (overallScore >= 49.5) {
-        adjustedScore = 51; // Push to BUY
+    if (originalRecommendation === 'HOLD') {
+      // For HOLD from OpenAI, apply our anti-HOLD logic based on personalized score
+      if (overallScore >= 55) {
+        recommendation = 'BUY';
+      } else if (overallScore <= 45) {
+        recommendation = 'SELL';  
       } else {
-        adjustedScore = 48; // Push to SELL  
+        // Force to BUY or SELL even from neutral score
+        recommendation = overallScore >= 50 ? 'BUY' : 'SELL';
+      }
+    } else {
+      // For BUY/SELL from OpenAI, map to our strength levels based on personalized score
+      if (originalRecommendation === 'BUY') {
+        recommendation = overallScore >= 65 ? 'STRONG_BUY' : 'BUY';
+      } else if (originalRecommendation === 'SELL') {
+        recommendation = overallScore <= 35 ? 'STRONG_SELL' : 'SELL';
+      } else {
+        // Fallback to score-based recommendation
+        recommendation = this.getRecommendationFromScore(overallScore);
       }
     }
     
-    const recommendation = this.getRecommendationFromScore(adjustedScore);
-    console.log(`🎯 Score: ${overallScore} → Adjusted: ${adjustedScore} → Recommendation: ${recommendation}`);
+    console.log(`🎯 OpenAI: ${originalRecommendation} → Score: ${overallScore} → Final: ${recommendation}`);
     const confidence = this.calculateConfidence(overallScore, context);
     
     // Generate reasoning and insights

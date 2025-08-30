@@ -102,20 +102,26 @@ export class ScreenerDataService {
         - P/BV (Price to Book Value)
         - EV/EBITDA
         
-        QUARTERLY RESULTS (Last 4 quarters):
-        Look for quarterly results table and extract:
-        - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")
-        - Revenue (in ₹ Cr)
-        - Profit (in ₹ Cr) 
+        QUARTERLY RESULTS (CRITICAL - Must extract table data):
+        Find the quarterly results table/section and extract exactly 4 quarters:
+        - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")  
+        - Revenue/Sales (in ₹ Cr)
+        - Net Profit/PAT (in ₹ Cr) 
         - EPS (in ₹)
+        Look for table headers like "Quarterly Results", "Profit & Loss", or similar sections.
         
-        SHAREHOLDING PATTERN:
-        Look for shareholding pattern section and extract:
-        - Promoters %
-        - FII (Foreign Institutional Investors) %
-        - DII (Domestic Institutional Investors) %
-        - Public %
-        - Others %
+        SHAREHOLDING PATTERN (CRITICAL - Must extract ownership data):
+        Find shareholding pattern section and extract ownership percentages:
+        - Promoters/Promoter Group %
+        - Foreign Institutional Investors (FII) %  
+        - Domestic Institutional Investors (DII) %
+        - Public/Retail Investors %
+        - Government % (if any)
+        - Others % (if any)
+        Look for sections titled "Shareholding Pattern", "Ownership", or similar.
+        
+        IMPORTANT: If you cannot find quarterly results or shareholding data, return null for these fields.
+        The quarterly results and shareholding arrays are MANDATORY if the data exists on the page.
         
         COMPANY INFO:
         - Company Name
@@ -124,6 +130,9 @@ export class ScreenerDataService {
         
         Return ONLY a JSON object with the extracted values. Use null for any metrics not found.
         Format numbers without currency symbols or percentage signs (just the numeric value).
+        
+        CRITICAL: If you find quarterly results or shareholding data, you MUST include them as arrays.
+        Do NOT return null for these if the data exists on the page.
         
         Example format:
         {
@@ -157,6 +166,14 @@ export class ScreenerDataService {
       const extractedData = await WebFetch(url, prompt);
       
       console.log(`📊 Raw Screener data for ${stockSymbol}:`, extractedData);
+      
+      // Debug: Check if the response contains quarterly table indicators
+      const hasQuarterlyData = extractedData.includes('quarterly') || extractedData.includes('Quarter') || 
+                              extractedData.includes('Mar 2024') || extractedData.includes('Dec 2023');
+      const hasShareholdingData = extractedData.includes('Promoter') || extractedData.includes('FII') || 
+                                 extractedData.includes('shareholding') || extractedData.includes('Shareholding');
+      console.log(`🔍 Quarterly data indicators found: ${hasQuarterlyData}`);
+      console.log(`🔍 Shareholding data indicators found: ${hasShareholdingData}`);
       
       // Try to parse the extracted data as JSON
       let financialMetrics: ScreenerFinancialMetrics = {};
