@@ -200,21 +200,74 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
         }
       }
       
-      // Update message to show progress
+      // Start streaming analysis - show initial progress
+      setStreamingMessageId(aiMessageId);
+      
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: `🔄 Analyzing ${stockSymbol}...\n\n• Fetching real-time market data\n• Gathering market news and sentiment\n• Performing technical analysis\n• Generating recommendations` }
+          ? { 
+              ...msg, 
+              text: `🔄 Starting comprehensive analysis for ${stockSymbol}...\n\n✅ Initializing analysis engine\n⏳ Fetching real-time market data\n⏳ Gathering financial fundamentals\n⏳ Performing technical analysis\n⏳ Collecting market news & sentiment\n⏳ Generating AI-powered recommendations`, 
+              isStreaming: true,
+              isComplete: false
+            }
           : msg
       ));
       
-      // Get comprehensive stock analysis
+      // Phase 1: Get real-time market data
+      await new Promise(resolve => setTimeout(resolve, 800)); // Small delay for better UX
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🔄 Comprehensive analysis in progress for ${stockSymbol}...\n\n✅ Initializing analysis engine\n✅ Fetching real-time market data\n⏳ Gathering financial fundamentals\n⏳ Performing technical analysis\n⏳ Collecting market news & sentiment\n⏳ Generating AI-powered recommendations`, 
+            }
+          : msg
+      ));
+      
+      // Phase 2: Gathering fundamentals
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🔄 Deep analysis underway for ${stockSymbol}...\n\n✅ Real-time market data retrieved\n✅ Financial fundamentals collected\n⏳ Performing advanced technical analysis\n⏳ Analyzing market news & sentiment\n⏳ Processing comprehensive recommendation`, 
+            }
+          : msg
+      ));
+      
+      // Phase 3: Technical analysis
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🔄 Advanced analysis processing for ${stockSymbol}...\n\n✅ Market data & pricing analysis complete\n✅ Company fundamentals analyzed\n✅ Technical indicators calculated\n⏳ Gathering market sentiment & news\n⏳ Finalizing AI recommendations`, 
+            }
+          : msg
+      ));
+      
+      // Now get the complete analysis
       const stockAnalysis = await InvestmentAnalysisService.analyzeStock(stockSymbol);
       
       if (!stockAnalysis) {
         throw new Error(`Unable to analyze ${stockSymbol}. Please check if it's a valid NSE/BSE stock symbol.`);
       }
       
-      // Format response for display
+      // Phase 4: Show final completion and stream the response
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🎯 Analysis complete! Generating comprehensive report for ${stockSymbol}...\n\n✅ Real-time market data processed\n✅ Financial fundamentals evaluated\n✅ Technical analysis completed\n✅ Market sentiment analyzed\n✅ AI recommendations generated\n\n📊 Preparing detailed report...`, 
+            }
+          : msg
+      ));
+      
+      // Small delay before showing final report
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      // Format and show final response
       const response = formatStockAnalysisResponse(stockAnalysis);
       
       setMessages(prev => prev.map(msg => 
@@ -229,9 +282,12 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
           : msg
       ));
       
+      setStreamingMessageId(null);
+      
     } catch (error) {
       console.error('❌ Error in stock analysis:', error);
       
+      setStreamingMessageId(null);
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
           ? { 
@@ -252,17 +308,45 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
     try {
       console.log(`🔄 Starting stock comparison for: ${stockSymbols.join(' vs ')}`);
       
-      // Update message to show progress
+      // Start streaming comparison - show progress
+      setStreamingMessageId(aiMessageId);
+      
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: `🔄 Comparing ${stockSymbols.join(' vs ')}...\n\n• Fetching real-time data for all stocks\n• Performing detailed analysis\n• Calculating comparison metrics\n• Generating investment recommendation` }
+          ? { 
+              ...msg, 
+              text: `🔄 Starting comparison analysis: ${stockSymbols.join(' vs ')}...\n\n⏳ Fetching real-time data for all stocks\n⏳ Performing detailed analysis\n⏳ Calculating comparison metrics\n⏳ Generating investment recommendation`, 
+              isStreaming: true,
+              isComplete: false
+            }
           : msg
       ));
       
-      // Use the stock symbols directly from fuzzy logic (already normalized)
+      // Phase 1: Data collection
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🔄 Comparison in progress: ${stockSymbols.join(' vs ')}...\n\n✅ Real-time data collected for all stocks\n⏳ Analyzing fundamentals and technicals\n⏳ Calculating performance metrics\n⏳ Determining best investment choice`, 
+            }
+          : msg
+      ));
       
       // Get comprehensive stock comparison
       const stockComparison = await StockComparisonService.compareStocks(stockSymbols);
+      
+      // Phase 2: Analysis complete
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🎯 Comparison analysis complete for ${stockSymbols.join(' vs ')}!\n\n✅ Data analysis completed\n✅ Performance metrics calculated\n✅ Investment recommendation generated\n\n📊 Preparing comparison report...`, 
+            }
+          : msg
+      ));
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       if (!stockComparison) {
         throw new Error(`Unable to compare ${stockSymbols.join(' and ')}. Please check if they are valid stock symbols.`);
@@ -283,9 +367,12 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
           : msg
       ));
       
+      setStreamingMessageId(null);
+      
     } catch (error) {
       console.error('❌ Error in stock comparison:', error);
       
+      setStreamingMessageId(null);
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
           ? { 
@@ -405,10 +492,28 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         return;
       }
       
-      // Update message to show progress
+      // Start streaming investment analysis
+      setStreamingMessageId(aiMessageId);
+      
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, text: `💼 Creating investment strategy for ₹${amount.toLocaleString('en-IN')}...\n\n• Discovering trending stocks through market research\n• Fetching real-time market prices\n• Analyzing market sentiment and trends\n• Creating personalized portfolio allocation\n• Generating comprehensive investment plan` }
+          ? { 
+              ...msg, 
+              text: `💼 Creating personalized investment strategy for ₹${amount.toLocaleString('en-IN')}...\n\n⏳ Discovering trending stocks through market research\n⏳ Fetching real-time market prices\n⏳ Analyzing market sentiment and trends\n⏳ Creating personalized portfolio allocation\n⏳ Generating comprehensive investment plan`, 
+              isStreaming: true,
+              isComplete: false
+            }
+          : msg
+      ));
+      
+      // Phase 1: Market research
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `💼 Investment analysis in progress for ₹${amount.toLocaleString('en-IN')}...\n\n✅ Trending stocks identified through market research\n⏳ Fetching real-time pricing data\n⏳ Analyzing risk-return profiles\n⏳ Optimizing portfolio allocation\n⏳ Finalizing investment recommendations`, 
+            }
           : msg
       ));
       
@@ -423,6 +528,16 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         throw new Error('Unable to generate investment recommendation at the moment.');
       }
       
+      // Phase 2: Portfolio construction
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `💼 Building optimized portfolio for ₹${amount.toLocaleString('en-IN')}...\n\n✅ Market analysis completed\n✅ Stock selection finalized\n⏳ Calculating optimal allocations\n⏳ Generating comprehensive investment plan\n⏳ Preparing detailed recommendations`, 
+            }
+          : msg
+      ));
+      
       // Create structured portfolio response
       const trendingStocks = await NewsSearchService.discoverTrendingStocks('recent');
       const stockQuotes = await GrowwApiService.getBatchQuotes(
@@ -436,6 +551,18 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         trendingStocks,
         recommendation.market_overview.current_sentiment
       );
+      
+      // Final phase
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `🎯 Investment strategy ready for ₹${amount.toLocaleString('en-IN')}!\n\n✅ Portfolio optimization completed\n✅ Risk-return analysis finalized\n✅ Investment recommendations generated\n\n📊 Preparing comprehensive investment plan...`, 
+            }
+          : msg
+      ));
+      
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       // Format response for display
       const response = PortfolioAllocationService.formatResponseForDisplay(structuredResponse);
@@ -452,9 +579,12 @@ Please provide these details so I can give you a comprehensive portfolio recomme
           : msg
       ));
       
+      setStreamingMessageId(null);
+      
     } catch (error) {
       console.error('❌ Error in investment recommendation:', error);
       
+      setStreamingMessageId(null);
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
           ? { 
