@@ -33,7 +33,7 @@ interface StockAnalysisReport {
     sentiment_score: number;
   };
   recommendation: {
-    action: 'BUY' | 'SELL' | 'HOLD';
+    action: 'STRONG_BUY' | 'BUY' | 'SELL' | 'STRONG_SELL' | 'HOLD';
     confidence: number;
     target_price: number | null;
     stop_loss: number | null;
@@ -917,24 +917,40 @@ export class InvestmentAnalysisService {
         5. Debt/Equity < 0.5 AND Current Ratio > 1.5 (strong financial health)
         6. EPS growing YoY AND dividend yield > 1% (earnings + income)
 
-        **BUY Signals (Need 3+ factors):**
+        **🚀 STRONG BUY Signals (Need 4+ factors):**
+        1. P/E < 20 AND ROE > 18% (excellent valuation + returns)
+        2. Revenue/Profit growth > 15% consistently (strong business expansion)
+        3. RSI 40-65 with strong positive momentum (healthy buying interest)
+        4. Price breaking above resistance with volume (technical breakout)
+        5. Low debt with excellent liquidity ratios (financial strength)
+        6. Strong market position in growing sector
+
+        **📈 BUY Signals (Need 3+ factors):**
         1. P/E < 25 AND ROE > 12% (reasonable valuation)
         2. Revenue/Profit growth positive (business expanding)
         3. RSI 40-70 with positive momentum (not overbought/oversold)
         4. Price holding above key support levels (technical strength)
         5. Low debt with good liquidity ratios (financial stability)
 
-        **SELL Signals (Need 3+ factors):**
-        1. P/E > 40 with declining ROE < 10% (overvalued with poor returns)
-        2. Revenue/Profit growth negative for 2+ quarters (business deteriorating)
-        3. RSI > 75 OR 30-day performance < -15% (overbought or weak momentum)
-        4. High debt/equity > 1.0 with current ratio < 1.2 (financial stress)
+        **📉 SELL Signals (Need 3+ factors):**
+        1. P/E > 35 with declining ROE < 12% (overvalued with poor returns)
+        2. Revenue/Profit growth negative or declining margins (business deteriorating)
+        3. RSI > 70 OR 30-day performance < -10% (overbought or weak momentum)
+        4. High debt/equity > 0.8 with declining cash flow (financial stress)
         5. Price breaking key support with high volatility (technical breakdown)
 
-        **HOLD Criteria:**
-        - Mixed signals from fundamental and technical analysis
-        - Fair valuation with stable but not exciting growth
-        - Consolidating price action in trading range
+        **🔻 STRONG SELL Signals (Need 4+ factors):**
+        1. P/E > 50 with ROE < 8% (severely overvalued + poor returns)
+        2. Revenue/Profit declining for 2+ quarters (business in trouble)
+        3. RSI > 75 OR 30-day performance < -20% (severely overbought or collapsing)
+        4. High debt with liquidity issues (financial distress)
+        5. Major technical breakdown below multiple support levels
+        6. Sector headwinds or regulatory issues
+
+        **⚠️ AVOID HOLD RECOMMENDATIONS:**
+        - If signals are mixed, choose BUY or SELL based on the dominant trend
+        - For neutral stocks, lean toward SELL if any red flags exist
+        - Only use HOLD in extremely rare cases where analysis is perfectly balanced
 
         **⚠️ CRITICAL ANALYSIS REQUIREMENTS:**
         1. **VALUATION ANALYSIS**: Compare P/E to industry standards. Is EPS sustainable?
@@ -956,9 +972,9 @@ export class InvestmentAnalysisService {
         ` : ''}
         Technical Score: ${data.technicalAnalysis?.priceChange30Days && data.technicalAnalysis.priceChange30Days > 0 ? '✅' : '⚠️'} Momentum, ${data.technicalAnalysis?.rsi && data.technicalAnalysis.rsi >= 40 && data.technicalAnalysis.rsi <= 70 ? '✅' : '⚠️'} RSI
 
-        Provide your analysis in this exact JSON format:
+        Provide your analysis in this exact JSON format (prefer STRONG_BUY/STRONG_SELL for clear signals):
         {
-          "action": "BUY|SELL|HOLD",
+          "action": "STRONG_BUY|BUY|SELL|STRONG_SELL",
           "confidence": number (0-100),
           "target_price": number or null,
           "stop_loss": number or null,

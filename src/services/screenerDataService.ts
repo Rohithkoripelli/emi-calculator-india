@@ -77,9 +77,10 @@ export class ScreenerDataService {
       
       // Use WebFetch to get and parse the Screener.in page
       const prompt = `
-        Extract comprehensive financial metrics from this Screener.in page for stock ${stockSymbol}.
+        IMPORTANT: Analyze the COMPLETE Screener.in page for stock ${stockSymbol}, including ALL sections from top to bottom.
+        This page contains quarterly results in the MIDDLE section and shareholding pattern data - you must capture this data from the full page.
         
-        Look for and extract these specific financial metrics:
+        Extract comprehensive financial metrics from the ENTIRE page:
         
         BASIC METRICS:
         - Market Cap (₹ Cr)
@@ -102,23 +103,25 @@ export class ScreenerDataService {
         - P/BV (Price to Book Value)
         - EV/EBITDA
         
-        QUARTERLY RESULTS (CRITICAL - Must extract table data):
-        Find the quarterly results table/section and extract exactly 4 quarters:
+        QUARTERLY RESULTS (CRITICAL - Located in MIDDLE section of page):
+        Look in the middle section of the page for the quarterly results table.
+        Extract exactly 4 quarters from the most recent quarterly results table:
         - Quarter name (e.g., "Mar 2024", "Dec 2023", "Sep 2023", "Jun 2023")  
-        - Revenue/Sales (in ₹ Cr)
+        - Revenue/Sales/Total Income (in ₹ Cr)
         - Net Profit/PAT (in ₹ Cr) 
-        - EPS (in ₹)
-        Look for table headers like "Quarterly Results", "Profit & Loss", or similar sections.
+        - EPS (Earnings Per Share in ₹)
+        Look for section headers: "Quarterly Results", "Profit & Loss", "P&L Statement", or quarterly data tables.
         
-        SHAREHOLDING PATTERN (CRITICAL - Must extract ownership data):
-        Find shareholding pattern section and extract ownership percentages:
+        SHAREHOLDING PATTERN (CRITICAL - Located in MIDDLE-TO-BOTTOM section of page):
+        Look for the shareholding pattern section, usually after the quarterly results in the middle section.
+        Extract current shareholding breakdown with percentages:
         - Promoters/Promoter Group %
-        - Foreign Institutional Investors (FII) %  
-        - Domestic Institutional Investors (DII) %
-        - Public/Retail Investors %
-        - Government % (if any)
-        - Others % (if any)
-        Look for sections titled "Shareholding Pattern", "Ownership", or similar.
+        - Foreign Institutional Investors (FII/Foreign) %  
+        - Domestic Institutional Investors (DII/Mutual Funds) %
+        - Public/Retail/Individual Investors %
+        - Government % (if listed)
+        - Others/Bodies Corporate % (if any)
+        Look for: "Shareholding Pattern", "Ownership Structure", "Shareholder Details".
         
         IMPORTANT: If you cannot find quarterly results or shareholding data, return null for these fields.
         The quarterly results and shareholding arrays are MANDATORY if the data exists on the page.
