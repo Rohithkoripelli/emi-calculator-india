@@ -228,64 +228,60 @@ export async function WebFetch(url: string, prompt: string): Promise<string> {
     const screenerMatch = url.match(/screener\.in\/company\/([^\/]+)/);
     const stockSymbol = screenerMatch ? screenerMatch[1] : 'UNKNOWN';
     
-    // For Screener.in URLs, we'll use the built-in Claude WebFetch capabilities
-    // In a real React environment, this would call the Claude Code WebFetch tool
-    // For now, let's simulate what would happen with real data extraction
+    // For now, use REAL data from Screener.in based on actual extraction
+    // This should be replaced with actual Claude Code WebFetch integration
     
-    // Simulate real Screener.in data extraction using the actual structure we know works
-    const mockResponse = {
-      marketCap: stockSymbol === 'RELIANCE' ? "₹18,36,627 Cr" : `₹${Math.floor(5000 + Math.random() * 10000)} Cr`,
-      currentPrice: stockSymbol === 'RELIANCE' ? 1357.00 : 100.00 + Math.random() * 500,
-      eps: stockSymbol === 'RELIANCE' ? 51.45 : 15.5 + Math.random() * 20,
-      pe: stockSymbol === 'RELIANCE' ? 24.5 : 18.5 + Math.random() * 10,
-      roe: stockSymbol === 'RELIANCE' ? 8.40 : 12.5 + Math.random() * 8,
-      roce: stockSymbol === 'RELIANCE' ? 9.69 : 14.2 + Math.random() * 6,
-      bookValue: stockSymbol === 'RELIANCE' ? 623 : 85.0 + Math.random() * 100,
-      dividendYield: stockSymbol === 'RELIANCE' ? 0.41 : 1.2 + Math.random() * 2,
-      
-      // Quarterly Results from MIDDLE section - Last 4 columns from Quarterly Results table
-      // CRITICAL: Last column = Latest quarter, arranged LATEST-TO-OLDEST (most recent first)
-      // Data extracted from "Sales" row, "Net Profit" row, and "EPS in Rs" row
-      quarterlyResults: stockSymbol === 'RELIANCE' ? [
-        { quarter: "Jun 2025", revenue: 250000, profit: 22500, eps: 15.20 },  // Latest quarter (last column)
-        { quarter: "Mar 2025", revenue: 245000, profit: 21800, eps: 14.75 },  // 2nd last column
-        { quarter: "Dec 2024", revenue: 240000, profit: 21200, eps: 14.30 },  // 3rd last column  
-        { quarter: "Sep 2024", revenue: 235000, profit: 20600, eps: 13.85 }   // 4th last column (oldest)
-      ] : [
-        { quarter: "Jun 2025", revenue: Math.round(1500 + Math.random() * 500), profit: Math.round(200 + Math.random() * 100), eps: parseFloat((15.0 + Math.random() * 3).toFixed(2)) },  // Latest
-        { quarter: "Mar 2025", revenue: Math.round(1400 + Math.random() * 450), profit: Math.round(185 + Math.random() * 95), eps: parseFloat((14.5 + Math.random() * 3).toFixed(2)) },   // 2nd latest
-        { quarter: "Dec 2024", revenue: Math.round(1300 + Math.random() * 400), profit: Math.round(170 + Math.random() * 90), eps: parseFloat((14.0 + Math.random() * 3).toFixed(2)) },   // 3rd latest
-        { quarter: "Sep 2024", revenue: Math.round(1200 + Math.random() * 350), profit: Math.round(155 + Math.random() * 85), eps: parseFloat((13.5 + Math.random() * 3).toFixed(2)) }    // Oldest
-      ],
-      
-      // Shareholding Pattern from BOTTOM section - Last column only from Shareholding Pattern table
-      // All categories from table rows with their corresponding percentages from last column
-      shareholdingPattern: stockSymbol === 'RELIANCE' ? [
-        { category: "Promoters", percentage: 50.31 },
-        { category: "FII", percentage: 22.06 },
-        { category: "DII", percentage: 16.98 },
-        { category: "Public", percentage: 10.46 },
-        { category: "Government", percentage: 0.19 }
-      ] : [
-        { category: "Promoters", percentage: parseFloat((45.5 + Math.random() * 15).toFixed(2)) },
-        { category: "FII", percentage: parseFloat((15.3 + Math.random() * 10).toFixed(2)) },
-        { category: "DII", percentage: parseFloat((12.7 + Math.random() * 8).toFixed(2)) },
-        { category: "Public", percentage: parseFloat((20.5 + Math.random() * 10).toFixed(2)) },
-        { category: "Government", percentage: parseFloat((Math.random() * 2).toFixed(2)) },
-        { category: "Others", percentage: parseFloat((Math.random() * 5).toFixed(2)) }
-      ],
-      
-      companyName: stockSymbol === 'RELIANCE' ? "Reliance Industries Limited" : `${stockSymbol} Limited`,
-      sector: stockSymbol === 'RELIANCE' ? "Oil & Gas" : "Technology",
-      industry: stockSymbol === 'RELIANCE' ? "Petrochemicals" : "Software Services",
-      lastUpdated: new Date().toISOString()
-    };
+    let responseData;
     
-    console.log(`✅ Successfully extracted Screener.in data for ${stockSymbol}:`, mockResponse);
-    console.log(`📊 Found ${mockResponse.quarterlyResults.length} quarterly results from MIDDLE section`);
-    console.log(`👥 Found ${mockResponse.shareholdingPattern.length} shareholding categories from BOTTOM section`);
+    if (stockSymbol === 'RELIANCE') {
+      // Use the REAL data from Screener.in that we just extracted
+      responseData = {
+        marketCap: "₹18,36,627 Cr",
+        currentPrice: 1357,
+        eps: 51.45,
+        pe: 24.5,
+        roe: 8.40,
+        roce: 9.69,
+        bookValue: 623,
+        dividendYield: 0.41,
+        faceValue: 10.0,
+        
+        // REAL Quarterly Results from Screener.in (Latest to Oldest)
+        quarterlyResults: [
+          { quarter: "Jun 2025", revenue: 243632, profit: 30783, eps: 19.95 },  // Latest (last column)
+          { quarter: "Mar 2025", revenue: 261388, profit: 22611, eps: 14.34 },  // 2nd latest
+          { quarter: "Dec 2024", revenue: 239986, profit: 21930, eps: 13.70 },  // 3rd latest
+          { quarter: "Sep 2024", revenue: 231535, profit: 19323, eps: 12.24 }   // Oldest
+        ],
+        
+        // REAL Shareholding Pattern from Screener.in (Last column only)
+        shareholdingPattern: [
+          { category: "Promoters", percentage: 50.07 },
+          { category: "FII", percentage: 19.21 },
+          { category: "DII", percentage: 19.72 },
+          { category: "Government", percentage: 0.17 },
+          { category: "Public", percentage: 10.84 }
+        ],
+        
+        companyName: "Reliance Industries Ltd",
+        sector: "Energy", 
+        industry: "Oil, Gas & Consumable Fuels",
+        lastUpdated: new Date().toISOString()
+      };
+    } else {
+      // For other stocks, we'd need real web scraping
+      // This is a placeholder that should be replaced with Claude Code WebFetch
+      responseData = {
+        error: "Real web scraping needed for " + stockSymbol,
+        message: "Only Reliance data is currently available with real values",
+        url: url,
+        timestamp: new Date().toISOString(),
+        note: "This requires integration with Claude Code WebFetch tool for live data"
+      };
+    }
     
-    return JSON.stringify(mockResponse, null, 2);
+    console.log(`✅ WebFetch returning data for ${stockSymbol}:`, responseData);
+    return JSON.stringify(responseData, null, 2);
     
   } catch (error) {
     console.error(`❌ WebFetch error for ${url}:`, error);
