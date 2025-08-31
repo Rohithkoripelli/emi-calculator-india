@@ -2629,6 +2629,17 @@ export class InvestmentAnalysisService {
       
       const parsed = JSON.parse(jsonToparse);
       
+      // Extract any additional analysis text that appears after the JSON
+      const originalResponse = response.trim();
+      let additionalAnalysis = '';
+      
+      // Look for content after the JSON structure
+      const lastBraceIndex = originalResponse.lastIndexOf('}');
+      if (lastBraceIndex !== -1 && lastBraceIndex < originalResponse.length - 10) {
+        additionalAnalysis = originalResponse.substring(lastBraceIndex + 1).trim();
+        console.log(`📝 Found additional OpenAI analysis: ${additionalAnalysis.length} characters`);
+      }
+      
       // Validate that the parsed response has required fields
       if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
         console.log(`✅ OpenAI recommendation parsed successfully: ${parsed.action} (${parsed.confidence}% confidence)`);
@@ -2643,8 +2654,20 @@ export class InvestmentAnalysisService {
           console.log(`⚠️ Risk Level: ${parsed.risk_assessment.risk_level || 'N/A'}`);
         }
         
-        // Convert key_analysis and key_insights to formatted sections for display
-        let enhancedReasoning = parsed.reasoning || [];
+        // Build comprehensive reasoning that includes ALL OpenAI content
+        let enhancedReasoning = [];
+        
+        // Start with original reasoning
+        if (parsed.reasoning && Array.isArray(parsed.reasoning)) {
+          enhancedReasoning.push(...parsed.reasoning);
+        } else if (parsed.reasoning) {
+          enhancedReasoning.push(parsed.reasoning);
+        }
+        
+        // Add any additional analysis found after JSON
+        if (additionalAnalysis && additionalAnalysis.length > 20) {
+          enhancedReasoning.push(`\n## 🔍 Detailed Analysis\n${additionalAnalysis}`);
+        }
         
         // Add Key Analysis section if present
         if (parsed.key_analysis && parsed.key_analysis.length > 0) {
@@ -2652,15 +2675,51 @@ export class InvestmentAnalysisService {
           enhancedReasoning.push(`\n## 🎯 Key Analysis\n${parsed.key_analysis.map((point: string) => `• ${point}`).join('\n')}\n`);
         }
         
-        // Add Key Insights section if present
+        // Add Key Insights section if present  
         if (parsed.key_insights && parsed.key_insights.length > 0) {
           console.log(`💡 Key Insights found: ${parsed.key_insights.length} points`);
           enhancedReasoning.push(`\n## 💡 Key Insights\n${parsed.key_insights.map((insight: string) => `• ${insight}`).join('\n')}\n`);
         }
         
+        // Add structured technical analysis
+        if (parsed.technical_analysis) {
+          let techSection = '\n## 📈 Technical Analysis\n';
+          if (parsed.technical_analysis.trend_direction) {
+            techSection += `**Trend Direction:** ${parsed.technical_analysis.trend_direction}\n`;
+          }
+          if (parsed.technical_analysis.key_levels) {
+            techSection += `**Key Levels:** ${parsed.technical_analysis.key_levels}\n`;  
+          }
+          if (parsed.technical_analysis.momentum_analysis) {
+            techSection += `**Momentum:** ${parsed.technical_analysis.momentum_analysis}\n`;
+          }
+          if (parsed.technical_analysis.pattern_recognition) {
+            techSection += `**Pattern Recognition:** ${parsed.technical_analysis.pattern_recognition}\n`;
+          }
+          enhancedReasoning.push(techSection);
+        }
+        
+        // Add structured risk assessment
+        if (parsed.risk_assessment) {
+          let riskSection = '\n## ⚠️ Risk Assessment\n';
+          if (parsed.risk_assessment.risk_level) {
+            riskSection += `**Risk Level:** ${parsed.risk_assessment.risk_level}\n`;
+          }
+          if (parsed.risk_assessment.key_risks && Array.isArray(parsed.risk_assessment.key_risks)) {
+            riskSection += `**Key Risks:**\n${parsed.risk_assessment.key_risks.map((risk: string) => `• ${risk}`).join('\n')}\n`;
+          }
+          if (parsed.risk_assessment.risk_mitigation) {
+            riskSection += `**Risk Mitigation:** ${parsed.risk_assessment.risk_mitigation}\n`;
+          }
+          enhancedReasoning.push(riskSection);
+        }
+        
+        console.log(`📊 Final reasoning sections: ${enhancedReasoning.length}`);
+        
         return {
           ...parsed,
-          reasoning: enhancedReasoning
+          reasoning: enhancedReasoning,
+          full_analysis_length: additionalAnalysis.length
         };
       } else {
         console.log(`⚠️ OpenAI response missing required fields:`, parsed);
