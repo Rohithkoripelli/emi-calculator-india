@@ -61,82 +61,117 @@ interface AIAssistantProps {
 export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanData }) => {
   
   /**
-   * Format OpenAI analysis for direct display
+   * Format OpenAI analysis for display using the same structured format as PersonalizedService
+   * This ensures proper rendering by AIResponseFormatter with tables, buttons, and cards
    */
   const formatOpenAIAnalysis = (stockAnalysis: any, preferences: any): string => {
     const recommendation = stockAnalysis.recommendation;
-    const stockInfo = stockAnalysis.stock_info;
+    const stock = stockAnalysis.stock_info;
     
-    let analysis = `📊 **${stockInfo.company_name || preferences.stockName} (${stockInfo.symbol}) Analysis**\n\n`;
+    // Use the same markdown structure as PersonalizedStockAnalysisService
+    let response = `# 📊 ${stock.company_name} (${stock.symbol}) Analysis\n\n`;
     
-    // Market data section
-    analysis += `💰 **Current Market Data**\n\n`;
-    analysis += `Current Price: ₹${stockInfo.current_price}\n\n`;
-    if (stockInfo.day_change !== undefined) {
-      const changeSymbol = stockInfo.day_change >= 0 ? '+' : '';
-      const percentSymbol = stockInfo.day_change_percent >= 0 ? '+' : '';
-      analysis += `Day Change: ${changeSymbol}₹${stockInfo.day_change.toFixed(2)} (${percentSymbol}${stockInfo.day_change_percent.toFixed(2)}%)\n\n`;
-    }
-    analysis += `Sector: ${stockInfo.sector} | Market Cap: ${stockInfo.market_cap}\n\n`;
+    // Current Price and Change - match the PersonalizedService format exactly
+    response += `## 💰 Current Market Data\n`;
+    response += `**Current Price:** ₹${stock.current_price}\n`;
+    response += `**Day Change:** ${stock.day_change >= 0 ? '+' : ''}₹${stock.day_change.toFixed(2)} (${stock.day_change_percent >= 0 ? '+' : ''}${stock.day_change_percent.toFixed(2)}%)\n`;
+    response += `**Sector:** ${stock.sector} | **Market Cap:** ${stock.market_cap}\n\n`;
     
-    // OpenAI Recommendation section
-    analysis += `🤖 **OpenAI Professional Analysis**\n\n`;
-    const actionEmoji = recommendation.action === 'BUY' ? '📈' : 
-                       recommendation.action === 'SELL' ? '📉' : 
-                       recommendation.action === 'STRONG_BUY' ? '🚀' :
-                       recommendation.action === 'STRONG_SELL' ? '⬇️' : '⚖️';
-    
-    analysis += `${actionEmoji}\n**${recommendation.action}**\n${recommendation.confidence}% Confidence\n`;
-    if (recommendation.time_horizon) {
-      analysis += `Time Horizon: ${recommendation.time_horizon}\n\n`;
-    }
+    // OpenAI Professional Analysis - using same format structure
+    response += `## 🤖 OpenAI Professional Analysis\n`;
+    response += `**Action:** ${recommendation.action} (${recommendation.confidence}% confidence)\n`;
+    response += `**Time Horizon:** ${recommendation.time_horizon ? recommendation.time_horizon.replace('_', ' ') : 'LONG_TERM'}\n`;
     
     if (recommendation.target_price) {
-      analysis += `🎯 Target Price: ₹${recommendation.target_price}\n`;
+      response += `**Target Price:** ₹${recommendation.target_price.toFixed(2)}\n`;
     }
     if (recommendation.stop_loss) {
-      analysis += `🛡️ Stop Loss: ₹${recommendation.stop_loss}\n\n`;
+      response += `**Stop Loss:** ₹${recommendation.stop_loss.toFixed(2)}\n`;
     }
+    response += '\n';
     
-    // Add all OpenAI reasoning sections
+    // Enhanced Reasoning with complete OpenAI insights
+    response += `### 📝 Key Reasoning:\n`;
     if (recommendation.reasoning && Array.isArray(recommendation.reasoning)) {
-      analysis += `📝 **Professional Analysis & Insights**\n\n`;
-      recommendation.reasoning.forEach((section: string) => {
-        if (section && section.trim()) {
-          analysis += `${section.trim()}\n\n`;
+      recommendation.reasoning.forEach((reason: string, index: number) => {
+        if (reason && reason.trim()) {
+          response += `${index + 1}. ${reason.trim()}\n`;
         }
       });
     }
+    response += '\n';
     
-    // Add disclaimers
-    analysis += `⚠️ **Investment Disclaimer**\n`;
-    analysis += `This is AI-generated analysis for informational purposes only. Past performance doesn't guarantee future results. Please consult with a financial advisor before making investment decisions.\n\n`;
-    
-    // Add Screener.in data if available
-    if (stockAnalysis.screenerData) {
-      analysis += `🏢 **Company Fundamentals**\n*Real financial metrics from verified sources*\n\n`;
-      const data = stockAnalysis.screenerData;
-      analysis += `**${data.companyName || stockInfo.company_name}**\n`;
-      if (data.currentPrice) analysis += `₹${data.currentPrice} Current Price\n`;
-      if (data.marketCap) analysis += `${data.marketCap} Market Cap\n`;
-      if (data.pe) analysis += `${data.pe} P/E Ratio\n`;
-      if (data.eps) analysis += `₹${data.eps} EPS\n`;
-      if (data.roe) analysis += `${data.roe}% ROE\n`;
-      if (data.roce) analysis += `${data.roce}% ROCE\n`;
-      if (data.bookValue) analysis += `₹${data.bookValue} Book Value\n`;
-      if (data.dividendYield) analysis += `${data.dividendYield}% Dividend Yield\n`;
-      if (data.faceValue) analysis += `₹${data.faceValue} Face Value\n`;
+    // Technical Analysis Section - if available
+    if (recommendation.technical_analysis) {
+      response += `### 📈 Technical Analysis:\n`;
+      const tech = recommendation.technical_analysis;
       
-      if (data.shareholdingPattern && data.shareholdingPattern.length > 0) {
-        analysis += `\n**Shareholding Pattern:**\n`;
-        data.shareholdingPattern.forEach((holding: any) => {
-          analysis += `• ${holding.category}: ${holding.percentage}%\n`;
-        });
+      if (tech.trend_direction) {
+        response += `**Trend Direction:** ${tech.trend_direction}\n`;
       }
-      analysis += `\n`;
+      if (tech.key_levels) {
+        response += `**Key Levels:** ${tech.key_levels}\n`;
+      }
+      if (tech.momentum_analysis) {
+        response += `**Momentum Analysis:** ${tech.momentum_analysis}\n`;
+      }
+      if (tech.pattern_recognition) {
+        response += `**Pattern Recognition:** ${tech.pattern_recognition}\n`;
+      }
+      response += '\n';
     }
     
-    return analysis;
+    // Risk Assessment Section - if available
+    if (recommendation.risk_assessment) {
+      response += `### ⚠️ Risk Assessment:\n`;
+      const risk = recommendation.risk_assessment;
+      
+      if (risk.risk_level) {
+        response += `**Risk Level:** ${risk.risk_level}\n`;
+      }
+      if (risk.key_risks && Array.isArray(risk.key_risks)) {
+        response += `**Key Risks:**\n`;
+        risk.key_risks.forEach((riskItem: string) => {
+          response += `▶️ ${riskItem}\n`;
+        });
+      }
+      if (risk.volatility_analysis) {
+        response += `**Volatility Analysis:** ${risk.volatility_analysis}\n`;
+      }
+      if (risk.liquidity_risk) {
+        response += `**Liquidity Risk:** ${risk.liquidity_risk}\n`;
+      }
+      response += '\n';
+    }
+    
+    // Key Analysis Section - comprehensive insights
+    if (recommendation.key_analysis && Array.isArray(recommendation.key_analysis)) {
+      response += `### 🔍 Key Analysis:\n`;
+      recommendation.key_analysis.forEach((analysis: string, index: number) => {
+        if (analysis && analysis.trim()) {
+          response += `${index + 1}. ${analysis.trim()}\n`;
+        }
+      });
+      response += '\n';
+    }
+    
+    // Key Insights Section - detailed explanations
+    if (recommendation.key_insights && Array.isArray(recommendation.key_insights)) {
+      response += `### 💡 Key Insights:\n`;
+      recommendation.key_insights.forEach((insight: string, index: number) => {
+        if (insight && insight.trim()) {
+          response += `${index + 1}. ${insight.trim()}\n`;
+        }
+      });
+      response += '\n';
+    }
+    
+    // Add branding and disclaimer - same as PersonalizedService
+    response += `---\n\n`;
+    response += `*📊 Analysis powered by OpenAI with real-time market data and verified company fundamentals.*\n\n`;
+    response += `⚠️ **Investment Disclaimer:** This analysis is for informational purposes only. Past performance doesn't guarantee future results. Please consult with a financial advisor before making investment decisions.\n`;
+    
+    return response;
   };
   const [messages, setMessages] = useState<Message[]>([
     {
