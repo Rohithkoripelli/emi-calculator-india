@@ -335,6 +335,9 @@ Return as JSON:
  */
 async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
   try {
+    console.log(`🚀 ENTRY: performRealWebScraping called for ${stockSymbol}`);
+    console.log(`📊 URL: ${url}`);
+    console.log(`📝 Prompt: ${extractionPrompt}`);
     console.log(`📊 Starting real web scraping for ${stockSymbol}...`);
     
     const https = require('https');
@@ -467,6 +470,9 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
       financialData.eps = epsValue;
     }
     
+    console.log(`🔄 CHECKPOINT: About to start quarterly results extraction for ${stockSymbol}`);
+    console.log(`📊 Current financialData keys: ${Object.keys(financialData).join(', ')}`);
+    
     // QUARTERLY RESULTS EXTRACTION - Enhanced Puppeteer Implementation
     console.log(`📊 STARTING quarterly results extraction with Enhanced Puppeteer for ${stockSymbol}...`);
     console.log(`🌐 URL for quarterly extraction: ${url}`);
@@ -553,7 +559,9 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
       console.log(`✅ Added ${quarterlyResults.length} quarterly results to response`);
     }
     
-    console.log(`🎯 Extraction complete for ${stockSymbol}. Found ${Object.keys(financialData).length} data points`);
+    console.log(`🔄 FINAL CHECKPOINT: Extraction complete for ${stockSymbol}. Found ${Object.keys(financialData).length} data points`);
+    console.log(`📊 Final financialData keys: ${Object.keys(financialData).join(', ')}`);
+    console.log(`🔍 quarterlyResults in final data: ${financialData.quarterlyResults ? financialData.quarterlyResults.length : 'undefined'}`);
     return financialData;
     
   } catch (error) {
