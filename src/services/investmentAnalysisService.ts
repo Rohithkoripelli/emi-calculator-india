@@ -1178,7 +1178,8 @@ export class InvestmentAnalysisService {
     
     const content = data.choices[0].message.content;
     console.log('✅ OpenAI API response received successfully');
-    console.log('📊 Response preview:', content.substring(0, 200) + '...');
+    console.log(`📊 Full OpenAI response (${content.length} chars):`);
+    console.log(content); // Log complete response without truncation
     
     return content;
   }
