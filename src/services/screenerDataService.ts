@@ -187,7 +187,17 @@ export class ScreenerDataService {
       
       // Use our accurate webfetch API instead of Claude WebFetch for 100% precision
       console.log(`🎯 Using accurate webfetch API for ${stockSymbol} data extraction...`);
-      const apiResponse = await fetch(`/api/webfetch?symbol=${encodeURIComponent(stockSymbol)}`);
+      const apiResponse = await fetch('/api/webfetch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stockSymbol: stockSymbol,
+          url: url,
+          prompt: 'Extract comprehensive financial metrics from Screener.in'
+        })
+      });
       
       if (!apiResponse.ok) {
         throw new Error(`API responded with status: ${apiResponse.status}`);

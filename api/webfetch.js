@@ -378,12 +378,20 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
   
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  // Support both GET and POST requests
+  let stockSymbol, url, prompt;
+  
+  if (req.method === 'GET') {
+    stockSymbol = req.query.symbol || req.query.stockSymbol;
+    url = req.query.url;
+    prompt = req.query.prompt || 'Extract comprehensive financial metrics';
+  } else if (req.method === 'POST') {
+    ({ url, prompt, stockSymbol } = req.body);
+  } else {
+    return res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
   }
   
   try {
-    const { url, prompt, stockSymbol } = req.body;
     
     if (!stockSymbol) {
       return res.status(400).json({ 
