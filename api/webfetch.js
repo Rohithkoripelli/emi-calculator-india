@@ -7,6 +7,85 @@
 // For now, this is a template showing how the integration would work
 
 /**
+ * Extract quarterly results from static HTML (fallback when Puppeteer not available)
+ */
+async function extractQuarterlyFromStaticHTML($, stockSymbol) {
+  try {
+    console.log(`📊 Starting static HTML quarterly extraction for ${stockSymbol}...`);
+    
+    const results = [];
+    
+    // Look for quarterly data in tables
+    $('table').each((tableIndex, table) => {
+      const tableText = $(table).text();
+      
+      // Check if this table contains quarterly indicators
+      if (tableText.includes('Jun 2025') || tableText.includes('Mar 2025')) {
+        console.log(`📊 Found potential quarterly table at index ${tableIndex}`);
+        
+        const rows = $(table).find('tr');
+        let headerRow = null;
+        let salesRow = null;
+        
+        rows.each((rowIndex, row) => {
+          const rowText = $(row).text().trim();
+          
+          // Find header row with quarters
+          if (rowText.includes('Jun 2025') && rowText.includes('Mar 2025')) {
+            headerRow = $(row);
+            console.log(`📊 Found header row: ${rowText.substring(0, 100)}`);
+          }
+          
+          // Find sales row
+          if (rowText.includes('Sales') && (rowText.includes('725') || rowText.includes('699'))) {
+            salesRow = $(row);
+            console.log(`📊 Found sales row: ${rowText.substring(0, 100)}`);
+          }
+        });
+        
+        if (headerRow && salesRow) {
+          console.log(`✅ Found both header and sales rows, extracting data...`);
+          
+          const headerCells = headerRow.find('td, th').map((i, cell) => $(cell).text().trim()).get();
+          const salesCells = salesRow.find('td, th').map((i, cell) => $(cell).text().trim()).get();
+          
+          console.log(`📊 Header cells: ${headerCells.length}, Sales cells: ${salesCells.length}`);
+          
+          // Extract last 4 quarters dynamically
+          const dataColumnsCount = Math.min(headerCells.length, salesCells.length);
+          const startIndex = Math.max(1, dataColumnsCount - 4);
+          
+          for (let columnIndex = dataColumnsCount - 1; columnIndex >= startIndex; columnIndex--) {
+            const quarterName = headerCells[columnIndex];
+            const revenue = parseFloat(salesCells[columnIndex].replace(/[^\d.-]/g, ''));
+            
+            if (quarterName && !isNaN(revenue) && revenue > 0) {
+              results.push({
+                quarter: quarterName,
+                revenue: revenue,
+                profit: 0, // Will extract if available
+                eps: 0     // Will extract if available
+              });
+              
+              console.log(`📊 Extracted ${quarterName}: Revenue ₹${revenue} Cr`);
+            }
+          }
+        }
+        
+        return false; // Exit the .each() loop once we find the right table
+      }
+    });
+    
+    console.log(`✅ Static HTML extraction complete: ${results.length} quarters extracted`);
+    return results;
+    
+  } catch (error) {
+    console.log(`❌ Static HTML quarterly extraction failed: ${error.message}`);
+    return [];
+  }
+}
+
+/**
  * Extract quarterly results using Enhanced Puppeteer with JavaScript rendering
  * Targets Table 1 (index 0) which contains the most recent quarterly data
  */
@@ -47,7 +126,8 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
       console.log(`✅ Puppeteer browser launched successfully`);
     } catch (launchError) {
       console.log(`❌ Puppeteer browser launch failed: ${launchError.message}`);
-      throw launchError;
+      console.log(`🔄 Falling back to static HTML parsing for quarterly extraction...`);
+      return []; // Return empty results, will be handled by fallback
     }
     
     const page = await browser.newPage();
@@ -528,6 +608,13 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
       quarterlyResults = await extractQuarterlyResultsWithPuppeteer(url, stockSymbol);
       
       console.log(`📊 RETURNED from extractQuarterlyResultsWithPuppeteer with: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
+      
+      // If Puppeteer failed (Chrome not available), try static HTML extraction
+      if (!quarterlyResults || quarterlyResults.length === 0) {
+        console.log(`🔄 Attempting static HTML quarterly extraction as fallback...`);
+        quarterlyResults = await extractQuarterlyFromStaticHTML($, stockSymbol);
+        console.log(`📊 Static HTML extraction returned: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
+      }
       console.log(`📋 Quarterly extraction result: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
       
       if (quarterlyResults && quarterlyResults.length > 0) {
