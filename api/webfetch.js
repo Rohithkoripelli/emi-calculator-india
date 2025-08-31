@@ -57,9 +57,13 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
       timeout: 30000 
     });
     
+    console.log(`✅ Page navigation completed successfully`);
+    
     // Wait for tables to be present and JavaScript to complete
     console.log(`⏳ Waiting for quarterly results table to load...`);
     await page.waitForSelector('table', { timeout: 10000 });
+    
+    console.log(`✅ Tables found on page`);
     
     // Simulate user interactions that might trigger data loading
     console.log(`🖱️ Simulating user interactions to trigger data loading...`);
@@ -93,24 +97,45 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
     
     console.log(`🔍 Extracting quarterly data from Table 2 (index 1)...`);
     
+    // First, let's count the total tables on the page
+    const tableCount = await page.evaluate(() => {
+      const tables = document.querySelectorAll('table');
+      console.log(`📊 Total tables found: ${tables.length}`);
+      return tables.length;
+    });
+    console.log(`📊 Page has ${tableCount} tables total`);
+    
     // Extract quarterly results from the second table (index 1)
     const quarterlyResults = await page.evaluate(() => {
       const results = [];
       
       try {
+        const tables = document.querySelectorAll('table');
+        console.log(`📊 DEBUG: Found ${tables.length} tables in page evaluation`);
+        
         // Target the second table (index 1) which contains recent quarterly data
-        const table = document.querySelectorAll('table')[1];
+        const table = tables[1];
         
         if (!table) {
-          console.log('No table found at index 1');
+          console.log(`❌ No table found at index 1. Available tables: ${tables.length}`);
           return [];
         }
         
+        console.log(`✅ Found target table at index 1`);
+        
         const rows = table.querySelectorAll('tr');
+        console.log(`📊 Table has ${rows.length} rows`);
+        
         let headerRow = null;
         let salesRow = null;
         let netProfitRow = null;
         let epsRow = null;
+        
+        // Debug: Show first few rows
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+          const rowText = rows[i].innerText.trim();
+          console.log(`Row ${i}: "${rowText.substring(0, 100)}..."`);
+        }
         
         // Find the relevant rows
         rows.forEach((row, index) => {
