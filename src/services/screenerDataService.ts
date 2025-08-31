@@ -246,6 +246,9 @@ export class ScreenerDataService {
           // Shareholding pattern
           shareholdingPattern: financialData.shareholdingPattern,
           
+          // Quarterly results (newly implemented)
+          quarterlyResults: financialData.quarterlyResults,
+          
           // Metadata
           lastUpdated: financialData.lastUpdated,
           extractionMethod: 'accurate_webfetch_api'
