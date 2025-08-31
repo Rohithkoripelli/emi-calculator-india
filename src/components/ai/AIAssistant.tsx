@@ -101,43 +101,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
     }
     response += '\n';
     
-    // Add comprehensive analysis sections - these will be processed by AIResponseFormatter to avoid duplication
-    if (recommendation.technical_analysis) {
-      response += `📈 **Technical Analysis:**\n`;
-      response += `Trend: ${recommendation.technical_analysis.trend_direction || 'N/A'}\n`;
-      response += `Key Levels: ${recommendation.technical_analysis.key_levels || 'N/A'}\n`;
-      response += `Momentum: ${recommendation.technical_analysis.momentum_analysis || 'N/A'}\n\n`;
-    }
-    
-    if (recommendation.risk_assessment) {
-      response += `⚠️ **Risk Assessment:**\n`;
-      response += `Risk Level: ${recommendation.risk_assessment.risk_level || 'N/A'}\n`;
-      if (recommendation.risk_assessment.key_risks && Array.isArray(recommendation.risk_assessment.key_risks)) {
-        response += `Key Risks: ${recommendation.risk_assessment.key_risks.join(', ')}\n`;
-      }
-      response += '\n';
-    }
-    
-    // Add analysis insights in a condensed format to avoid formatter duplication
-    if (recommendation.key_analysis && Array.isArray(recommendation.key_analysis)) {
-      response += `🔍 **Key Analysis:**\n`;
-      recommendation.key_analysis.forEach((analysis: string, index: number) => {
-        if (analysis && analysis.trim()) {
-          response += `• ${analysis.trim()}\n`;
-        }
-      });
-      response += '\n';
-    }
-    
-    if (recommendation.key_insights && Array.isArray(recommendation.key_insights)) {
-      response += `💡 **Key Insights:**\n`;
-      recommendation.key_insights.forEach((insight: string, index: number) => {
-        if (insight && insight.trim()) {
-          response += `• ${insight.trim()}\n`;
-        }
-      });
-      response += '\n';
-    }
+    // Note: Technical Analysis, Risk Assessment, Key Analysis, and Key Insights sections
+    // are automatically processed by AIResponseFormatter from the stockAnalysis object.
+    // We don't add them here to avoid duplication.
     
     // Add branding and disclaimer - same as PersonalizedService
     response += `---\n\n`;
