@@ -645,6 +645,15 @@ async function fallbackToExistingScraper(stockSymbol) {
 
 // Main serverless function handler
 module.exports = async (req, res) => {
+  // CRITICAL DEBUG: Force log output to response for debugging
+  const originalLog = console.log;
+  const logs = [];
+  console.log = (...args) => {
+    const logMessage = args.join(' ');
+    logs.push(logMessage);
+    originalLog(...args);
+  };
+  
   addCORSHeaders(res);
   
   // Handle preflight requests
@@ -684,17 +693,23 @@ module.exports = async (req, res) => {
       console.log(`🚀 Using Enhanced Puppeteer web scraping for ${stockSymbol}...`);
       const scrapingResult = await performRealWebScraping(targetUrl, stockSymbol, prompt);
       
+      // Restore original console.log
+      console.log = originalLog;
+      
       return res.status(200).json({
         success: true,
         stockSymbol: stockSymbol,
         url: targetUrl,
         data: scrapingResult,
         method: 'enhanced_puppeteer_scraping',
-        extractedAt: new Date().toISOString()
+        extractedAt: new Date().toISOString(),
+        debugLogs: logs // Include captured logs for debugging
       });
       
     } catch (claudeError) {
-      console.error(`❌ Claude WebFetch failed for ${stockSymbol}, trying fallback:`, claudeError);
+      // Restore original console.log
+      console.log = originalLog;
+      console.error(`❌ Enhanced Puppeteer failed for ${stockSymbol}, trying fallback:`, claudeError);
       
       // Fallback to existing scraper
       const fallbackResult = await fallbackToExistingScraper(stockSymbol);
@@ -706,18 +721,24 @@ module.exports = async (req, res) => {
         data: fallbackResult,
         method: 'fallback_after_error',
         claude_error: claudeError.message,
-        extractedAt: new Date().toISOString()
+        extractedAt: new Date().toISOString(),
+        debugLogs: logs // Include captured logs for debugging
       });
     }
     
   } catch (error) {
+    // Restore original console.log if not already restored
+    if (console.log !== originalLog) {
+      console.log = originalLog;
+    }
     console.error('❌ WebFetch API Error:', error);
     
     res.status(500).json({
       success: false,
       error: 'Failed to extract financial data',
       message: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      debugLogs: logs || [] // Include captured logs for debugging
     });
   }
 };
