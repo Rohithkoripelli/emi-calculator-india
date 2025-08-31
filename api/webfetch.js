@@ -16,8 +16,20 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
   try {
     console.log(`🚀 Starting Enhanced Puppeteer extraction for quarterly results: ${stockSymbol}...`);
     
+    // Check if Puppeteer is available
+    let puppeteer;
+    try {
+      puppeteer = require('puppeteer');
+      console.log(`✅ Puppeteer module loaded successfully`);
+    } catch (importError) {
+      console.log(`❌ Puppeteer not available: ${importError.message}`);
+      console.log(`📝 To enable quarterly extraction, install Puppeteer: npm install puppeteer`);
+      return [];
+    }
+    
     // Launch browser optimized for serverless/production
-    browser = await require('puppeteer').launch({
+    console.log(`🚀 Launching Puppeteer browser...`);
+    browser = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -429,19 +441,27 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
     }
     
     // QUARTERLY RESULTS EXTRACTION - Enhanced Puppeteer Implementation
-    console.log(`📊 Extracting quarterly results with Puppeteer for ${stockSymbol}...`);
+    console.log(`📊 Attempting quarterly results extraction with Enhanced Puppeteer for ${stockSymbol}...`);
     let quarterlyResults = [];
     
     try {
+      console.log(`🔄 Calling extractQuarterlyResultsWithPuppeteer function...`);
       quarterlyResults = await extractQuarterlyResultsWithPuppeteer(url, stockSymbol);
+      console.log(`📋 Quarterly extraction result: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
+      
       if (quarterlyResults && quarterlyResults.length > 0) {
-        console.log(`✅ Successfully extracted ${quarterlyResults.length} quarterly results`);
+        console.log(`✅ Successfully extracted ${quarterlyResults.length} quarterly results:`);
+        quarterlyResults.forEach((result, index) => {
+          console.log(`   ${index + 1}. ${result.quarter}: Sales ₹${result.revenue} Cr, Profit ₹${result.profit} Cr, EPS ₹${result.eps}`);
+        });
       } else {
-        console.log(`⚠️ No quarterly results found - continuing without quarterly data`);
+        console.log(`⚠️ No quarterly results found - will continue without quarterly data`);
+        console.log(`   This could be due to: Puppeteer not installed, different table structure, or extraction failure`);
       }
     } catch (error) {
-      console.log(`❌ Quarterly extraction failed: ${error.message}`);
-      console.log(`⚠️ Continuing without quarterly data`);
+      console.log(`❌ Quarterly extraction failed with error: ${error.message}`);
+      console.log(`❌ Error stack: ${error.stack}`);
+      console.log(`⚠️ Continuing API without quarterly data`);
     }
     
     // ACCURATE SHAREHOLDING PATTERN EXTRACTION
