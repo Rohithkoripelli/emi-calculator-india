@@ -59,6 +59,85 @@ interface AIAssistantProps {
 }
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanData }) => {
+  
+  /**
+   * Format OpenAI analysis for direct display
+   */
+  const formatOpenAIAnalysis = (stockAnalysis: any, preferences: any): string => {
+    const recommendation = stockAnalysis.recommendation;
+    const stockInfo = stockAnalysis.stock_info;
+    
+    let analysis = `📊 **${stockInfo.company_name || preferences.stockName} (${stockInfo.symbol}) Analysis**\n\n`;
+    
+    // Market data section
+    analysis += `💰 **Current Market Data**\n\n`;
+    analysis += `Current Price: ₹${stockInfo.current_price}\n\n`;
+    if (stockInfo.day_change !== undefined) {
+      const changeSymbol = stockInfo.day_change >= 0 ? '+' : '';
+      const percentSymbol = stockInfo.day_change_percent >= 0 ? '+' : '';
+      analysis += `Day Change: ${changeSymbol}₹${stockInfo.day_change.toFixed(2)} (${percentSymbol}${stockInfo.day_change_percent.toFixed(2)}%)\n\n`;
+    }
+    analysis += `Sector: ${stockInfo.sector} | Market Cap: ${stockInfo.market_cap}\n\n`;
+    
+    // OpenAI Recommendation section
+    analysis += `🤖 **OpenAI Professional Analysis**\n\n`;
+    const actionEmoji = recommendation.action === 'BUY' ? '📈' : 
+                       recommendation.action === 'SELL' ? '📉' : 
+                       recommendation.action === 'STRONG_BUY' ? '🚀' :
+                       recommendation.action === 'STRONG_SELL' ? '⬇️' : '⚖️';
+    
+    analysis += `${actionEmoji}\n**${recommendation.action}**\n${recommendation.confidence}% Confidence\n`;
+    if (recommendation.time_horizon) {
+      analysis += `Time Horizon: ${recommendation.time_horizon}\n\n`;
+    }
+    
+    if (recommendation.target_price) {
+      analysis += `🎯 Target Price: ₹${recommendation.target_price}\n`;
+    }
+    if (recommendation.stop_loss) {
+      analysis += `🛡️ Stop Loss: ₹${recommendation.stop_loss}\n\n`;
+    }
+    
+    // Add all OpenAI reasoning sections
+    if (recommendation.reasoning && Array.isArray(recommendation.reasoning)) {
+      analysis += `📝 **Professional Analysis & Insights**\n\n`;
+      recommendation.reasoning.forEach((section: string) => {
+        if (section && section.trim()) {
+          analysis += `${section.trim()}\n\n`;
+        }
+      });
+    }
+    
+    // Add disclaimers
+    analysis += `⚠️ **Investment Disclaimer**\n`;
+    analysis += `This is AI-generated analysis for informational purposes only. Past performance doesn't guarantee future results. Please consult with a financial advisor before making investment decisions.\n\n`;
+    
+    // Add Screener.in data if available
+    if (stockAnalysis.screenerData) {
+      analysis += `🏢 **Company Fundamentals**\n*Real financial metrics from verified sources*\n\n`;
+      const data = stockAnalysis.screenerData;
+      analysis += `**${data.companyName || stockInfo.company_name}**\n`;
+      if (data.currentPrice) analysis += `₹${data.currentPrice} Current Price\n`;
+      if (data.marketCap) analysis += `${data.marketCap} Market Cap\n`;
+      if (data.pe) analysis += `${data.pe} P/E Ratio\n`;
+      if (data.eps) analysis += `₹${data.eps} EPS\n`;
+      if (data.roe) analysis += `${data.roe}% ROE\n`;
+      if (data.roce) analysis += `${data.roce}% ROCE\n`;
+      if (data.bookValue) analysis += `₹${data.bookValue} Book Value\n`;
+      if (data.dividendYield) analysis += `${data.dividendYield}% Dividend Yield\n`;
+      if (data.faceValue) analysis += `₹${data.faceValue} Face Value\n`;
+      
+      if (data.shareholdingPattern && data.shareholdingPattern.length > 0) {
+        analysis += `\n**Shareholding Pattern:**\n`;
+        data.shareholdingPattern.forEach((holding: any) => {
+          analysis += `• ${holding.category}: ${holding.percentage}%\n`;
+        });
+      }
+      analysis += `\n`;
+    }
+    
+    return analysis;
+  };
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -712,15 +791,20 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         console.log('🤖 Using OpenAI analysis directly (comprehensive reasoning found)');
         
         // Use OpenAI analysis directly with minimal personalization
-        const formattedResponse = this.formatOpenAIAnalysis(stockAnalysis, preferences);
+        const formattedResponse = formatOpenAIAnalysis(stockAnalysis, preferences);
         
-        setResponse(formattedResponse);
-        setLoading(false);
-        onComplete?.({
-          analysis: formattedResponse,
-          recommendation: stockAnalysis.recommendation.action,
-          confidence: stockAnalysis.recommendation.confidence
-        });
+        // Update message with OpenAI analysis
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { 
+                ...msg, 
+                text: formattedResponse,
+                stockAnalysis: stockAnalysis, // Include original analysis for Company Fundamentals card
+                isStreaming: false, 
+                isComplete: true 
+              }
+            : msg
+        ));
         return;
       }
 
@@ -774,103 +858,6 @@ Please provide these details so I can give you a comprehensive portfolio recomme
     }
   };
 
-  /**
-   * Format OpenAI analysis for direct display
-   */
-  private formatOpenAIAnalysis(stockAnalysis: any, preferences: any): string {
-    const recommendation = stockAnalysis.recommendation;
-    const stockInfo = stockAnalysis.stock_info;
-    
-    let analysis = `📊 **${stockInfo.company_name || preferences.stockName} (${stockInfo.symbol}) Analysis**\n\n`;
-    
-    // Market data section
-    analysis += `💰 **Current Market Data**\n\n`;
-    analysis += `Current Price: ₹${stockInfo.current_price}\n\n`;
-    if (stockInfo.day_change !== undefined) {
-      const changeSymbol = stockInfo.day_change >= 0 ? '+' : '';
-      const percentSymbol = stockInfo.day_change_percent >= 0 ? '+' : '';
-      analysis += `Day Change: ${changeSymbol}₹${stockInfo.day_change.toFixed(2)} (${percentSymbol}${stockInfo.day_change_percent.toFixed(2)}%)\n\n`;
-    }
-    analysis += `Sector: ${stockInfo.sector} | Market Cap: ${stockInfo.market_cap}\n\n`;
-    
-    // OpenAI Recommendation section
-    analysis += `🤖 **OpenAI Professional Analysis**\n\n`;
-    const actionEmoji = recommendation.action === 'BUY' ? '📈' : 
-                       recommendation.action === 'SELL' ? '📉' : 
-                       recommendation.action === 'STRONG_BUY' ? '🚀' :
-                       recommendation.action === 'STRONG_SELL' ? '⬇️' : '⚖️';
-    
-    analysis += `${actionEmoji}\n**${recommendation.action}**\n${recommendation.confidence}% Confidence\n`;
-    if (recommendation.time_horizon) {
-      analysis += `Time Horizon: ${recommendation.time_horizon}\n\n`;
-    }
-    
-    if (recommendation.target_price) {
-      analysis += `🎯 Target Price: ₹${recommendation.target_price}\n`;
-    }
-    if (recommendation.stop_loss) {
-      analysis += `🛡️ Stop Loss: ₹${recommendation.stop_loss}\n\n`;
-    }
-    
-    // Add all OpenAI reasoning sections
-    if (recommendation.reasoning && Array.isArray(recommendation.reasoning)) {
-      analysis += `📝 **Professional Analysis & Insights**\n\n`;
-      recommendation.reasoning.forEach((section: string) => {
-        if (section && section.trim()) {
-          analysis += `${section}\n\n`;
-        }
-      });
-    }
-    
-    // Technical Analysis if available
-    if (recommendation.technical_analysis) {
-      analysis += `📈 **Technical Analysis**\n\n`;
-      const tech = recommendation.technical_analysis;
-      if (tech.trend_direction) {
-        analysis += `Trend: ${tech.trend_direction}\n`;
-      }
-      if (tech.key_levels) {
-        analysis += `Key Levels: ${tech.key_levels}\n`;
-      }
-      if (tech.momentum_analysis) {
-        analysis += `Momentum: ${tech.momentum_analysis}\n`;
-      }
-      analysis += '\n';
-    }
-    
-    // Risk Assessment if available
-    if (recommendation.risk_assessment) {
-      analysis += `⚠️ **Risk Assessment**\n\n`;
-      const risk = recommendation.risk_assessment;
-      if (risk.risk_level) {
-        analysis += `Risk Level: ${risk.risk_level}\n`;
-      }
-      if (risk.key_risks && Array.isArray(risk.key_risks)) {
-        analysis += `Key Risks:\n`;
-        risk.key_risks.forEach((riskItem: string) => {
-          analysis += `▶️ ${riskItem}\n`;
-        });
-      }
-      analysis += '\n';
-    }
-    
-    // Add Screener.in data if available
-    if (stockAnalysis.screenerData) {
-      analysis += `🏢 **Company Fundamentals**\n*Real financial metrics from verified sources*\n\n`;
-      const data = stockAnalysis.screenerData;
-      analysis += `**${data.companyName || stockInfo.company_name}**\n`;
-      if (data.currentPrice) analysis += `₹${data.currentPrice} Current Price\n`;
-      if (data.marketCap) analysis += `${data.marketCap} Market Cap\n`;
-      if (data.pe) analysis += `${data.pe} P/E Ratio\n`;
-      if (data.roe) analysis += `${data.roe}% ROE\n`;
-      if (data.roce) analysis += `${data.roce}% ROCE\n`;
-      analysis += '\n';
-    }
-    
-    analysis += `*Analysis powered by OpenAI with comprehensive financial data*`;
-    
-    return analysis;
-  }
 
   /**
    * Handle stock questionnaire cancellation
