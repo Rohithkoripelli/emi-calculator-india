@@ -640,33 +640,16 @@ module.exports = async (req, res) => {
     const targetUrl = url || `https://www.screener.in/company/${stockSymbol}/consolidated/`;
     
     try {
-      // Try Claude WebFetch first
-      const claudeResult = await extractWithClaudeWebFetch(targetUrl, stockSymbol);
+      // Use our Enhanced Puppeteer implementation directly
+      console.log(`🚀 Using Enhanced Puppeteer web scraping for ${stockSymbol}...`);
+      const scrapingResult = await performRealWebScraping(targetUrl, stockSymbol, prompt);
       
-      // If Claude WebFetch is not implemented yet, use fallback
-      if (claudeResult.status === 'needs_implementation') {
-        console.log(`⚠️ Claude WebFetch not implemented, using fallback for ${stockSymbol}`);
-        const fallbackResult = await fallbackToExistingScraper(stockSymbol);
-        
-        return res.status(200).json({
-          success: true,
-          stockSymbol: stockSymbol,
-          url: targetUrl,
-          data: fallbackResult,
-          method: 'fallback_scraping',
-          note: 'Using fallback scraping. Claude WebFetch integration needed for full accuracy.',
-          claude_webfetch_ready: claudeResult,
-          extractedAt: new Date().toISOString()
-        });
-      }
-      
-      // Return Claude WebFetch results
       return res.status(200).json({
         success: true,
         stockSymbol: stockSymbol,
         url: targetUrl,
-        data: claudeResult,
-        method: 'claude_webfetch',
+        data: scrapingResult,
+        method: 'enhanced_puppeteer_scraping',
         extractedAt: new Date().toISOString()
       });
       
