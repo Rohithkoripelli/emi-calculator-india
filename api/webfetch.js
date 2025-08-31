@@ -29,41 +29,59 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
     
     // Launch browser optimized for serverless/production
     console.log(`🚀 Launching Puppeteer browser...`);
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
-      ]
-    });
+    
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor'
+        ]
+      });
+      console.log(`✅ Puppeteer browser launched successfully`);
+    } catch (launchError) {
+      console.log(`❌ Puppeteer browser launch failed: ${launchError.message}`);
+      throw launchError;
+    }
     
     const page = await browser.newPage();
+    console.log(`✅ New page created`);
     
     // Set viewport and realistic headers
     await page.setViewport({ width: 1920, height: 1080 });
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    console.log(`✅ Page viewport and user agent set`);
     
     console.log(`📊 Navigating to ${url} and waiting for content...`);
     
-    // Navigate with networkidle2 to ensure JavaScript content loads
-    await page.goto(url, { 
-      waitUntil: 'networkidle2',
-      timeout: 30000 
-    });
-    
-    console.log(`✅ Page navigation completed successfully`);
+    try {
+      // Navigate with networkidle2 to ensure JavaScript content loads
+      await page.goto(url, { 
+        waitUntil: 'networkidle2',
+        timeout: 30000 
+      });
+      console.log(`✅ Page navigation completed successfully`);
+    } catch (navigationError) {
+      console.log(`❌ Page navigation failed: ${navigationError.message}`);
+      throw navigationError;
+    }
     
     // Wait for tables to be present and JavaScript to complete
     console.log(`⏳ Waiting for quarterly results table to load...`);
-    await page.waitForSelector('table', { timeout: 10000 });
     
-    console.log(`✅ Tables found on page`);
+    try {
+      await page.waitForSelector('table', { timeout: 10000 });
+      console.log(`✅ Tables found on page`);
+    } catch (selectorError) {
+      console.log(`❌ No tables found within timeout: ${selectorError.message}`);
+      throw selectorError;
+    }
     
     // Simulate user interactions that might trigger data loading
     console.log(`🖱️ Simulating user interactions to trigger data loading...`);
