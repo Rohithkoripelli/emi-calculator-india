@@ -61,7 +61,34 @@ async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
     console.log(`⏳ Waiting for quarterly results table to load...`);
     await page.waitForSelector('table', { timeout: 10000 });
     
-    // Additional wait for dynamic content
+    // Simulate user interactions that might trigger data loading
+    console.log(`🖱️ Simulating user interactions to trigger data loading...`);
+    
+    // Scroll down to trigger any lazy loading
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 2);
+    });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Scroll back up
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Look for and click any tabs that might contain quarterly data
+    try {
+      const tabs = await page.$$('a[href*="consolidated"], button[data-target*="quarterly"], .tab, .nav-tab');
+      if (tabs.length > 0) {
+        console.log(`🖱️ Found ${tabs.length} potential tabs, clicking the first one...`);
+        await tabs[0].click();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (tabError) {
+      console.log(`ℹ️ No tabs found or tab clicking failed: ${tabError.message}`);
+    }
+    
+    // Additional wait for dynamic content after interactions
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     console.log(`🔍 Extracting quarterly data from Table 2 (index 1)...`);
@@ -441,12 +468,17 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
     }
     
     // QUARTERLY RESULTS EXTRACTION - Enhanced Puppeteer Implementation
-    console.log(`📊 Attempting quarterly results extraction with Enhanced Puppeteer for ${stockSymbol}...`);
+    console.log(`📊 STARTING quarterly results extraction with Enhanced Puppeteer for ${stockSymbol}...`);
+    console.log(`🌐 URL for quarterly extraction: ${url}`);
     let quarterlyResults = [];
     
     try {
-      console.log(`🔄 Calling extractQuarterlyResultsWithPuppeteer function...`);
+      console.log(`🔄 About to call extractQuarterlyResultsWithPuppeteer function...`);
+      console.log(`📋 Function exists: ${typeof extractQuarterlyResultsWithPuppeteer}`);
+      
       quarterlyResults = await extractQuarterlyResultsWithPuppeteer(url, stockSymbol);
+      
+      console.log(`📊 RETURNED from extractQuarterlyResultsWithPuppeteer with: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
       console.log(`📋 Quarterly extraction result: ${quarterlyResults ? quarterlyResults.length : 'null'} results`);
       
       if (quarterlyResults && quarterlyResults.length > 0) {
