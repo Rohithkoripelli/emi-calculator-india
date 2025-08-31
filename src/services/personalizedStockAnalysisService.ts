@@ -66,9 +66,14 @@ export class PersonalizedStockAnalysisService {
     
     // Use OpenAI recommendation as primary, personalize the confidence and reasoning only
     const originalRecommendation = stockAnalysis.recommendation?.action?.toUpperCase();
+    const originalConfidence = stockAnalysis.recommendation?.confidence || 0;
     let recommendation: PersonalizedStockRecommendation['recommendation'];
     
-    if (originalRecommendation === 'HOLD') {
+    // If OpenAI provided a high-confidence BUY/SELL recommendation, respect it
+    if (originalConfidence >= 70 && (originalRecommendation === 'BUY' || originalRecommendation === 'SELL')) {
+      console.log(`🎯 Preserving high-confidence OpenAI recommendation: ${originalRecommendation} (${originalConfidence}%)`);
+      recommendation = originalRecommendation as any;
+    } else if (originalRecommendation === 'HOLD') {
       // For HOLD from OpenAI, apply our anti-HOLD logic based on personalized score
       if (overallScore >= 55) {
         recommendation = 'BUY';

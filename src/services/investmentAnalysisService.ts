@@ -2588,7 +2588,40 @@ export class InvestmentAnalysisService {
       
       console.log(`📊 Cleaned response preview: ${cleanedResponse.substring(0, 200)}...`);
       
-      const parsed = JSON.parse(cleanedResponse);
+      // Try to extract valid JSON if the response is truncated or has extra content
+      let jsonToparse = cleanedResponse;
+      
+      // If there's a syntax error, try to find the complete JSON object
+      try {
+        // First attempt: parse as-is
+        const parsed = JSON.parse(jsonToparse);
+        console.log(`✅ JSON parsed successfully on first attempt`);
+      } catch (firstError) {
+        console.log(`⚠️ First JSON parse failed, attempting to extract valid JSON...`);
+        
+        // Try to find the JSON object boundaries
+        const openBraceIndex = cleanedResponse.indexOf('{');
+        if (openBraceIndex !== -1) {
+          let braceCount = 0;
+          let endIndex = -1;
+          
+          for (let i = openBraceIndex; i < cleanedResponse.length; i++) {
+            if (cleanedResponse[i] === '{') braceCount++;
+            if (cleanedResponse[i] === '}') braceCount--;
+            if (braceCount === 0) {
+              endIndex = i + 1;
+              break;
+            }
+          }
+          
+          if (endIndex !== -1) {
+            jsonToparse = cleanedResponse.substring(openBraceIndex, endIndex);
+            console.log(`🔧 Extracted JSON object from position ${openBraceIndex} to ${endIndex}`);
+          }
+        }
+      }
+      
+      const parsed = JSON.parse(jsonToparse);
       
       // Validate that the parsed response has required fields
       if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
@@ -2629,7 +2662,15 @@ export class InvestmentAnalysisService {
       }
     } catch (error) {
       console.error(`❌ Error parsing OpenAI response:`, error);
-      console.error(`❌ Failed response text:`, response.substring(0, 500));
+      console.error(`❌ Failed response text (first 500 chars):`, response.substring(0, 500));
+      console.error(`❌ Full response length:`, response.length);
+      
+      // Try to find any JSON-like structure in the response for debugging
+      const jsonMatch = response.match(/\{[^{}]*"action"\s*:\s*"[^"]*"[^{}]*\}/);
+      if (jsonMatch) {
+        console.log(`🔍 Found potential JSON structure:`, jsonMatch[0]);
+      }
+      
       console.log(`🔄 Using fallback recommendation for ${symbol}`);
       return await this.getFallbackRecommendation({ quote: { currentPrice, dayChangePercent: 0 } }, symbol);
     }
