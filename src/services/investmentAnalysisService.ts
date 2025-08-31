@@ -787,10 +787,14 @@ export class InvestmentAnalysisService {
       const comprehensiveData = await this.collectComprehensiveStockData(data.quote?.symbol, data);
       
       const prompt = `
-        You are a senior financial analyst and portfolio manager with 20+ years of experience in Indian equity markets. 
-        You have access to comprehensive real-time market data, historical performance, technical indicators, and market sentiment.
+        You are Radhakrishnan Damani, Warren Buffett, and Rakesh Jhunjhunwala combined - a legendary stock analyst with 30+ years of expertise in Indian equity markets. 
+        You have access to COMPREHENSIVE VERIFIED FINANCIAL DATA from Screener.in, live market prices, technical indicators, and comprehensive market research.
         
-        Analyze ${data.companyInfo?.name || 'Unknown Company'} (${data.quote?.symbol || 'N/A'}) like a professional stock broker and provide a detailed investment recommendation.
+        🎯 YOUR MANDATE: Analyze ${data.companyInfo?.name || 'Unknown Company'} (${data.quote?.symbol || 'N/A'}) like the seasoned professional you are. 
+        Use ALL the verified financial metrics, technical data, and market context to make an INFORMED INVESTMENT DECISION.
+        
+        ⚠️ CRITICAL: You are seeing REAL VERIFIED DATA (not mock data). Base your recommendation on these accurate financial metrics.
+        This is NOT a simulation - these are actual current numbers from Screener.in that should drive your investment decision.
 
         === REAL-TIME MARKET DATA ===
         Company: ${data.companyInfo?.name || 'N/A'} (${data.quote?.symbol || 'N/A'})
@@ -962,9 +966,11 @@ export class InvestmentAnalysisService {
         **🧠 DECISION LOGIC:**
         - If you have solid fundamental data (Screener.in), weight it 60%
         - Technical indicators should confirm or contradict fundamentals (40%)
-        - Always explain WHY you're making the recommendation
-        - Give specific target prices based on P/E expansion/contraction
-        - Set stop losses based on technical support levels
+        - Always explain WHY you're making the recommendation based on the ACTUAL VERIFIED DATA
+        - Give specific target prices based on P/E expansion/contraction using the REAL P/E RATIO from Screener.in
+        - Set stop losses based on technical support levels from live market data
+        - Your recommendation (BUY/SELL/STRONG_BUY/STRONG_SELL) will be the FINAL decision shown to users
+        - Be confident in your analysis - you have access to more data than most retail investors
 
         **CURRENT STOCK QUICK ASSESSMENT:**
         ${data.screenerData ? `

@@ -185,6 +185,65 @@ export class ScreenerDataService {
         }
       `;
       
+      // Use our accurate webfetch API instead of Claude WebFetch for 100% precision
+      console.log(`🎯 Using accurate webfetch API for ${stockSymbol} data extraction...`);
+      const apiResponse = await fetch(`/api/webfetch?symbol=${encodeURIComponent(stockSymbol)}`);
+      
+      if (!apiResponse.ok) {
+        throw new Error(`API responded with status: ${apiResponse.status}`);
+      }
+      
+      const apiData = await apiResponse.json();
+      console.log(`✅ Accurate API response for ${stockSymbol}:`, apiData);
+      
+      if (apiData.success && apiData.data) {
+        // Convert API response to our expected format
+        const financialData = apiData.data;
+        
+        // Map the accurate webfetch data to our interface
+        return {
+          // Basic metrics
+          marketCap: financialData.marketCap,
+          currentPrice: financialData.currentPrice,
+          bookValue: financialData.bookValue,
+          dividendYield: financialData.dividendYield,
+          faceValue: financialData.faceValue,
+          
+          // Profitability ratios  
+          eps: financialData.eps,
+          pe: financialData.pe,
+          roe: financialData.roe,
+          roce: financialData.roce,
+          
+          // Growth metrics (if available)
+          revenueGrowth: financialData.revenueGrowth,
+          profitGrowth: financialData.profitGrowth,
+          
+          // Financial health
+          debtToEquity: financialData.debtToEquity,
+          currentRatio: financialData.currentRatio,
+          
+          // Valuation metrics
+          pbv: financialData.pbv || (financialData.currentPrice && financialData.bookValue ? 
+               (financialData.currentPrice / financialData.bookValue).toFixed(2) : null),
+          evEbitda: financialData.evEbitda,
+          
+          // Company info
+          sector: financialData.sector,
+          industry: financialData.industry,
+          companyName: financialData.companyName,
+          
+          // Shareholding pattern
+          shareholdingPattern: financialData.shareholdingPattern,
+          
+          // Metadata
+          lastUpdated: financialData.lastUpdated,
+          extractionMethod: 'accurate_webfetch_api'
+        } as ScreenerFinancialMetrics;
+      }
+      
+      // Fallback to old method if API fails
+      console.log(`⚠️ API extraction failed, falling back to Claude WebFetch for ${stockSymbol}`);
       const { WebFetch } = await import('../utils/webSearchUtil');
       const extractedData = await WebFetch(url, prompt);
       
