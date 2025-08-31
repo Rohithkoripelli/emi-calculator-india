@@ -6,6 +6,202 @@
 // IMPORTANT: This requires Claude WebFetch tool to be available in the server environment
 // For now, this is a template showing how the integration would work
 
+/**
+ * Extract quarterly results using Enhanced Puppeteer with JavaScript rendering
+ * Targets Table 1 (index 0) which contains the most recent quarterly data
+ */
+async function extractQuarterlyResultsWithPuppeteer(url, stockSymbol) {
+  let browser;
+  
+  try {
+    console.log(`🚀 Starting Enhanced Puppeteer extraction for quarterly results: ${stockSymbol}...`);
+    
+    // Launch browser optimized for serverless/production
+    browser = await require('puppeteer').launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ]
+    });
+    
+    const page = await browser.newPage();
+    
+    // Set viewport and realistic headers
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log(`📊 Navigating to ${url} and waiting for content...`);
+    
+    // Navigate with networkidle2 to ensure JavaScript content loads
+    await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Wait for tables to be present and JavaScript to complete
+    console.log(`⏳ Waiting for quarterly results table to load...`);
+    await page.waitForSelector('table', { timeout: 10000 });
+    
+    // Additional wait for dynamic content
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    console.log(`🔍 Extracting quarterly data from Table 2 (index 1)...`);
+    
+    // Extract quarterly results from the second table (index 1)
+    const quarterlyResults = await page.evaluate(() => {
+      const results = [];
+      
+      try {
+        // Target the second table (index 1) which contains recent quarterly data
+        const table = document.querySelectorAll('table')[1];
+        
+        if (!table) {
+          console.log('No table found at index 1');
+          return [];
+        }
+        
+        const rows = table.querySelectorAll('tr');
+        let headerRow = null;
+        let salesRow = null;
+        let netProfitRow = null;
+        let epsRow = null;
+        
+        // Find the relevant rows
+        rows.forEach((row, index) => {
+          const rowText = row.innerText.trim();
+          
+          // Look for header row with quarters (more flexible pattern)
+          if (rowText.includes('Jun 2025') || 
+              (rowText.includes('Mar 2025') && rowText.includes('Dec 2024'))) {
+            headerRow = row;
+            console.log(`Found header row at index ${index}: ${rowText.substring(0, 100)}`);
+          }
+          
+          // Look for Sales row (match the actual format from debug)
+          if (rowText.includes('Sales +') || 
+              (rowText.includes('Sales') && 
+               (rowText.includes('3,790') || rowText.includes('2,975') || 
+                rowText.includes('3790') || rowText.includes('2975')))) {
+            salesRow = row;
+            console.log(`Found sales row at index ${index}: ${rowText.substring(0, 100)}`);
+          }
+          
+          // Look for Net Profit row (more flexible pattern)
+          if (rowText.includes('Net Profit') || 
+              (rowText.includes('Profit After Tax') && !rowText.includes('Before'))) {
+            netProfitRow = row;
+            console.log(`Found net profit row at index ${index}: ${rowText.substring(0, 100)}`);
+          }
+          
+          // Look for EPS row
+          if (rowText.includes('EPS in Rs') || 
+              (rowText.includes('EPS') && rowText.includes('Rs'))) {
+            epsRow = row;
+            console.log(`Found EPS row at index ${index}: ${rowText.substring(0, 100)}`);
+          }
+        });
+        
+        // Extract data if we found the necessary rows
+        if (headerRow && salesRow) {
+          const headerCells = Array.from(headerRow.querySelectorAll('td, th')).map(cell => cell.innerText.trim());
+          const salesCells = Array.from(salesRow.querySelectorAll('td, th')).map(cell => cell.innerText.trim());
+          
+          let netProfitCells = [];
+          let epsCells = [];
+          
+          if (netProfitRow) {
+            netProfitCells = Array.from(netProfitRow.querySelectorAll('td, th')).map(cell => cell.innerText.trim());
+          }
+          
+          if (epsRow) {
+            epsCells = Array.from(epsRow.querySelectorAll('td, th')).map(cell => cell.innerText.trim());
+          }
+          
+          console.log(`Header cells: ${headerCells.length}, Sales cells: ${salesCells.length}`);
+          
+          // Extract last 4 quarters dynamically (most recent columns)
+          // Start from the end and work backwards, skipping the first column (labels)
+          const dataColumnsCount = Math.min(headerCells.length, salesCells.length);
+          const endIndex = dataColumnsCount;
+          const startIndex = Math.max(1, endIndex - 4); // Skip first column (labels), get last 4 data columns
+          
+          console.log(`Extracting columns from index ${endIndex - 1} down to ${startIndex} (last 4 quarters, most recent first)`);
+          
+          // Extract from right to left (most recent to oldest)
+          for (let columnIndex = endIndex - 1; columnIndex >= startIndex; columnIndex--) {
+            const quarterName = headerCells[columnIndex] ? headerCells[columnIndex].trim() : `Q${columnIndex}`;
+            
+            if (salesCells[columnIndex]) {
+              // Extract revenue (handle commas)
+              const revenueText = salesCells[columnIndex];
+              const revenue = parseFloat(revenueText.replace(/[^\d.-]/g, ''));
+              
+              // Extract net profit
+              let netProfit = 0;
+              if (netProfitCells[columnIndex]) {
+                const profitText = netProfitCells[columnIndex];
+                netProfit = parseFloat(profitText.replace(/[^\d.-]/g, ''));
+              }
+              
+              // Extract EPS
+              let eps = 0;
+              if (epsCells[columnIndex]) {
+                const epsText = epsCells[columnIndex];
+                eps = parseFloat(epsText.replace(/[^\d.-]/g, ''));
+              }
+              
+              if (!isNaN(revenue) && revenue > 0) {
+                results.push({
+                  quarter: quarterName,
+                  revenue: revenue,
+                  profit: isNaN(netProfit) ? 0 : netProfit,
+                  eps: isNaN(eps) ? 0 : eps
+                });
+                
+                console.log(`Extracted ${quarterName}: Revenue=${revenue}, Profit=${netProfit}, EPS=${eps}`);
+              }
+            }
+          }
+        }
+        
+        console.log(`Total quarterly results extracted: ${results.length}`);
+        return results;
+        
+      } catch (error) {
+        console.log(`Error in page evaluation: ${error.message}`);
+        return [];
+      }
+    });
+    
+    if (quarterlyResults.length > 0) {
+      console.log(`✅ Successfully extracted ${quarterlyResults.length} quarterly results for ${stockSymbol}`);
+      quarterlyResults.forEach(result => {
+        console.log(`   ${result.quarter}: Sales ₹${result.revenue} Cr, Profit ₹${result.profit} Cr, EPS ₹${result.eps}`);
+      });
+      return quarterlyResults;
+    } else {
+      console.log(`⚠️ No quarterly results extracted for ${stockSymbol}`);
+      return [];
+    }
+    
+  } catch (error) {
+    console.error(`❌ Puppeteer quarterly extraction failed for ${stockSymbol}:`, error);
+    return [];
+    
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
+
 // Add CORS headers for frontend access
 function addCORSHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -232,9 +428,21 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
       financialData.eps = epsValue;
     }
     
-    // QUARTERLY RESULTS - Not available via web scraping
-    // After extensive testing with both static and JavaScript-capable scraping,
-    // quarterly data is not accessible and has been removed from the response.
+    // QUARTERLY RESULTS EXTRACTION - Enhanced Puppeteer Implementation
+    console.log(`📊 Extracting quarterly results with Puppeteer for ${stockSymbol}...`);
+    let quarterlyResults = [];
+    
+    try {
+      quarterlyResults = await extractQuarterlyResultsWithPuppeteer(url, stockSymbol);
+      if (quarterlyResults && quarterlyResults.length > 0) {
+        console.log(`✅ Successfully extracted ${quarterlyResults.length} quarterly results`);
+      } else {
+        console.log(`⚠️ No quarterly results found - continuing without quarterly data`);
+      }
+    } catch (error) {
+      console.log(`❌ Quarterly extraction failed: ${error.message}`);
+      console.log(`⚠️ Continuing without quarterly data`);
+    }
     
     // ACCURATE SHAREHOLDING PATTERN EXTRACTION
     console.log(`👥 Extracting shareholding pattern with high accuracy for ${stockSymbol}...`);
@@ -285,6 +493,12 @@ async function performRealWebScraping(url, stockSymbol, extractionPrompt) {
     if (shareholdingPattern.length > 0) {
       financialData.shareholdingPattern = shareholdingPattern;
       console.log(`✅ Extracted ${shareholdingPattern.length} shareholding categories (no duplicates)`);
+    }
+    
+    // Add quarterly results to response if available
+    if (quarterlyResults && quarterlyResults.length > 0) {
+      financialData.quarterlyResults = quarterlyResults;
+      console.log(`✅ Added ${quarterlyResults.length} quarterly results to response`);
     }
     
     console.log(`🎯 Extraction complete for ${stockSymbol}. Found ${Object.keys(financialData).length} data points`);
