@@ -13,7 +13,7 @@ interface SearchResult {
  * Search for stock symbol using Google Custom Search API
  * This function should ONLY be called when stock is not found in Excel database
  */
-export async function WebSearch(query: string, maxResults: number = 3): Promise<SearchResult[]> {
+export async function WebSearch(query: string, maxResults: number = 3, isMobile: boolean = false): Promise<SearchResult[]> {
   try {
     console.log(`🔍 Google Search for stock symbol: "${query}"`);
     
@@ -38,16 +38,31 @@ export async function WebSearch(query: string, maxResults: number = 3): Promise<
       cr: 'countryIN'
     });
 
-    console.log(`🌐 Making Google API call for: ${query}`);
-    const response = await fetch(searchUrl);
+    console.log(`🌐 Making Google API call for: ${query}${isMobile ? ' (mobile-optimized)' : ''}`);
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.warn(`⚠️ Google Search API error:`, errorData);
-      throw new Error(`Google API Error: ${response.status}`);
-    }
+    // Mobile-specific timeout optimization
+    const apiTimeout = isMobile ? 8000 : 15000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), apiTimeout);
+    
+    try {
+      const response = await fetch(searchUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': isMobile 
+            ? 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36'
+            : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+      clearTimeout(timeoutId);
+    
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.warn(`⚠️ Google Search API error:`, errorData);
+        throw new Error(`Google API Error: ${response.status}`);
+      }
 
-    const data = await response.json();
+      const data = await response.json();
     
     if (data.items && data.items.length > 0) {
       const results = data.items.map((item: any) => ({
@@ -60,8 +75,17 @@ export async function WebSearch(query: string, maxResults: number = 3): Promise<
       return results;
     }
 
-    console.log(`⚠️ No Google search results found for: ${query}`);
-    return getIntelligentFallback(query, maxResults);
+      console.log(`⚠️ No Google search results found for: ${query}`);
+      return getIntelligentFallback(query, maxResults);
+      
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.warn(`⏱️ API request timed out after ${apiTimeout}ms for: ${query}`);
+        throw new Error(isMobile ? 'Request timed out on mobile network' : 'API request timeout');
+      }
+      throw fetchError;
+    }
     
   } catch (error) {
     console.error('❌ Google Search failed:', error);
@@ -470,12 +494,16 @@ const REAL_FINANCIAL_DATA: { [key: string]: any } = {
  * Get real financial data using dynamic server-side web scraping
  * This works for ANY stock symbol - NO MORE HARDCODING!
  */
-async function callRealWebFetch(url: string, prompt: string, stockSymbol: string): Promise<any | null> {
+async function callRealWebFetch(url: string, prompt: string, stockSymbol: string, isMobile: boolean = false): Promise<any | null> {
   try {
     console.log(`🌐 Making REAL dynamic web scraping call for ${stockSymbol}...`);
     console.log(`📊 URL: ${url}`);
     
-    // FIRST: Try the new real web scraping API
+    // FIRST: Try the new real web scraping API with mobile optimization
+    const apiTimeout = isMobile ? 10000 : 20000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), apiTimeout);
+    
     const response = await fetch('/api/webfetch', {
       method: 'POST',
       headers: {
@@ -485,8 +513,11 @@ async function callRealWebFetch(url: string, prompt: string, stockSymbol: string
         url: url,
         prompt: prompt,
         stockSymbol: stockSymbol
-      })
+      }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       const result = await response.json();

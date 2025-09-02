@@ -59,7 +59,12 @@ interface AIAssistantProps {
 }
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanData }) => {
-  
+  // Mobile detection for performance optimization  
+  const [isMobile] = useState(() => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           window.innerWidth <= 768;
+  });
+
   /**
    * Format OpenAI analysis for display using the same structured format as PersonalizedService
    * This ensures proper rendering by AIResponseFormatter with tables, buttons, and cards
@@ -300,8 +305,15 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
           : msg
       ));
       
-      // Now get the complete analysis
-      const stockAnalysis = await InvestmentAnalysisService.analyzeStock(stockSymbol);
+      // Now get the complete analysis with mobile-specific timeout
+      const stockAnalysisTimeout = isMobile ? 15000 : 75000;
+      
+      const analysisPromise = InvestmentAnalysisService.analyzeStock(stockSymbol);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Stock analysis timeout')), stockAnalysisTimeout)
+      );
+      
+      const stockAnalysis = await Promise.race([analysisPromise, timeoutPromise]);
       
       if (!stockAnalysis) {
         throw new Error(`Unable to analyze ${stockSymbol}. Please check if it's a valid NSE/BSE stock symbol.`);
@@ -341,11 +353,21 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
       console.error('❌ Error in stock analysis:', error);
       
       setStreamingMessageId(null);
+      
+      let errorMessage = `❌ Sorry, I couldn't analyze ${stockSymbol} at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}`;
+      
+      // Mobile-specific timeout handling
+      if (error instanceof Error && error.message === 'Stock analysis timeout') {
+        errorMessage = isMobile 
+          ? `🔄 Stock analysis is taking longer than expected on mobile networks. This could be due to slower connectivity. Try asking for a specific stock symbol or check your network connection and try again.`
+          : `⏱️ Stock analysis timed out. This might be due to heavy server load. Please try again in a moment.`;
+      }
+      
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
           ? { 
               ...msg, 
-              text: `❌ Sorry, I couldn't analyze ${stockSymbol} at the moment. ${error instanceof Error ? error.message : 'Please try again later.'}`,
+              text: errorMessage,
               isStreaming: false, 
               isComplete: true 
             }
@@ -1354,7 +1376,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
               const searchQuery = `"${companyQuery}" NSE BSE stock symbol ticker`;
               console.log(`🔍 Searching Google API: "${searchQuery}"`);
               
-              const searchResults = await WebSearch(searchQuery, 3);
+              const searchResults = await WebSearch(searchQuery, 3, isMobile);
               
               if (searchResults && searchResults.length > 0) {
                 console.log(`📊 Received ${searchResults.length} search results from Google API`);
