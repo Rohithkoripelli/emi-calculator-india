@@ -80,7 +80,7 @@ export async function WebSearch(query: string, maxResults: number = 3, isMobile:
       
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.warn(`⏱️ API request timed out after ${apiTimeout}ms for: ${query}`);
         throw new Error(isMobile ? 'Request timed out on mobile network' : 'API request timeout');
       }

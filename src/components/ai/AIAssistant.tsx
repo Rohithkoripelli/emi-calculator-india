@@ -309,7 +309,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
       const stockAnalysisTimeout = isMobile ? 15000 : 75000;
       
       const analysisPromise = InvestmentAnalysisService.analyzeStock(stockSymbol);
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Stock analysis timeout')), stockAnalysisTimeout)
       );
       
