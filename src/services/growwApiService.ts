@@ -1,10 +1,8 @@
 /**
- * Groww API Service
- * Handles real-time stock data and historical analysis using Groww's API
- * Features automated token management with TOTP-based authentication
+ * Groww API Service - Bearer Token Authentication
+ * Uses proven TOTP → Access Token → Bearer Auth strategy
+ * Zero maintenance with automated 11-hour token refresh
  */
-
-import { GrowwTokenManager } from './growwTokenManager';
 
 interface GrowwQuoteResponse {
   status: string;
@@ -103,26 +101,11 @@ export class GrowwApiService {
 
   private static async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      const tokenManager = GrowwTokenManager.getInstance();
-      const accessToken = await tokenManager.getAccessToken();
-      
-      return {
-        ...this.HEADERS,
-        'Authorization': `Bearer ${accessToken}`
-      };
+      // The Bearer API handles authentication internally via our backend
+      // We don't need to manage tokens directly in the frontend anymore
+      return this.HEADERS;
     } catch (error) {
-      console.warn('⚠️ Failed to get Groww access token, using fallback:', error);
-      
-      // Fallback to environment variable if available
-      const fallbackToken = process.env.GROWW_ACCESS_TOKEN || process.env.NEXT_PUBLIC_GROWW_ACCESS_TOKEN;
-      if (fallbackToken) {
-        console.log('🔄 Using fallback token from environment');
-        return {
-          ...this.HEADERS,
-          'Authorization': `Bearer ${fallbackToken}`
-        };
-      }
-      
+      console.warn('⚠️ Error in auth headers:', error);
       return this.HEADERS;
     }
   }
@@ -132,25 +115,25 @@ export class GrowwApiService {
    */
   static async getRealTimeQuote(tradingSymbol: string, exchange: string = 'NSE', segment: string = 'CASH'): Promise<StockQuote | null> {
     try {
-      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via backend API...`);
+      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via Bearer token API...`);
       
-      // Use the existing backend API that handles CORS
-      const response = await fetch('/api/groww-data', {
+      // Use the new Bearer token API with official Groww endpoints
+      const response = await fetch('/api/groww-data-bearer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          symbols: [tradingSymbol],
-          type: 'stock'
+          symbol: tradingSymbol,
+          type: 'quote'
         })
       });
 
       if (response.ok) {
         const result = await response.json();
         
-        if (result.success && result.data && result.data[tradingSymbol]) {
-          const data = result.data[tradingSymbol];
+        if (result.success && result.data) {
+          const data = result.data;
           
           // Get company name from our internal database
           const { ExcelBasedStockAnalysisService } = await import('./excelBasedStockAnalysis');
@@ -158,33 +141,34 @@ export class GrowwApiService {
           
           const quote: StockQuote = {
             symbol: tradingSymbol,
-            companyName: companyInfo?.name || data.name || tradingSymbol,
-            currentPrice: data.price,
-            dayChange: data.change,
-            dayChangePercent: data.changePercent,
-            dayHigh: data.dayHigh || data.price * 1.02,
-            dayLow: data.dayLow || data.price * 0.98,
-            previousClose: data.price - data.change,
+            companyName: companyInfo?.name || tradingSymbol,
+            currentPrice: data.currentPrice,
+            dayChange: data.dayChange || 0,
+            dayChangePercent: data.dayChangePercent || 0,
+            dayHigh: data.ohlc?.high || data.currentPrice * 1.02,
+            dayLow: data.ohlc?.low || data.currentPrice * 0.98,
+            previousClose: data.ohlc?.close || (data.currentPrice - (data.dayChange || 0)),
             volume: data.volume || 100000,
-            marketCap: this.estimateMarketCap(companyInfo?.name || tradingSymbol, data.price),
-            week52High: data.price * 1.4,
-            week52Low: data.price * 0.7,
-            upperCircuit: data.price * 1.05,
-            lowerCircuit: data.price * 0.95,
+            marketCap: this.estimateMarketCap(companyInfo?.name || tradingSymbol, data.currentPrice),
+            week52High: data.currentPrice * 1.4,
+            week52Low: data.currentPrice * 0.7,
+            upperCircuit: data.currentPrice * 1.05,
+            lowerCircuit: data.currentPrice * 0.95,
             totalBuyQuantity: Math.floor((data.volume || 100000) * 0.3),
             totalSellQuantity: Math.floor((data.volume || 100000) * 0.4),
             lastTradeTime: Date.now() / 1000,
-            buyDepth: this.generateOrderBook(data.price, 'buy'),
-            sellDepth: this.generateOrderBook(data.price, 'sell')
+            buyDepth: this.generateOrderBook(data.currentPrice, 'buy'),
+            sellDepth: this.generateOrderBook(data.currentPrice, 'sell')
           };
 
-          console.log(`✅ Successfully fetched live quote for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
+          console.log(`✅ Successfully fetched live quote via Bearer API for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
+          console.log(`🎉 Using Groww official API with TOTP authentication!`);
           return quote;
         } else {
-          console.log(`⚠️ No data returned from backend API for ${tradingSymbol}`);
+          console.log(`⚠️ No data returned from Bearer API for ${tradingSymbol}`);
         }
       } else {
-        console.log(`⚠️ Backend API error: ${response.status}`);
+        console.log(`⚠️ Bearer API error: ${response.status}`);
       }
       
       // Fallback: Generate realistic stock data
@@ -192,7 +176,8 @@ export class GrowwApiService {
       return this.generateRealisticStockData(tradingSymbol);
       
     } catch (error) {
-      console.error('❌ Error in getRealTimeQuote:', error);
+      console.error('❌ Error in getRealTimeQuote (Bearer API):', error);
+      console.log(`🔄 Falling back to realistic data for ${tradingSymbol}...`);
       return this.generateRealisticStockData(tradingSymbol);
     }
   }

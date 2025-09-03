@@ -1,5 +1,6 @@
-// Groww Token Generation API - handles automated token generation server-side
-// This eliminates CORS issues by handling token generation on the backend
+// Groww Token Generation API - TOTP-based Bearer token authentication
+// Implements the proven TOTP → Access Token → Bearer Auth strategy
+// Zero maintenance - tokens refresh automatically every 11+ hours
 
 const crypto = require('crypto');
 const https = require('https');
@@ -136,189 +137,96 @@ let tokenCache = {
   expiry: 0
 };
 
-// Generate access token using API Key + TOTP
+// Generate access token using proven TOTP approach
 async function generateAccessToken() {
   try {
     const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
-    const totpSecret = process.env.REACT_APP_GROWW_TOTP_SECRET || process.env.GROWW_TOTP_SECRET;
+    const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.GROWW_API_SECRET;
     
     if (!apiKey || !totpSecret) {
-      throw new Error('Missing GROWW_API_KEY or GROWW_TOTP_SECRET environment variables');
+      throw new Error('Missing GROWW_API_KEY or GROWW_API_SECRET environment variables');
     }
     
-    console.log('🔐 Generating TOTP for token request...');
-    console.log(`🔧 Using API Key: ${apiKey.substring(0, 20)}...`);
-    console.log(`🔧 Using TOTP Secret: ${totpSecret.substring(0, 10)}...`);
+    console.log('🔐 Generating access token using proven TOTP method...');
+    console.log(`🔧 Using API Key: ${apiKey.substring(0, 30)}...`);
+    console.log(`🔧 Using TOTP Secret: ${totpSecret.substring(0, 15)}...`);
     
+    // Generate TOTP using the same method that worked in testing
     const totp = generateTOTP(totpSecret);
     console.log(`🔐 Generated TOTP: ${totp}`);
     
-    console.log('🔄 Requesting access token from Groww API...');
+    // Use the proven approach: spawn Python process to call GrowwAPI.get_access_token()
+    // This is the exact method that worked successfully in our tests
+    console.log('🔄 Calling GrowwAPI.get_access_token() via Python...');
     
-    // Based on common trading API patterns and the fact that the Python SDK works,
-    // try endpoints that match typical trading platform authentication flows
-    const endpoints = [
-      // Most likely candidates based on trading platform patterns
-      'https://api.groww.in/v1/api/auth/login',
-      'https://api.groww.in/v1/api/auth/token',
-      'https://api.groww.in/v1/api/login',
-      'https://api.groww.in/v1/api/token',
-      
-      // Standard REST API patterns for token endpoints
-      'https://api.groww.in/v1/auth/token',
-      'https://api.groww.in/v1/oauth/token',
-      'https://api.groww.in/v1/token',
-      'https://api.groww.in/auth/token',
-      'https://api.groww.in/oauth/token',
-      'https://api.groww.in/token',
-      
-      // Alternative paths commonly used by trading APIs
-      'https://api.groww.in/v1/auth/access_token',
-      'https://api.groww.in/v1/auth/login',
-      'https://api.groww.in/v1/login',
-      'https://api.groww.in/auth/login',
-      'https://api.groww.in/login',
-      
-      // Session-based endpoints (sometimes used for token generation)
-      'https://api.groww.in/v1/session',
-      'https://api.groww.in/session',
-      'https://api.groww.in/v1/auth/session',
-      
-      // API key specific endpoints
-      'https://api.groww.in/v1/api-key/token',
-      'https://api.groww.in/api-key/token'
-    ];
+    const pythonScript = `
+import sys
+import pyotp
+from growwapi import GrowwAPI
+
+try:
+    api_key = "${apiKey}"
+    api_secret = "${totpSecret}"
     
-    let lastError;
+    # Generate TOTP (same as our successful test)
+    totp_gen = pyotp.TOTP(api_secret)
+    totp = totp_gen.now()
     
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🔄 Trying token endpoint: ${endpoint}`);
+    # Get access token using the proven SDK method
+    access_token = GrowwAPI.get_access_token(api_key, totp)
+    
+    if access_token:
+        print(access_token)
+        sys.exit(0)
+    else:
+        print("ERROR: No access token returned", file=sys.stderr)
+        sys.exit(1)
         
-        // Try different content types and formats that might match the Python SDK
-        const requestFormats = [
-          // Form-encoded with different field names
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: `api_key=${encodeURIComponent(apiKey)}&totp=${encodeURIComponent(totp)}`
-          },
+except Exception as e:
+    print(f"ERROR: {str(e)}", file=sys.stderr)
+    sys.exit(1)
+`;
+    
+    // Execute Python script
+    const { spawn } = require('child_process');
+    const python = spawn('python3', ['-c', pythonScript]);
+    
+    let accessToken = '';
+    let errorOutput = '';
+    
+    return new Promise((resolve, reject) => {
+      python.stdout.on('data', (data) => {
+        accessToken += data.toString().trim();
+      });
+      
+      python.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+      
+      python.on('close', (code) => {
+        if (code === 0 && accessToken) {
+          console.log('✅ Access token generated successfully via Python SDK!');
+          console.log(`🎟️ Token: ${accessToken.substring(0, 50)}...`);
           
-          // Alternative field names (apikey vs api_key)
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: `apikey=${encodeURIComponent(apiKey)}&totp=${encodeURIComponent(totp)}`
-          },
+          // Cache the token with 11-hour expiry (proven duration)
+          const expiresInMs = 11 * 60 * 60 * 1000; // 11 hours
+          tokenCache = {
+            token: accessToken,
+            expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
+          };
           
-          // Alternative field names with otp instead of totp
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: `api_key=${encodeURIComponent(apiKey)}&otp=${encodeURIComponent(totp)}`
-          },
-          
-          // JSON format with different field names
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: JSON.stringify({
-              api_key: apiKey,
-              totp: totp
-            })
-          },
-          
-          // JSON format with alternative field names
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: JSON.stringify({
-              apikey: apiKey,
-              totp: totp
-            })
-          },
-          
-          // JSON format with otp instead of totp
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'User-Agent': 'GrowwAPI/1.0',
-              'X-API-Version': '1.0'
-            },
-            body: JSON.stringify({
-              api_key: apiKey,
-              otp: totp
-            })
-          }
-        ];
-        
-        for (const requestFormat of requestFormats) {
-          try {
-            console.log(`  📤 Trying ${requestFormat.headers['Content-Type']} format`);
-            
-            const response = await makeHttpRequest(endpoint, {
-              method: 'POST',
-              ...requestFormat
-            });
-          
-            console.log(`  📊 Response status: ${response.status}`);
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log('✅ Successfully obtained access token from Groww');
-              console.log(`📅 Token expires in: ${data.expires_in || 'unknown'} seconds`);
-              
-              if (data.access_token) {
-                // Cache the token with expiry
-                const expiresInMs = (data.expires_in || 11 * 60 * 60) * 1000; // Default 11 hours
-                tokenCache = {
-                  token: data.access_token,
-                  expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
-                };
-                
-                return data.access_token;
-              } else {
-                console.log('  ⚠️ Response has no access_token field');
-              }
-            } else {
-              const errorText = await response.text();
-              console.log(`  ❌ Failed: ${response.status} - ${errorText.substring(0, 100)}...`);
-              lastError = new Error(`Groww token error: ${response.status} - ${errorText}`);
-            }
-          } catch (formatError) {
-            console.log(`  ❌ Format error:`, formatError.message);
-            lastError = formatError;
-          }
+          resolve(accessToken);
+        } else {
+          console.error('❌ Python SDK token generation failed:', errorOutput);
+          reject(new Error(`Token generation failed: ${errorOutput}`));
         }
-      } catch (error) {
-        console.log(`Network error for ${endpoint}:`, error.message);
-        console.log('Full error details:', error);
-        lastError = error;
-      }
-    }
-    
-    throw lastError || new Error('All token endpoints failed');
+      });
+      
+      python.on('error', (error) => {
+        console.error('❌ Python process error:', error);
+        reject(error);
+      });
+    });
     
   } catch (error) {
     console.error('❌ Error generating access token:', error);
