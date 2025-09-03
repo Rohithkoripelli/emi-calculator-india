@@ -103,10 +103,18 @@ except Exception as e:
 // Get valid access token (from cache or generate new)
 async function getValidAccessToken() {
   try {
+    // DEBUG: Check all environment variables
+    console.log('🔍 Environment check:');
+    console.log(`   REACT_APP_GROWW_ACCESS_TOKEN: ${process.env.REACT_APP_GROWW_ACCESS_TOKEN ? '[SET]' : '[NOT SET]'}`);
+    console.log(`   GROWW_ACCESS_TOKEN: ${process.env.GROWW_ACCESS_TOKEN ? '[SET]' : '[NOT SET]'}`);
+    console.log(`   REACT_APP_GROWW_API_KEY: ${process.env.REACT_APP_GROWW_API_KEY ? '[SET]' : '[NOT SET]'}`);
+    console.log(`   REACT_APP_GROWW_API_SECRET: ${process.env.REACT_APP_GROWW_API_SECRET ? '[SET]' : '[NOT SET]'}`);
+    console.log(`   REACT_APP_GROWW_TOTP_SECRET: ${process.env.REACT_APP_GROWW_TOTP_SECRET ? '[SET]' : '[NOT SET]'}`);
+    
     // PRIORITY 1: Check for manual token first (immediate fallback)
     const manualToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
     if (manualToken) {
-      console.log('✅ Using manual Bearer token (bypassing Python SDK)');
+      console.log(`✅ Using manual Bearer token (bypassing Python SDK) - Length: ${manualToken.length} chars`);
       return manualToken;
     }
     
@@ -117,12 +125,12 @@ async function getValidAccessToken() {
     }
     
     // PRIORITY 3: Try to generate new token via Python SDK
-    console.log('🔄 Attempting Bearer token generation via Python SDK...');
+    console.log('🔄 No manual token found - attempting Bearer token generation via Python SDK...');
     return await generateAccessTokenDirect();
     
   } catch (error) {
     console.error('❌ Bearer token generation failed:', error);
-    console.log('💡 Set REACT_APP_GROWW_ACCESS_TOKEN for manual token bypass');
+    console.log('💡 SOLUTION: Set REACT_APP_GROWW_ACCESS_TOKEN in Vercel environment variables');
     throw error;
   }
 }
