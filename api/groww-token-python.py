@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Groww Token Generation API - Pure Python Implementation
 Uses official Groww Python SDK with TOTP authentication
@@ -8,9 +7,22 @@ Vercel serverless function with Python runtime
 import os
 import json
 import time
-import pyotp
-from growwapi import GrowwAPI
 from http.server import BaseHTTPRequestHandler
+
+# Import dependencies with error handling
+try:
+    import pyotp
+    PYOTP_AVAILABLE = True
+except ImportError:
+    print("⚠️ pyotp not available")
+    PYOTP_AVAILABLE = False
+
+try:
+    from growwapi import GrowwAPI
+    GROWWAPI_AVAILABLE = True
+except ImportError:
+    print("⚠️ growwapi not available")
+    GROWWAPI_AVAILABLE = False
 
 # Token cache with expiry (in-memory for this function)
 token_cache = {
@@ -87,6 +99,12 @@ class handler(BaseHTTPRequestHandler):
     def generate_access_token(self):
         """Generate access token using official Groww Python SDK"""
         global token_cache
+        
+        # Check if dependencies are available
+        if not PYOTP_AVAILABLE:
+            raise Exception('pyotp library not available - install with: pip install pyotp>=2.6.0')
+        if not GROWWAPI_AVAILABLE:
+            raise Exception('growwapi library not available - install with: pip install growwapi==0.0.8')
         
         # Get credentials from environment
         api_key = (os.getenv('REACT_APP_GROWW_API_KEY') or 
