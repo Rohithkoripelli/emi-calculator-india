@@ -155,79 +155,87 @@ async function generateAccessToken() {
     const totp = generateTOTP(totpSecret);
     console.log(`🔐 Generated TOTP: ${totp}`);
     
-    // Use JavaScript implementation to avoid Python dependency issues in Vercel
-    console.log('🔄 Calling Groww API authentication via JavaScript...');
+    // Use the OFFICIAL Groww Python SDK (the only supported method)
+    // This is the proven approach that works with the official API
+    console.log('🔄 Calling official GrowwAPI.get_access_token() via Python SDK...');
     
-    // Try multiple authentication endpoints that might work
-    const authEndpoints = [
-      'https://groww.in/v1/api/login_service/v3/auth/login',
-      'https://groww.in/v1/api/login_service/v1/auth/login',
-      'https://groww.in/v1/api/auth/login',
-      'https://groww.in/login_service/v3/auth/login',
-      'https://groww.in/login_service/v1/auth/login',
-      'https://groww.in/auth/login',
-      'https://api.groww.in/v1/auth/login',
-      'https://api.groww.in/auth/login'
-    ];
+    const pythonScript = `
+import sys
+import pyotp
+from growwapi import GrowwAPI
+
+try:
+    # Official Groww SDK authentication flow
+    api_key = "${apiKey}"
+    api_secret = "${totpSecret}"
     
-    let lastError;
+    # Generate TOTP using official pyotp library
+    totp_gen = pyotp.TOTP(api_secret)
+    totp = totp_gen.now()
     
-    for (const endpoint of authEndpoints) {
-      try {
-        console.log(`🔄 Trying endpoint: ${endpoint}`);
+    print(f"🔐 Generated TOTP: {totp}", file=sys.stderr)
+    
+    # Use official Groww SDK method - the ONLY supported way
+    access_token = GrowwAPI.get_access_token(api_key, totp)
+    
+    if access_token:
+        print(access_token)
+        sys.exit(0)
+    else:
+        print("ERROR: No access token returned from official SDK", file=sys.stderr)
+        sys.exit(1)
         
-        // Try form-encoded data (most common for TOTP APIs)
-        const formData = new URLSearchParams();
-        formData.append('apiKey', apiKey);
-        formData.append('totp', totp);
-        
-        const response = await makeHttpRequest(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-            'User-Agent': 'GrowwAPI/1.0',
-            'X-API-Version': '1.0'
-          },
-          body: formData.toString()
-        });
-        
-        console.log(`📊 Response status: ${response.status}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`📦 Response data:`, JSON.stringify(data, null, 2));
+except ImportError as e:
+    print(f"ERROR: Missing required packages - {str(e)}", file=sys.stderr)
+    print("ERROR: Make sure 'growwapi' and 'pyotp' are installed", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: Official SDK authentication failed - {str(e)}", file=sys.stderr)
+    sys.exit(1)
+`;
+    
+    // Execute official Python SDK via child process
+    const { spawn } = require('child_process');
+    const python = spawn('python3', ['-c', pythonScript]);
+    
+    let accessToken = '';
+    let errorOutput = '';
+    
+    return new Promise((resolve, reject) => {
+      python.stdout.on('data', (data) => {
+        accessToken += data.toString().trim();
+      });
+      
+      python.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        console.log('🐍 Python SDK:', data.toString().trim());
+      });
+      
+      python.on('close', (code) => {
+        if (code === 0 && accessToken) {
+          console.log('✅ Official Groww SDK authentication successful!');
+          console.log(`🎟️ Token: ${accessToken.substring(0, 50)}...`);
           
-          if (data.access_token || data.token || data.accessToken) {
-            const accessToken = data.access_token || data.token || data.accessToken;
-            console.log('✅ Access token obtained via JavaScript!');
-            console.log(`🎟️ Token: ${accessToken.substring(0, 50)}...`);
-            
-            // Cache the token with 11-hour expiry
-            const expiresInMs = 11 * 60 * 60 * 1000; // 11 hours
-            tokenCache = {
-              token: accessToken,
-              expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
-            };
-            
-            return accessToken;
-          } else {
-            console.log(`⚠️ No access token in response from ${endpoint}`);
-          }
+          // Cache the token with 11-hour expiry (official Groww token duration)
+          const expiresInMs = 11 * 60 * 60 * 1000; // 11 hours
+          tokenCache = {
+            token: accessToken,
+            expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
+          };
+          
+          resolve(accessToken);
         } else {
-          const errorText = await response.text();
-          console.log(`❌ Failed ${endpoint}: ${response.status} - ${errorText.substring(0, 200)}...`);
-          lastError = new Error(`${endpoint}: ${response.status} - ${errorText}`);
+          console.error('❌ Official Groww SDK authentication failed');
+          console.error('❌ Error details:', errorOutput);
+          reject(new Error(`Official SDK authentication failed: ${errorOutput}`));
         }
-        
-      } catch (error) {
-        console.log(`❌ Error with ${endpoint}:`, error.message);
-        lastError = error;
-      }
-    }
-    
-    // If all endpoints fail, throw the last error
-    throw lastError || new Error('All authentication endpoints failed');
+      });
+      
+      python.on('error', (error) => {
+        console.error('❌ Python process error:', error);
+        reject(new Error(`Python process failed: ${error.message}`));
+      });
+    });
     
   } catch (error) {
     console.error('❌ Error generating access token:', error);

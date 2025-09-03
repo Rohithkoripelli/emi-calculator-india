@@ -1,0 +1,5 @@
+# Official Groww API Python SDK dependencies
+# Required for TOTP-based authentication in Vercel serverless functions
+growwapi==0.0.8
+pyotp>=2.6.0
+requests>=2.25.0
