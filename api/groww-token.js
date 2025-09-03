@@ -137,7 +137,43 @@ let tokenCache = {
   expiry: 0
 };
 
-// Generate access token using proven TOTP approach
+// Generate access token via Groww API endpoint (JavaScript approach)
+async function generateTokenViaAPI(apiKey, totp) {
+  const tokenEndpoint = 'https://api.groww.in/v1/auth/access-token';
+  
+  const requestBody = {
+    api_key: apiKey,
+    totp: totp
+  };
+  
+  console.log(`🌐 Calling Groww token endpoint: ${tokenEndpoint}`);
+  
+  const response = await fetch(tokenEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'GrowwAPI/1.0'
+    },
+    body: JSON.stringify(requestBody),
+    timeout: 15000
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groww token API error ${response.status}: ${errorText}`);
+  }
+  
+  const tokenData = await response.json();
+  
+  if (tokenData.status === 'SUCCESS' && tokenData.payload && tokenData.payload.access_token) {
+    return tokenData.payload.access_token;
+  } else {
+    throw new Error(`Groww token API returned error: ${JSON.stringify(tokenData)}`);
+  }
+}
+
+// Generate access token using TOTP authentication  
 async function generateAccessToken() {
   try {
     const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
@@ -147,16 +183,37 @@ async function generateAccessToken() {
       throw new Error('Missing GROWW_API_KEY or GROWW_API_SECRET environment variables');
     }
     
-    console.log('🔐 Generating access token using proven TOTP method...');
+    console.log('🔐 Generating access token using JavaScript TOTP method...');
     console.log(`🔧 Using API Key: ${apiKey.substring(0, 30)}...`);
     console.log(`🔧 Using TOTP Secret: ${totpSecret.substring(0, 15)}...`);
     
-    // Generate TOTP using the same method that worked in testing
+    // Generate TOTP using JavaScript implementation
     const totp = generateTOTP(totpSecret);
     console.log(`🔐 Generated TOTP: ${totp}`);
     
-    // Use the OFFICIAL Groww Python SDK (the only supported method)
-    // This is the proven approach that works with the official API
+    // Try JavaScript TOTP approach first (no Python dependencies)
+    console.log('🔄 Attempting JavaScript TOTP authentication...');
+    
+    try {
+      const accessToken = await generateTokenViaAPI(apiKey, totp);
+      if (accessToken) {
+        console.log('✅ JavaScript TOTP authentication successful!');
+        console.log(`🎟️ Token: ${accessToken.substring(0, 50)}...`);
+        
+        // Cache the token with 11-hour expiry
+        const expiresInMs = 11 * 60 * 60 * 1000; // 11 hours
+        tokenCache = {
+          token: accessToken,
+          expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
+        };
+        
+        return accessToken;
+      }
+    } catch (jsError) {
+      console.log('⚠️ JavaScript TOTP failed, trying Python SDK fallback:', jsError.message);
+    }
+    
+    // Fallback to Python SDK if available
     console.log('🔄 Calling official GrowwAPI.get_access_token() via Python SDK...');
     
     const pythonScript = `
