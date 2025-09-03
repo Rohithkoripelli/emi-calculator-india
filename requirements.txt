@@ -1,0 +1,4 @@
+# Python dependencies for Groww API TOTP testing
+pyotp>=2.6.0
+requests>=2.25.0
+growwapi>=1.0.0

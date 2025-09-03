@@ -4,42 +4,103 @@
  * Implements official Groww API endpoints that were successfully tested
  */
 
-// Get access token from our TOTP token service
+// Token cache (shared with groww-token.js)
+let tokenCache = {
+  token: null,
+  expiry: 0
+};
+
+// Generate access token directly using TOTP
+async function generateAccessTokenDirect() {
+  const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
+  const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.GROWW_API_SECRET;
+  
+  if (!apiKey || !totpSecret) {
+    throw new Error('Missing Groww API credentials');
+  }
+  
+  // Python script to generate token (same as in groww-token.js)
+  const pythonScript = `
+import sys
+import pyotp
+from growwapi import GrowwAPI
+
+try:
+    api_key = "${apiKey}"
+    api_secret = "${totpSecret}"
+    
+    # Generate TOTP
+    totp_gen = pyotp.TOTP(api_secret)
+    totp = totp_gen.now()
+    
+    # Get access token using the proven SDK method
+    access_token = GrowwAPI.get_access_token(api_key, totp)
+    
+    if access_token:
+        print(access_token)
+        sys.exit(0)
+    else:
+        print("ERROR: No access token returned", file=sys.stderr)
+        sys.exit(1)
+        
+except Exception as e:
+    print(f"ERROR: {str(e)}", file=sys.stderr)
+    sys.exit(1)
+`;
+  
+  // Execute Python script
+  const { spawn } = require('child_process');
+  const python = spawn('python3', ['-c', pythonScript]);
+  
+  let accessToken = '';
+  let errorOutput = '';
+  
+  return new Promise((resolve, reject) => {
+    python.stdout.on('data', (data) => {
+      accessToken += data.toString().trim();
+    });
+    
+    python.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+    
+    python.on('close', (code) => {
+      if (code === 0 && accessToken) {
+        console.log('✅ Direct token generation successful');
+        
+        // Cache the token
+        const expiresInMs = 11 * 60 * 60 * 1000; // 11 hours
+        tokenCache = {
+          token: accessToken,
+          expiry: Date.now() + expiresInMs - (5 * 60 * 1000) // 5 min buffer
+        };
+        
+        resolve(accessToken);
+      } else {
+        console.error('❌ Direct token generation failed:', errorOutput);
+        reject(new Error(`Token generation failed: ${errorOutput}`));
+      }
+    });
+    
+    python.on('error', (error) => {
+      console.error('❌ Python process error:', error);
+      reject(error);
+    });
+  });
+}
+
+// Get valid access token (from cache or generate new)
 async function getValidAccessToken() {
   try {
-    const response = await fetch('/api/groww-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'get'
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Token service error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.success && data.hasToken) {
-      // Extract the actual token from the backend
-      // The backend stores the full token, we just need to retrieve it
-      const tokenResponse = await fetch('/api/groww-token-raw', {
-        method: 'GET',
-        headers: {
-          'Authorization': 'internal-service'
-        }
-      });
-      
-      if (tokenResponse.ok) {
-        const tokenData = await tokenResponse.json();
-        return tokenData.token;
-      }
+    // Check cached token first
+    if (tokenCache.token && Date.now() < tokenCache.expiry) {
+      console.log('✅ Using cached Bearer token');
+      return tokenCache.token;
     }
     
-    throw new Error('No valid access token available');
+    // Generate new token
+    console.log('🔄 Generating new Bearer token...');
+    return await generateAccessTokenDirect();
     
   } catch (error) {
     console.error('❌ Failed to get access token:', error);
