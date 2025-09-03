@@ -6,7 +6,7 @@
   },
   "functions": {
     "api/auth-service.py": {
-      "runtime": "python3.9",
+      "runtime": "@vercel/python@3.9.0",
       "maxDuration": 30
     }
   },
