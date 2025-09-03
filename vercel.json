@@ -4,6 +4,11 @@
   "env": {
     "CI": "false"
   },
+  "functions": {
+    "api/groww-token-python.py": {
+      "runtime": "python3.9"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api).*)",
