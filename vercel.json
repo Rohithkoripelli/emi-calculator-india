@@ -4,12 +4,6 @@
   "env": {
     "CI": "false"
   },
-  "functions": {
-    "api/auth-service.py": {
-      "runtime": "python3.12",
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api).*)",
