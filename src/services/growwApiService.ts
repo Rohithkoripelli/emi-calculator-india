@@ -194,21 +194,28 @@ export class GrowwApiService {
     try {
       console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} using authenticated backend API...`);
       
-      // PRIORITY 1: Try backend API first (same authentication as real-time data)
-      console.log(`🔄 Trying authenticated backend API for ${tradingSymbol}...`);
+      // PRIORITY 1: Try new Bearer token API first (same TOTP authentication as real-time data)
+      console.log(`🔄 Trying Bearer token API for ${tradingSymbol} historical data...`);
+      const bearerResult = await this.fetchFromBearerTokenAPI(tradingSymbol, days, exchange, segment);
+      if (bearerResult) {
+        return bearerResult;
+      }
+      
+      // PRIORITY 2: Try legacy backend API (for fallback compatibility)
+      console.log(`🔄 Trying legacy authenticated backend API for ${tradingSymbol}...`);
       const backendResult = await this.fetchFromBackendAPIWithHistoricalFormat(tradingSymbol, days, exchange, segment);
       if (backendResult) {
         return backendResult;
       }
       
-      // PRIORITY 2: Try direct Groww API (will likely fail due to CORS but worth attempting)
+      // PRIORITY 3: Try direct Groww API (will likely fail due to CORS but worth attempting)
       console.log(`🔄 Attempting direct Groww API for ${tradingSymbol}...`);
       const directResult = await this.fetchFromDirectGrowwAPI(tradingSymbol, days, exchange, segment);
       if (directResult) {
         return directResult;
       }
       
-      // PRIORITY 3: Try legacy backend API format
+      // PRIORITY 4: Try legacy backend API format
       console.log(`🔄 Trying legacy backend API format for ${tradingSymbol}...`);
       const legacyResult = await this.fetchFromBackendAPI(tradingSymbol, days);
       if (legacyResult) {
@@ -227,6 +234,53 @@ export class GrowwApiService {
       console.log(`🔄 Error fallback: generating realistic data for ${tradingSymbol}...`);
       return this.generateRealisticHistoricalData(tradingSymbol, days);
     }
+  }
+
+  /**
+   * Try to fetch from new Bearer token API with TOTP authentication
+   */
+  private static async fetchFromBearerTokenAPI(
+    tradingSymbol: string, 
+    days: number, 
+    exchange: string, 
+    segment: string
+  ): Promise<HistoricalCandle[] | null> {
+    try {
+      console.log(`📈 Fetching historical data via Bearer token API for ${tradingSymbol}...`);
+      
+      const response = await fetch('/api/groww-data-bearer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symbol: tradingSymbol,
+          type: 'historical',
+          days: days,
+          exchange: exchange || 'NSE',
+          segment: segment || 'CASH'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.candles) {
+          const candles = result.data.candles;
+          console.log(`✅ Successfully fetched ${candles.length} historical candles via Bearer API for ${tradingSymbol}`);
+          console.log(`🎉 Using official Groww historical API with TOTP authentication!`);
+          return candles;
+        } else {
+          console.log(`⚠️ No candles data returned from Bearer API for ${tradingSymbol}`);
+        }
+      } else {
+        console.log(`⚠️ Bearer API historical data error: ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Bearer token API historical fetch failed: ${error}`);
+    }
+    
+    return null;
   }
 
   /**

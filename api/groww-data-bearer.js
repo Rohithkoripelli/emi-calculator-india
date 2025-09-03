@@ -187,6 +187,61 @@ async function getOHLCData(tradingSymbol, exchange = 'NSE', segment = 'CASH') {
   }
 }
 
+// Get historical candle data (proven endpoint)
+async function getHistoricalData(tradingSymbol, days = 30, exchange = 'NSE', segment = 'CASH') {
+  try {
+    console.log(`📈 Getting ${days}-day historical data for ${tradingSymbol}...`);
+    
+    // Calculate date range for API call
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - (days * 24 * 60 * 60 * 1000));
+    
+    // Format dates as required by Groww API: "2025-07-06 09:15:00"
+    const formatDate = (date) => {
+      return date.toISOString().replace('T', ' ').slice(0, 19);
+    };
+    
+    const params = {
+      exchange: exchange,
+      segment: segment,
+      trading_symbol: tradingSymbol,
+      start_time: formatDate(startTime),
+      end_time: formatDate(endTime),
+      interval_in_minutes: 3600 // 1 hour intervals
+    };
+    
+    const data = await makeGrowwAPICall('/v1/historical/candle/range', params);
+    
+    if (data.candles && data.candles.length > 0) {
+      // Convert Groww API format to our HistoricalCandle format
+      const candles = data.candles.map(([timestamp, open, high, low, close, volume]) => ({
+        timestamp: timestamp,
+        date: new Date(timestamp * 1000).toISOString().split('T')[0],
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        volume: volume
+      }));
+      
+      console.log(`✅ Retrieved ${candles.length} historical candles for ${tradingSymbol}`);
+      return {
+        symbol: tradingSymbol,
+        candles: candles,
+        period: days,
+        lastUpdated: new Date().toISOString(),
+        source: 'Groww Bearer API'
+      };
+    } else {
+      throw new Error(`No historical data found for ${tradingSymbol}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error getting historical data for ${tradingSymbol}:`, error);
+    throw error;
+  }
+}
+
 // Get comprehensive stock data (combines multiple endpoints)
 async function getComprehensiveStockData(tradingSymbol) {
   try {
@@ -240,7 +295,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { symbol, type } = req.method === 'GET' ? req.query : req.body;
+    const { symbol, type, days, exchange, segment } = req.method === 'GET' ? req.query : req.body;
     
     if (!symbol) {
       return res.status(400).json({ 
@@ -255,13 +310,16 @@ module.exports = async function handler(req, res) {
     
     switch (type) {
       case 'quote':
-        result = await getLiveQuote(symbol);
+        result = await getLiveQuote(symbol, exchange, segment);
         break;
       case 'ltp':
-        result = await getLastTradedPrice(symbol);
+        result = await getLastTradedPrice(symbol, exchange, segment);
         break;
       case 'ohlc':
-        result = await getOHLCData(symbol);
+        result = await getOHLCData(symbol, exchange, segment);
+        break;
+      case 'historical':
+        result = await getHistoricalData(symbol, parseInt(days) || 30, exchange, segment);
         break;
       default:
         result = await getComprehensiveStockData(symbol);
