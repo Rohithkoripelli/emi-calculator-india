@@ -5,8 +5,9 @@
     "CI": "false"
   },
   "functions": {
-    "api/groww-token-python.py": {
-      "runtime": "python3.9"
+    "api/auth-service.py": {
+      "runtime": "python3.9",
+      "maxDuration": 30
     }
   },
   "rewrites": [

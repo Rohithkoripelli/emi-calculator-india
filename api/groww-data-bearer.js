@@ -100,39 +100,106 @@ except Exception as e:
   });
 }
 
-// Get valid access token (from cache or generate new)
+// Enterprise-grade token management with Python authentication service integration
 async function getValidAccessToken() {
   try {
-    // DEBUG: Check all environment variables
-    console.log('🔍 Environment check:');
-    console.log(`   REACT_APP_GROWW_ACCESS_TOKEN: ${process.env.REACT_APP_GROWW_ACCESS_TOKEN ? '[SET]' : '[NOT SET]'}`);
-    console.log(`   GROWW_ACCESS_TOKEN: ${process.env.GROWW_ACCESS_TOKEN ? '[SET]' : '[NOT SET]'}`);
-    console.log(`   REACT_APP_GROWW_API_KEY: ${process.env.REACT_APP_GROWW_API_KEY ? '[SET]' : '[NOT SET]'}`);
-    console.log(`   REACT_APP_GROWW_API_SECRET: ${process.env.REACT_APP_GROWW_API_SECRET ? '[SET]' : '[NOT SET]'}`);
-    console.log(`   REACT_APP_GROWW_TOTP_SECRET: ${process.env.REACT_APP_GROWW_TOTP_SECRET ? '[SET]' : '[NOT SET]'}`);
+    console.log('🔐 Starting enterprise authentication flow...');
     
-    // PRIORITY 1: Check for manual token first (immediate fallback)
+    // PRIORITY 1: Direct manual token check (fastest path)
     const manualToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
     if (manualToken) {
-      console.log(`✅ Using manual Bearer token (bypassing Python SDK) - Length: ${manualToken.length} chars`);
+      console.log('✅ Using manual token (direct environment access)');
       return manualToken;
     }
     
-    // PRIORITY 2: Check cached token
-    if (tokenCache.token && Date.now() < tokenCache.expiry) {
-      console.log('✅ Using cached Bearer token');
-      return tokenCache.token;
+    // PRIORITY 2: Python authentication service for TOTP generation
+    console.log('🔗 Calling Python authentication service...');
+    
+    const authServiceUrl = `${getBaseUrl()}/api/auth-service`;
+    const authResponse = await fetch(`${authServiceUrl}?action=get`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Groww-Data-Bearer-Gateway/1.0'
+      },
+      timeout: 25000
+    });
+    
+    if (!authResponse.ok) {
+      const errorText = await authResponse.text();
+      console.error(`❌ Python auth service error ${authResponse.status}: ${errorText}`);
+      throw new Error(`Python auth service failed: ${authResponse.status}`);
     }
     
-    // PRIORITY 3: Try to generate new token via Python SDK
-    console.log('🔄 No manual token found - attempting Bearer token generation via Python SDK...');
-    return await generateAccessTokenDirect();
+    const authResult = await authResponse.json();
+    console.log(`📊 Python auth service response:`, {
+      success: authResult.success,
+      source: authResult.source,
+      method: authResult.method,
+      processing_time: authResult.processing_time_ms,
+      request_id: authResult.request_id
+    });
+    
+    if (!authResult.success) {
+      console.error('❌ Python authentication failed:', authResult.error);
+      throw new Error(authResult.error || 'Python authentication failed');
+    }
+    
+    if (authResult.source === 'manual') {
+      // Python service confirmed manual token exists
+      return manualToken; // We already checked this above, but fallback
+    }
+    
+    // For generated/cached tokens, they should be in the token_preview
+    // But we need to make another call to get the actual token securely
+    console.log('🔄 Requesting actual token from Python service...');
+    const tokenResponse = await fetch(authServiceUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Groww-Data-Bearer-Gateway/1.0'
+      },
+      body: JSON.stringify({ 
+        action: 'get_token',
+        request_id: authResult.request_id 
+      }),
+      timeout: 15000
+    });
+    
+    if (!tokenResponse.ok) {
+      throw new Error(`Failed to retrieve token: ${tokenResponse.status}`);
+    }
+    
+    const tokenResult = await tokenResponse.json();
+    if (!tokenResult.success || !tokenResult.token) {
+      throw new Error('Invalid token response from Python service');
+    }
+    
+    console.log(`✅ Token retrieved successfully from Python service (${authResult.source})`);
+    console.log(`🎟️ Token preview: ${tokenResult.token.substring(0, 30)}...`);
+    
+    return tokenResult.token;
     
   } catch (error) {
-    console.error('❌ Bearer token generation failed:', error);
-    console.log('💡 SOLUTION: Set REACT_APP_GROWW_ACCESS_TOKEN in Vercel environment variables');
-    throw error;
+    console.error('❌ Enterprise authentication flow failed:', error.message);
+    
+    // FINAL FALLBACK: Emergency manual token
+    const fallbackToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
+    if (fallbackToken) {
+      console.log('🆘 Using emergency manual token fallback');
+      return fallbackToken;
+    }
+    
+    throw new Error(`All authentication methods failed: ${error.message}`);
   }
+}
+
+// Helper function to get base URL for internal service calls  
+function getBaseUrl() {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'https://emi-calculator-india.vercel.app';
 }
 
 // Make authenticated API calls to Groww with Bearer token
