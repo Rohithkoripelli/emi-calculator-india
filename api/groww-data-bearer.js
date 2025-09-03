@@ -100,102 +100,112 @@ except Exception as e:
   });
 }
 
-// Enterprise-grade token management with Python authentication service integration
+// Hybrid Multi-Cloud Enterprise Authentication with Google Cloud Functions + Vercel
 async function getValidAccessToken() {
   try {
-    console.log('🔐 Starting enterprise authentication flow...');
+    console.log('🌤️ Starting hybrid multi-cloud authentication flow...');
     
     // PRIORITY 1: Direct manual token check (fastest path)
     const manualToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
     if (manualToken) {
-      console.log('✅ Using manual token (direct environment access)');
+      console.log('✅ Using manual token (Vercel environment)');
       return manualToken;
     }
     
-    // PRIORITY 2: Python authentication service for TOTP generation
-    console.log('🔗 Calling Python authentication service...');
+    // PRIORITY 2: Google Cloud Functions TOTP Authentication Service
+    const gcpAuthUrl = process.env.GCP_AUTH_SERVICE_URL || process.env.REACT_APP_GCP_AUTH_SERVICE_URL;
     
-    const authServiceUrl = `${getBaseUrl()}/api/auth-service`;
-    const authResponse = await fetch(`${authServiceUrl}?action=get`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Groww-Data-Bearer-Gateway/1.0'
-      },
-      timeout: 25000
-    });
-    
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text();
-      console.error(`❌ Python auth service error ${authResponse.status}: ${errorText}`);
-      throw new Error(`Python auth service failed: ${authResponse.status}`);
+    if (gcpAuthUrl) {
+      console.log('🔗 Calling Google Cloud Functions TOTP service...');
+      
+      try {
+        const gcpResponse = await fetch(`${gcpAuthUrl}/token`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Vercel-Groww-Gateway/1.0',
+            'X-Vercel-Origin': 'emi-calculator-india.vercel.app'
+          },
+          timeout: 25000
+        });
+        
+        if (!gcpResponse.ok) {
+          const errorText = await gcpResponse.text();
+          console.error(`❌ GCP auth service error ${gcpResponse.status}: ${errorText}`);
+          throw new Error(`GCP service failed: ${gcpResponse.status}`);
+        }
+        
+        const gcpResult = await gcpResponse.json();
+        console.log(`📊 GCP auth service response:`, {
+          success: gcpResult.success,
+          source: gcpResult.source,
+          method: gcpResult.method,
+          processing_time: gcpResult.processing_time_ms,
+          cloud_provider: gcpResult.cloud_provider,
+          request_id: gcpResult.request_id
+        });
+        
+        if (gcpResult.success && gcpResult.token) {
+          console.log(`✅ Token retrieved from Google Cloud Functions (${gcpResult.source})`);
+          console.log(`🎟️ Token preview: ${gcpResult.token.substring(0, 30)}...`);
+          console.log(`⏱️ Processing time: ${gcpResult.processing_time_ms}ms`);
+          
+          return gcpResult.token;
+        } else {
+          throw new Error(gcpResult.error || 'GCP authentication failed');
+        }
+        
+      } catch (gcpError) {
+        console.error('❌ Google Cloud Functions authentication failed:', gcpError.message);
+        // Fall through to next priority
+      }
+    } else {
+      console.log('⚠️ GCP_AUTH_SERVICE_URL not configured - skipping Google Cloud Functions');
     }
     
-    const authResult = await authResponse.json();
-    console.log(`📊 Python auth service response:`, {
-      success: authResult.success,
-      source: authResult.source,
-      method: authResult.method,
-      processing_time: authResult.processing_time_ms,
-      request_id: authResult.request_id
-    });
+    // PRIORITY 3: Local Vercel Python service fallback (if available)
+    console.log('🔗 Attempting local Vercel Python service fallback...');
     
-    if (!authResult.success) {
-      console.error('❌ Python authentication failed:', authResult.error);
-      throw new Error(authResult.error || 'Python authentication failed');
+    try {
+      const localAuthUrl = `${getVercelBaseUrl()}/api/auth-service`;
+      const localResponse = await fetch(`${localAuthUrl}?action=get`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Vercel-Local-Gateway/1.0'
+        },
+        timeout: 15000
+      });
+      
+      if (localResponse.ok) {
+        const localResult = await localResponse.json();
+        if (localResult.success && localResult.token) {
+          console.log('✅ Token retrieved from local Vercel Python service');
+          return localResult.token;
+        }
+      }
+    } catch (localError) {
+      console.log('⚠️ Local Vercel Python service not available:', localError.message);
     }
     
-    if (authResult.source === 'manual') {
-      // Python service confirmed manual token exists
-      return manualToken; // We already checked this above, but fallback
-    }
-    
-    // For generated/cached tokens, they should be in the token_preview
-    // But we need to make another call to get the actual token securely
-    console.log('🔄 Requesting actual token from Python service...');
-    const tokenResponse = await fetch(authServiceUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Groww-Data-Bearer-Gateway/1.0'
-      },
-      body: JSON.stringify({ 
-        action: 'get_token',
-        request_id: authResult.request_id 
-      }),
-      timeout: 15000
-    });
-    
-    if (!tokenResponse.ok) {
-      throw new Error(`Failed to retrieve token: ${tokenResponse.status}`);
-    }
-    
-    const tokenResult = await tokenResponse.json();
-    if (!tokenResult.success || !tokenResult.token) {
-      throw new Error('Invalid token response from Python service');
-    }
-    
-    console.log(`✅ Token retrieved successfully from Python service (${authResult.source})`);
-    console.log(`🎟️ Token preview: ${tokenResult.token.substring(0, 30)}...`);
-    
-    return tokenResult.token;
+    throw new Error('No authentication services available');
     
   } catch (error) {
-    console.error('❌ Enterprise authentication flow failed:', error.message);
+    console.error('❌ Multi-cloud authentication flow failed:', error.message);
     
-    // FINAL FALLBACK: Emergency manual token
-    const fallbackToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
-    if (fallbackToken) {
+    // ULTIMATE FALLBACK: Emergency manual token
+    const emergencyToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
+    if (emergencyToken) {
       console.log('🆘 Using emergency manual token fallback');
-      return fallbackToken;
+      return emergencyToken;
     }
     
-    throw new Error(`All authentication methods failed: ${error.message}`);
+    throw new Error(`All authentication methods exhausted: ${error.message}. Configure GCP_AUTH_SERVICE_URL or set manual token.`);
   }
 }
 
-// Helper function to get base URL for internal service calls  
-function getBaseUrl() {
+// Helper function to get Vercel base URL
+function getVercelBaseUrl() {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }

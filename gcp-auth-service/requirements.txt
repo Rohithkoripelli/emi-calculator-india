@@ -1,0 +1,12 @@
+# Google Cloud Functions - Groww TOTP Authentication Service
+# Official Groww Python SDK and dependencies
+growwapi==0.0.8
+pyotp>=2.6.0
+requests>=2.25.0
+
+# Flask for HTTP endpoints (Google Cloud Functions standard)
+Flask>=2.3.0
+flask-cors>=4.0.0
+
+# Additional utilities for enterprise features
+python-dateutil>=2.8.0
