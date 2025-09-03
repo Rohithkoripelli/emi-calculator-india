@@ -141,7 +141,7 @@ let tokenCache = {
 async function generateAccessToken() {
   try {
     const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
-    const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.GROWW_API_SECRET;
+    const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.REACT_APP_GROWW_TOTP_SECRET || process.env.GROWW_API_SECRET;
     
     if (!apiKey || !totpSecret) {
       throw new Error('Missing GROWW_API_KEY or GROWW_API_SECRET environment variables');
@@ -161,13 +161,36 @@ async function generateAccessToken() {
     
     const pythonScript = `
 import sys
-import pyotp
-from growwapi import GrowwAPI
+import os
+
+# Debug: Check environment and dependencies
+print(f"🐍 Python version: {sys.version}", file=sys.stderr)
+print(f"🐍 Python path: {sys.path}", file=sys.stderr)
+print(f"🐍 Environment: Vercel serverless", file=sys.stderr)
+
+try:
+    import pyotp
+    print("✅ pyotp imported successfully", file=sys.stderr)
+except ImportError as e:
+    print(f"❌ pyotp import failed: {str(e)}", file=sys.stderr)
+    print("❌ Try: pip install pyotp>=2.6.0", file=sys.stderr)
+    sys.exit(1)
+
+try:
+    from growwapi import GrowwAPI
+    print("✅ growwapi imported successfully", file=sys.stderr)
+except ImportError as e:
+    print(f"❌ growwapi import failed: {str(e)}", file=sys.stderr)
+    print("❌ Try: pip install growwapi==0.0.8", file=sys.stderr)
+    sys.exit(1)
 
 try:
     # Official Groww SDK authentication flow
     api_key = "${apiKey}"
     api_secret = "${totpSecret}"
+    
+    print(f"🔐 API Key length: {len(api_key)} chars", file=sys.stderr)
+    print(f"🔐 API Secret length: {len(api_secret)} chars", file=sys.stderr)
     
     # Generate TOTP using official pyotp library
     totp_gen = pyotp.TOTP(api_secret)
@@ -176,21 +199,20 @@ try:
     print(f"🔐 Generated TOTP: {totp}", file=sys.stderr)
     
     # Use official Groww SDK method - the ONLY supported way
+    print("🔄 Calling GrowwAPI.get_access_token()...", file=sys.stderr)
     access_token = GrowwAPI.get_access_token(api_key, totp)
     
     if access_token:
+        print(f"✅ Token received: {len(access_token)} chars", file=sys.stderr)
         print(access_token)
         sys.exit(0)
     else:
         print("ERROR: No access token returned from official SDK", file=sys.stderr)
         sys.exit(1)
         
-except ImportError as e:
-    print(f"ERROR: Missing required packages - {str(e)}", file=sys.stderr)
-    print("ERROR: Make sure 'growwapi' and 'pyotp' are installed", file=sys.stderr)
-    sys.exit(1)
 except Exception as e:
     print(f"ERROR: Official SDK authentication failed - {str(e)}", file=sys.stderr)
+    print(f"ERROR: Exception type: {type(e).__name__}", file=sys.stderr)
     sys.exit(1)
 `;
     
@@ -245,22 +267,30 @@ except Exception as e:
 
 // Get valid access token (from cache or generate new)
 async function getValidAccessToken() {
-  // Check for manual token first
-  const manualToken = process.env.GROWW_ACCESS_TOKEN;
+  // PRIORITY 1: Check for manual token first (immediate fallback)
+  const manualToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
   if (manualToken) {
-    console.log('✅ Using manual access token');
+    console.log('✅ Using manual access token (bypassing Python SDK)');
     return manualToken;
   }
   
-  // Check cached token
+  // PRIORITY 2: Check cached automated token
   if (tokenCache.token && Date.now() < tokenCache.expiry) {
     console.log('✅ Using cached automated token');
     return tokenCache.token;
   }
   
-  // Generate new token
-  console.log('🔄 Generating new automated token...');
-  return await generateAccessToken();
+  // PRIORITY 3: Try to generate new token via Python SDK
+  console.log('🔄 Attempting automated token generation via Python SDK...');
+  try {
+    return await generateAccessToken();
+  } catch (error) {
+    console.error('❌ Python SDK token generation failed:', error.message);
+    
+    // FINAL FALLBACK: Return null to trigger API fallback chain
+    console.log('💡 Set REACT_APP_GROWW_ACCESS_TOKEN for manual token bypass');
+    throw new Error(`Python SDK failed: ${error.message}. Set manual token as fallback.`);
+  }
 }
 
 // Main handler

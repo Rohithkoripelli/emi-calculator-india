@@ -13,7 +13,7 @@ let tokenCache = {
 // Generate access token using OFFICIAL Groww Python SDK
 async function generateAccessTokenDirect() {
   const apiKey = process.env.REACT_APP_GROWW_API_KEY || process.env.GROWW_API_KEY;
-  const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.GROWW_API_SECRET;
+  const totpSecret = process.env.REACT_APP_GROWW_API_SECRET || process.env.REACT_APP_GROWW_TOTP_SECRET || process.env.GROWW_API_SECRET;
   
   if (!apiKey || !totpSecret) {
     throw new Error('Missing Groww API credentials');
@@ -103,18 +103,26 @@ except Exception as e:
 // Get valid access token (from cache or generate new)
 async function getValidAccessToken() {
   try {
-    // Check cached token first
+    // PRIORITY 1: Check for manual token first (immediate fallback)
+    const manualToken = process.env.REACT_APP_GROWW_ACCESS_TOKEN || process.env.GROWW_ACCESS_TOKEN;
+    if (manualToken) {
+      console.log('✅ Using manual Bearer token (bypassing Python SDK)');
+      return manualToken;
+    }
+    
+    // PRIORITY 2: Check cached token
     if (tokenCache.token && Date.now() < tokenCache.expiry) {
       console.log('✅ Using cached Bearer token');
       return tokenCache.token;
     }
     
-    // Generate new token
-    console.log('🔄 Generating new Bearer token...');
+    // PRIORITY 3: Try to generate new token via Python SDK
+    console.log('🔄 Attempting Bearer token generation via Python SDK...');
     return await generateAccessTokenDirect();
     
   } catch (error) {
-    console.error('❌ Failed to get access token:', error);
+    console.error('❌ Bearer token generation failed:', error);
+    console.log('💡 Set REACT_APP_GROWW_ACCESS_TOKEN for manual token bypass');
     throw error;
   }
 }
