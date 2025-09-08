@@ -132,47 +132,60 @@ export class GrowwTokenManager {
   }
 
   /**
-   * Get access token using backend API (avoids CORS issues)
-   * Backend handles TOTP generation and token fetching
+   * Get access token using Railway authentication service
    */
   private async fetchAccessToken(): Promise<string> {
     try {
-      console.log('🔄 Requesting access token via backend...');
+      console.log('🔄 Requesting access token from Railway auth service...');
       
-      const response = await fetch('/api/groww-token', {
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL || 
+                            'https://emi-calculator-india-production.up.railway.app';
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(`${authServiceUrl}/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'generate'
-        })
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Backend token API error (${response.status}):`, errorText);
-        throw new Error(`Failed to get access token from backend: ${response.status} - ${errorText}`);
+        console.error(`❌ Railway auth service error (${response.status}):`, errorText);
+        throw new Error(`Failed to get access token from Railway: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
       
       if (!data.success) {
-        throw new Error(data.message || 'Backend token generation failed');
+        throw new Error(data.error || 'Railway token generation failed');
       }
 
-      console.log('✅ Successfully obtained access token from backend');
-      console.log('📅 Token generated using automated TOTP system');
+      if (!data.access_token) {
+        throw new Error('No access token in Railway response');
+      }
+
+      console.log('✅ Successfully obtained access token from Railway auth service');
+      console.log('🎉 Using automated TOTP + Groww SDK authentication');
+      console.log(`⏰ Token expires at: ${data.expires_at}`);
       
-      // Set expiry time (backend handles this, default to 11 hours)
-      const expiresInMs = 11 * 60 * 60 * 1000;
-      this.tokenExpiry = Date.now() + expiresInMs;
+      // Set expiry time based on Railway response
+      if (data.expires_at) {
+        this.tokenExpiry = new Date(data.expires_at).getTime();
+      } else {
+        // Default to 11 hours
+        this.tokenExpiry = Date.now() + (11 * 60 * 60 * 1000);
+      }
       
-      // Return a placeholder - the actual token is managed on backend
-      return 'BACKEND_MANAGED_TOKEN';
+      return data.access_token;
       
     } catch (error) {
-      console.error('❌ Error fetching Groww access token via backend:', error);
+      console.error('❌ Error fetching Groww access token from Railway:', error);
       throw error;
     }
   }
@@ -239,44 +252,39 @@ export class GrowwTokenManager {
   }
 
   /**
-   * Test the automated token generation system via backend
+   * Test the Railway authentication service
    */
   async testTokenGeneration(): Promise<boolean> {
     try {
-      console.log('🧪 Testing Groww backend token generation...');
+      console.log('🧪 Testing Railway Groww authentication service...');
       
-      // Test backend token generation
-      const response = await fetch('/api/groww-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'status'
-        })
-      });
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL || 
+                            'https://emi-calculator-india-production.up.railway.app';
       
-      if (!response.ok) {
-        console.error('❌ Backend token API not available');
+      // Test service status
+      const statusResponse = await fetch(`${authServiceUrl}/auth/status`);
+      
+      if (!statusResponse.ok) {
+        console.error('❌ Railway auth service not available');
         return false;
       }
       
-      const status = await response.json();
-      console.log('📊 Backend token status:', status.tokenStatus);
+      const status = await statusResponse.json();
+      console.log('📊 Railway auth service status:', status);
       
-      if (!status.tokenStatus.canGenerate) {
-        console.error('❌ Backend cannot generate tokens - missing credentials');
+      if (!status.success || !status.status.configured) {
+        console.error('❌ Railway service not configured properly');
         return false;
       }
       
-      // Try to get an access token via backend
+      // Try to get an access token from Railway
       const token = await this.getAccessToken();
-      console.log(`✅ Access token system working: ${token}`);
+      console.log(`✅ Railway authentication working: ${token.substring(0, 20)}...`);
       
       return true;
       
     } catch (error) {
-      console.error('❌ Token generation test failed:', error);
+      console.error('❌ Railway token generation test failed:', error);
       return false;
     }
   }
