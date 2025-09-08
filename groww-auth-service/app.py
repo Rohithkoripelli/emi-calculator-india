@@ -367,49 +367,99 @@ def get_historical(symbol):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
-        # Format dates for Groww API (YYYY-MM-DD)
+        # Format dates for different endpoint formats
         formatted_start_date = start_date.strftime('%Y-%m-%d')
         formatted_end_date = end_date.strftime('%Y-%m-%d')
+        formatted_start_datetime = start_date.strftime('%Y-%m-%d %H:%M:%S')
+        formatted_end_datetime = end_date.strftime('%Y-%m-%d %H:%M:%S')
         
-        # Call Groww API
-        groww_url = f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/search_id/{symbol}/candles"
-        params = {
-            'time_format': '1D',
-            'start_date': formatted_start_date,
-            'end_date': formatted_end_date
-        }
+        # Try multiple historical data endpoints (same as live quotes approach)
+        endpoints_to_try = [
+            # Pattern 1: Historical candle endpoint
+            {
+                "url": f"https://api.groww.in/v1/historical/candle/range",
+                "params": {
+                    'exchange': exchange,
+                    'segment': segment,
+                    'trading_symbol': symbol,
+                    'start_time': formatted_start_datetime.replace(' ', '%20'),
+                    'end_time': formatted_end_datetime.replace(' ', '%20'),
+                    'interval_in_minutes': 1440  # Daily candles
+                }
+            },
+            # Pattern 2: Accord points candles
+            {
+                "url": f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/search_id/{symbol}/candles",
+                "params": {
+                    'time_format': '1D',
+                    'start_date': formatted_start_date,
+                    'end_date': formatted_end_date
+                }
+            },
+            # Pattern 3: Alternative historical endpoint
+            {
+                "url": f"https://api.groww.in/v1/live-data/historical/{symbol}",
+                "params": {
+                    'exchange': exchange,
+                    'segment': segment,
+                    'interval': '1D',
+                    'from_date': formatted_start_date,
+                    'to_date': formatted_end_date
+                }
+            }
+        ]
         
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-API-VERSION': '1.0',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
         logger.info(f"🔄 Proxying historical request for {symbol} ({days} days) to Groww API...")
-        response = requests.get(groww_url, headers=headers, params=params, timeout=30)
         
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"✅ Successfully fetched {days}-day historical data for {symbol}")
-            return jsonify({
-                "success": True,
-                "data": data,
-                "proxied_from": "groww_api",
-                "params": {
-                    "symbol": symbol,
-                    "days": days,
-                    "start_date": formatted_start_date,
-                    "end_date": formatted_end_date
-                }
-            })
-        else:
-            logger.error(f"❌ Groww API historical error for {symbol}: {response.status_code} - {response.text}")
-            return jsonify({
-                "success": False,
-                "error": f"Groww API error: {response.status_code}",
-                "details": response.text
-            }), response.status_code
+        # Try each endpoint until one works
+        for i, endpoint_config in enumerate(endpoints_to_try, 1):
+            try:
+                groww_url = endpoint_config["url"]
+                params = endpoint_config["params"]
+                logger.info(f"📡 Trying historical endpoint {i}/{len(endpoints_to_try)}: {groww_url}")
+                logger.info(f"📊 Parameters: {params}")
+                
+                response = requests.get(groww_url, headers=headers, params=params, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"✅ Successfully fetched {days}-day historical data for {symbol} using endpoint {i}")
+                    logger.info(f"🎯 Working historical endpoint: {groww_url}")
+                    return jsonify({
+                        "success": True,
+                        "data": data,
+                        "proxied_from": "groww_api",
+                        "endpoint_used": i,
+                        "endpoint_url": groww_url,
+                        "params": {
+                            "symbol": symbol,
+                            "days": days,
+                            "start_date": formatted_start_date,
+                            "end_date": formatted_end_date
+                        }
+                    })
+                else:
+                    logger.warning(f"⚠️ Historical endpoint {i} failed: {response.status_code} - {response.text[:200]}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Historical endpoint {i} exception: {e}")
+                continue
+        
+        # All endpoints failed
+        logger.error(f"❌ All Groww historical API endpoints failed for {symbol}")
+        return jsonify({
+            "success": False,
+            "error": "All Groww historical API endpoints failed",
+            "endpoints_tried": len(endpoints_to_try)
+        }), 500
             
     except Exception as e:
         logger.error(f"❌ Error in /api/historical/{symbol}: {e}")
