@@ -7,6 +7,7 @@ A Python Flask service that handles Groww API authentication using API Key + TOT
 import os
 import logging
 import time
+import threading
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pyotp
@@ -282,6 +283,33 @@ def internal_error(error):
         "error": "Internal server error"
     }), 500
 
+def keep_alive():
+    """Keep Railway service awake by making periodic health check requests"""
+    import time
+    import requests
+    
+    def ping_self():
+        while True:
+            try:
+                time.sleep(240)  # Wait 4 minutes between pings
+                # Make a request to our own health endpoint
+                port = os.getenv('PORT', '8080')
+                url = f"http://localhost:{port}/"
+                
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    logger.info("🔄 Keep-alive ping successful")
+                else:
+                    logger.warning(f"⚠️ Keep-alive ping returned {response.status_code}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Keep-alive ping failed: {e}")
+    
+    # Start the keep-alive thread
+    ping_thread = threading.Thread(target=ping_self, daemon=True)
+    ping_thread.start()
+    logger.info("🔄 Keep-alive mechanism started (pings every 4 minutes)")
+
 if __name__ == '__main__':
     start_time = time.time()
     
@@ -296,9 +324,13 @@ if __name__ == '__main__':
     
     logger.info(f"🌐 Starting server on port {port}")
     logger.info(f"🔧 Flask app routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
+    
+    # Start keep-alive for direct Flask run
+    keep_alive()
+    
     app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development')
 else:
-    # When running with gunicorn
+    # When running with gunicorn (Railway production)
     start_time = time.time()
     logger.info("🚀 Groww Authentication Service started with gunicorn")
     logger.info(f"🔧 Available routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
@@ -306,3 +338,6 @@ else:
         logger.info("✅ Service fully configured and ready")
     else:
         logger.warning("⚠️  Service running with incomplete configuration")
+    
+    # Start keep-alive for gunicorn (Railway)
+    keep_alive()
