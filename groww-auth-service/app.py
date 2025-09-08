@@ -283,34 +283,59 @@ def get_quote(symbol):
         exchange = request.args.get('exchange', 'NSE')
         segment = request.args.get('segment', 'CASH')
         
-        # Call Groww API
-        groww_url = f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/latest_prices_ohlc/{symbol}"
+        # Try alternative Groww API endpoints (multiple fallbacks)
+        endpoints_to_try = [
+            # Pattern 1: Live data quote endpoint
+            f"https://api.groww.in/v1/live-data/quote?exchange={exchange}&segment={segment}&trading_symbol={symbol}",
+            # Pattern 2: OHLC endpoint
+            f"https://api.groww.in/v1/live-data/ohlc?segment={segment}&exchange_symbols={exchange}_{symbol}",
+            # Pattern 3: LTP endpoint  
+            f"https://api.groww.in/v1/live-data/ltp?segment={segment}&exchange_symbols={exchange}_{symbol}",
+            # Pattern 4: Original accord points endpoint
+            f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/latest_prices_ohlc/{symbol}"
+        ]
         
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-API-VERSION': '1.0',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
         logger.info(f"🔄 Proxying quote request for {symbol} to Groww API...")
-        response = requests.get(groww_url, headers=headers, timeout=30)
         
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"✅ Successfully fetched quote for {symbol}")
-            return jsonify({
-                "success": True,
-                "data": data,
-                "proxied_from": "groww_api"
-            })
-        else:
-            logger.error(f"❌ Groww API error for {symbol}: {response.status_code} - {response.text}")
-            return jsonify({
-                "success": False,
-                "error": f"Groww API error: {response.status_code}",
-                "details": response.text
-            }), response.status_code
+        # Try each endpoint until one works
+        for i, groww_url in enumerate(endpoints_to_try, 1):
+            try:
+                logger.info(f"📡 Trying endpoint {i}/{len(endpoints_to_try)}: {groww_url}")
+                response = requests.get(groww_url, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"✅ Successfully fetched quote for {symbol} using endpoint {i}")
+                    logger.info(f"🎯 Working endpoint: {groww_url}")
+                    return jsonify({
+                        "success": True,
+                        "data": data,
+                        "proxied_from": "groww_api",
+                        "endpoint_used": i,
+                        "endpoint_url": groww_url
+                    })
+                else:
+                    logger.warning(f"⚠️ Endpoint {i} failed: {response.status_code} - {response.text[:100]}")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Endpoint {i} exception: {e}")
+                continue
+        
+        # All endpoints failed
+        logger.error(f"❌ All Groww API endpoints failed for {symbol}")
+        return jsonify({
+            "success": False,
+            "error": "All Groww API endpoints failed",
+            "endpoints_tried": len(endpoints_to_try)
+        }), 500
             
     except Exception as e:
         logger.error(f"❌ Error in /api/quote/{symbol}: {e}")
