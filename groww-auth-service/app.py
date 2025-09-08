@@ -59,12 +59,34 @@ class GrowwAuthManager:
             # Generate TOTP
             totp_code = self.generate_totp()
             
-            # According to Groww documentation
-            # Use GrowwAPI.get_access_token(api_key, totp)
-            # But we need to make HTTP request directly
+            # Try the Groww Python SDK approach first
+            try:
+                from growwapi import GrowwAPI
+                logger.info("🐍 Using Groww Python SDK method...")
+                access_token = GrowwAPI.get_access_token(self.api_key, totp_code)
+                
+                if access_token:
+                    self.access_token = access_token
+                    # Set expiry to 11 hours from now (before 6 AM daily reset)
+                    self.token_expires_at = datetime.now() + timedelta(hours=11)
+                    
+                    logger.info(f"✅ Access token obtained via SDK. Expires at: {self.token_expires_at}")
+                    return self.access_token
+                else:
+                    raise ValueError("SDK returned empty token")
+                    
+            except ImportError:
+                logger.warning("⚠️ GrowwAPI SDK not available, trying direct API calls...")
+            except Exception as sdk_error:
+                logger.warning(f"⚠️ SDK method failed: {sdk_error}, trying direct API...")
             
-            # The actual endpoint might be different, this is based on typical OAuth2 patterns
-            token_url = "https://openapi.groww.in/v1/auth/token"
+            # Fallback: Try direct API calls with different possible endpoints
+            endpoints_to_try = [
+                "https://api.groww.in/v1/auth/token",
+                "https://api.groww.in/auth/token", 
+                "https://groww.in/api/auth/token",
+                "https://trading-api.groww.in/v1/auth/token"
+            ]
             
             payload = {
                 "api_key": self.api_key,
@@ -74,35 +96,42 @@ class GrowwAuthManager:
             
             headers = {
                 "Content-Type": "application/json",
-                "User-Agent": "GrowwAuthService/1.0"
+                "User-Agent": "GrowwAuthService/1.0",
+                "Accept": "application/json"
             }
             
-            response = requests.post(token_url, json=payload, headers=headers, timeout=30)
+            for token_url in endpoints_to_try:
+                try:
+                    logger.info(f"🔄 Trying endpoint: {token_url}")
+                    response = requests.post(token_url, json=payload, headers=headers, timeout=30)
+                    
+                    logger.info(f"📊 Response status: {response.status_code}")
+                    
+                    if response.status_code == 200:
+                        token_data = response.json()
+                        
+                        # Extract access token
+                        if 'access_token' in token_data:
+                            self.access_token = token_data['access_token']
+                            
+                            # Calculate expiry (default to 11 hours)
+                            expires_in = token_data.get('expires_in', 39600)  # 11 hours default
+                            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                            
+                            logger.info(f"✅ Access token obtained from {token_url}")
+                            return self.access_token
+                        else:
+                            logger.warning(f"⚠️ No access_token in response from {token_url}: {token_data}")
+                    else:
+                        logger.warning(f"⚠️ HTTP {response.status_code} from {token_url}: {response.text}")
+                        
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"⚠️ Network error with {token_url}: {e}")
+                    continue
             
-            if response.status_code == 200:
-                token_data = response.json()
+            # If we get here, all endpoints failed
+            raise ValueError("All authentication endpoints failed. Please check API credentials and Groww API status.")
                 
-                # Extract access token
-                if 'access_token' in token_data:
-                    self.access_token = token_data['access_token']
-                    
-                    # Calculate expiry (default to 12 hours if not provided)
-                    expires_in = token_data.get('expires_in', 43200)  # 12 hours default
-                    self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-                    
-                    logger.info(f"✅ Access token obtained successfully. Expires at: {self.token_expires_at}")
-                    return self.access_token
-                else:
-                    logger.error(f"❌ No access token in response: {token_data}")
-                    raise ValueError("Access token not found in response")
-                    
-            else:
-                logger.error(f"❌ Token request failed: {response.status_code} - {response.text}")
-                raise ValueError(f"Token request failed: {response.status_code}")
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Network error fetching access token: {e}")
-            raise
         except Exception as e:
             logger.error(f"❌ Error fetching access token: {e}")
             raise
