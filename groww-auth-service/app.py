@@ -156,7 +156,7 @@ def health_check():
         "service": "Groww Authentication Service",
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "version": "1.2.0",
+        "version": "1.2.1",
         "railway_deployment": True,
         "uptime_seconds": time.time() - start_time if 'start_time' in globals() else 0
     }), 200
