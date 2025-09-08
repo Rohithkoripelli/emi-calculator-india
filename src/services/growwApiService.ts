@@ -1,8 +1,10 @@
 /**
- * Groww API Service - Bearer Token Authentication
- * Uses proven TOTP → Access Token → Bearer Auth strategy
- * Zero maintenance with automated 11-hour token refresh
+ * Groww API Service - Railway Authentication
+ * Uses Railway service for automated TOTP → Access Token generation
+ * Zero maintenance with automated token refresh via Railway
  */
+
+import { GrowwTokenManager } from './growwTokenManager';
 
 interface GrowwQuoteResponse {
   status: string;
@@ -101,39 +103,43 @@ export class GrowwApiService {
 
   private static async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      // The Bearer API handles authentication internally via our backend
-      // We don't need to manage tokens directly in the frontend anymore
-      return this.HEADERS;
+      console.log('🔐 Getting auth headers with Railway token...');
+      const tokenManager = GrowwTokenManager.getInstance();
+      const accessToken = await tokenManager.getAccessToken();
+      
+      return {
+        ...this.HEADERS,
+        'Authorization': `Bearer ${accessToken}`
+      };
     } catch (error) {
-      console.warn('⚠️ Error in auth headers:', error);
+      console.warn('⚠️ Failed to get Railway access token, using fallback:', error);
       return this.HEADERS;
     }
   }
 
   /**
-   * Get real-time stock quote using backend API (no CORS issues)
+   * Get real-time stock quote using Railway-authenticated Groww API
    */
   static async getRealTimeQuote(tradingSymbol: string, exchange: string = 'NSE', segment: string = 'CASH'): Promise<StockQuote | null> {
     try {
-      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via Bearer token API...`);
+      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via Railway-authenticated Groww API...`);
       
-      // Use the new Bearer token API with official Groww endpoints
-      const response = await fetch('/api/groww-data-bearer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbol: tradingSymbol,
-          type: 'quote'
-        })
+      // Get auth headers with Railway token
+      const headers = await this.getAuthHeaders();
+      
+      // Try direct Groww API call
+      const apiUrl = `https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/${exchange}/segment/${segment}/latest_prices_ohlc/${tradingSymbol}`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: headers
       });
 
       if (response.ok) {
         const result = await response.json();
         
-        if (result.success && result.data) {
-          const data = result.data;
+        if (result.status === 'SUCCESS' && result.payload) {
+          const data = result.payload;
           
           // Get company name from our internal database
           const { ExcelBasedStockAnalysisService } = await import('./excelBasedStockAnalysis');
@@ -142,33 +148,33 @@ export class GrowwApiService {
           const quote: StockQuote = {
             symbol: tradingSymbol,
             companyName: companyInfo?.name || tradingSymbol,
-            currentPrice: data.currentPrice,
-            dayChange: data.dayChange || 0,
-            dayChangePercent: data.dayChangePercent || 0,
-            dayHigh: data.ohlc?.high || data.currentPrice * 1.02,
-            dayLow: data.ohlc?.low || data.currentPrice * 0.98,
-            previousClose: data.ohlc?.close || (data.currentPrice - (data.dayChange || 0)),
+            currentPrice: data.last_price || data.close,
+            dayChange: data.day_change || 0,
+            dayChangePercent: data.day_change_perc || 0,
+            dayHigh: data.ohlc?.high || data.last_price * 1.02,
+            dayLow: data.ohlc?.low || data.last_price * 0.98,
+            previousClose: data.ohlc?.close || (data.last_price - (data.day_change || 0)),
             volume: data.volume || 100000,
-            marketCap: this.estimateMarketCap(companyInfo?.name || tradingSymbol, data.currentPrice),
-            week52High: data.currentPrice * 1.4,
-            week52Low: data.currentPrice * 0.7,
-            upperCircuit: data.currentPrice * 1.05,
-            lowerCircuit: data.currentPrice * 0.95,
-            totalBuyQuantity: Math.floor((data.volume || 100000) * 0.3),
-            totalSellQuantity: Math.floor((data.volume || 100000) * 0.4),
-            lastTradeTime: Date.now() / 1000,
-            buyDepth: this.generateOrderBook(data.currentPrice, 'buy'),
-            sellDepth: this.generateOrderBook(data.currentPrice, 'sell')
+            marketCap: this.estimateMarketCap(companyInfo?.name || tradingSymbol, data.last_price),
+            week52High: data.week_52_high || data.last_price * 1.4,
+            week52Low: data.week_52_low || data.last_price * 0.7,
+            upperCircuit: data.upper_circuit_limit || data.last_price * 1.05,
+            lowerCircuit: data.lower_circuit_limit || data.last_price * 0.95,
+            totalBuyQuantity: data.total_buy_quantity || Math.floor((data.volume || 100000) * 0.3),
+            totalSellQuantity: data.total_sell_quantity || Math.floor((data.volume || 100000) * 0.4),
+            lastTradeTime: data.last_trade_time || Date.now() / 1000,
+            buyDepth: data.depth?.buy || this.generateOrderBook(data.last_price, 'buy'),
+            sellDepth: data.depth?.sell || this.generateOrderBook(data.last_price, 'sell')
           };
 
-          console.log(`✅ Successfully fetched live quote via Bearer API for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
-          console.log(`🎉 Using Groww official API with TOTP authentication!`);
+          console.log(`✅ Successfully fetched live quote via Railway+Groww API for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
+          console.log(`🎉 Using Railway-authenticated Groww API!`);
           return quote;
         } else {
-          console.log(`⚠️ No data returned from Bearer API for ${tradingSymbol}`);
+          console.log(`⚠️ No data returned from Groww API for ${tradingSymbol}`);
         }
       } else {
-        console.log(`⚠️ Bearer API error: ${response.status}`);
+        console.log(`⚠️ Groww API error: ${response.status}`);
       }
       
       // Fallback: Generate realistic stock data
@@ -176,7 +182,7 @@ export class GrowwApiService {
       return this.generateRealisticStockData(tradingSymbol);
       
     } catch (error) {
-      console.error('❌ Error in getRealTimeQuote (Bearer API):', error);
+      console.error('❌ Error in getRealTimeQuote (Railway+Groww API):', error);
       console.log(`🔄 Falling back to realistic data for ${tradingSymbol}...`);
       return this.generateRealisticStockData(tradingSymbol);
     }
@@ -194,11 +200,11 @@ export class GrowwApiService {
     try {
       console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} using authenticated backend API...`);
       
-      // PRIORITY 1: Try new Bearer token API first (same TOTP authentication as real-time data)
-      console.log(`🔄 Trying Bearer token API for ${tradingSymbol} historical data...`);
-      const bearerResult = await this.fetchFromBearerTokenAPI(tradingSymbol, days, exchange, segment);
-      if (bearerResult) {
-        return bearerResult;
+      // PRIORITY 1: Try Railway-authenticated Groww API first  
+      console.log(`🔄 Trying Railway-authenticated Groww API for ${tradingSymbol} historical data...`);
+      const railwayResult = await this.fetchFromRailwayAuthenticatedAPI(tradingSymbol, days, exchange, segment);
+      if (railwayResult) {
+        return railwayResult;
       }
       
       // PRIORITY 2: Try legacy backend API (for fallback compatibility)
@@ -237,7 +243,7 @@ export class GrowwApiService {
   }
 
   /**
-   * Try to fetch from new Bearer token API with TOTP authentication
+   * Try to fetch from Railway authentication service (replaces old Bearer token API)
    */
   private static async fetchFromBearerTokenAPI(
     tradingSymbol: string, 
@@ -245,46 +251,79 @@ export class GrowwApiService {
     exchange: string, 
     segment: string
   ): Promise<HistoricalCandle[] | null> {
+    // The old Bearer API endpoint is no longer used - redirect to Railway
+    console.log(`🚂 Redirecting Bearer API call to Railway authentication service for ${tradingSymbol}...`);
+    return await this.fetchFromRailwayAuthenticatedAPI(tradingSymbol, days, exchange, segment);
+  }
+
+  /**
+   * Try to fetch historical data using Railway-authenticated Groww API directly
+   */
+  private static async fetchFromRailwayAuthenticatedAPI(
+    tradingSymbol: string, 
+    days: number, 
+    exchange: string = 'NSE', 
+    segment: string = 'CASH'
+  ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`📈 Fetching historical data via Bearer token API for ${tradingSymbol}...`);
+      console.log(`🚂 Fetching ${days}-day historical data for ${tradingSymbol} via Railway-authenticated Groww API...`);
       
-      const response = await fetch('/api/groww-data-bearer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbol: tradingSymbol,
-          type: 'historical',
-          days: days,
-          exchange: exchange || 'NSE',
-          segment: segment || 'CASH'
-        })
+      // Get auth headers with Railway token
+      const headers = await this.getAuthHeaders();
+      
+      // Calculate date range for historical data
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      // Format dates for Groww API (YYYY-MM-DD)
+      const formattedStartDate = startDate.toISOString().split('T')[0];
+      const formattedEndDate = endDate.toISOString().split('T')[0];
+      
+      // Construct Groww API URL for historical data
+      const apiUrl = `https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/${exchange}/segment/${segment}/search_id/${tradingSymbol}/candles?time_format=1D&start_date=${formattedStartDate}&end_date=${formattedEndDate}`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: headers
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const result: GrowwHistoricalResponse = await response.json();
         
-        if (result.success && result.data && result.data.candles) {
-          const candles = result.data.candles;
-          console.log(`✅ Successfully fetched ${candles.length} historical candles via Bearer API for ${tradingSymbol}`);
-          console.log(`🎉 Using official Groww historical API with TOTP authentication!`);
+        if (result.status === 'SUCCESS' && result.payload && result.payload.candles && result.payload.candles.length > 0) {
+          console.log(`✅ Railway+Groww API: ${result.payload.candles.length} historical candles for ${tradingSymbol}`);
+          
+          // Convert Groww API format to our HistoricalCandle format
+          const candles: HistoricalCandle[] = result.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
+            timestamp: timestamp, // Already in epoch seconds
+            date: new Date(timestamp * 1000).toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+            open: open,
+            high: high,
+            low: low,
+            close: close,
+            volume: volume
+          }));
+          
+          console.log(`🚂 Railway converted ${candles.length} candles for technical analysis`);
+          console.log(`📈 Railway sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
+          
           return candles;
         } else {
-          console.log(`⚠️ No candles data returned from Bearer API for ${tradingSymbol}`);
+          console.log(`⚠️ Railway+Groww API: No historical data for ${tradingSymbol}`);
         }
       } else {
-        console.log(`⚠️ Bearer API historical data error: ${response.status}`);
+        console.log(`⚠️ Railway+Groww API error: ${response.status} - ${await response.text()}`);
       }
     } catch (error) {
-      console.log(`⚠️ Bearer token API historical fetch failed: ${error}`);
+      console.error(`❌ Railway+Groww API failed for ${tradingSymbol}:`, error);
     }
     
     return null;
   }
 
   /**
-   * Try to fetch from backend API with proper historical data format
+   * Try to fetch from backend API with proper historical data format (redirects to Railway)
    */
   private static async fetchFromBackendAPIWithHistoricalFormat(
     tradingSymbol: string, 
@@ -292,71 +331,9 @@ export class GrowwApiService {
     exchange: string, 
     segment: string
   ): Promise<HistoricalCandle[] | null> {
-    try {
-      // Calculate date range for API call
-      const endTime = new Date();
-      const startTime = new Date(endTime.getTime() - (days * 24 * 60 * 60 * 1000));
-      
-      // Format dates as required by Groww API: "2025-07-06 09:15:00"
-      const formatDate = (date: Date) => {
-        return date.toISOString().replace('T', ' ').slice(0, 19);
-      };
-      
-      const response = await fetch('/api/groww-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbols: [tradingSymbol],
-          type: 'historical',
-          days: days,
-          // Add parameters for Groww API format
-          exchange: exchange,
-          segment: segment,
-          start_time: formatDate(startTime),
-          end_time: formatDate(endTime),
-          interval_in_minutes: 3600
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        if (result.success && result.data) {
-          // Handle both old and new response formats
-          let candles: HistoricalCandle[] | null = null;
-          
-          if (result.data[tradingSymbol]) {
-            // Legacy format
-            candles = result.data[tradingSymbol];
-          } else if (result.data.candles) {
-            // New Groww API format: candles are arrays [timestamp, open, high, low, close, volume]
-            candles = result.data.candles.map(([timestamp, open, high, low, close, volume]: number[]) => ({
-              timestamp: timestamp,
-              date: new Date(timestamp * 1000).toISOString().split('T')[0],
-              open: open,
-              high: high,
-              low: low,
-              close: close,
-              volume: volume
-            }));
-          }
-          
-          if (candles && candles.length > 0) {
-            console.log(`✅ Successfully fetched ${candles.length} historical candles from authenticated backend API`);
-            console.log(`📈 Sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
-            return candles;
-          }
-        }
-      } else {
-        console.log(`⚠️ Backend API error: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.log(`⚠️ Backend API with historical format failed: ${error}`);
-    }
-    
-    return null;
+    // The old backend API endpoint is no longer used - redirect to Railway
+    console.log(`🚂 Redirecting backend API call to Railway authentication service for ${tradingSymbol}...`);
+    return await this.fetchFromRailwayAuthenticatedAPI(tradingSymbol, days, exchange, segment);
   }
 
   /**
@@ -424,36 +401,12 @@ export class GrowwApiService {
   }
 
   /**
-   * Try to fetch from backend API as fallback
+   * Try to fetch from backend API as fallback (redirects to Railway)
    */
   private static async fetchFromBackendAPI(tradingSymbol: string, days: number): Promise<HistoricalCandle[] | null> {
-    try {
-      const response = await fetch('/api/groww-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symbols: [tradingSymbol],
-          type: 'historical',
-          days: days
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        if (result.success && result.data && result.data[tradingSymbol]) {
-          const candles = result.data[tradingSymbol];
-          console.log(`✅ Successfully fetched ${candles.length} historical candles from backend API`);
-          return candles;
-        }
-      }
-    } catch (error) {
-      console.log(`⚠️ Backend API also failed: ${error}`);
-    }
-    
-    return null;
+    // The old backend API endpoint is no longer used - redirect to Railway
+    console.log(`🚂 Redirecting legacy backend API call to Railway authentication service for ${tradingSymbol}...`);
+    return await this.fetchFromRailwayAuthenticatedAPI(tradingSymbol, days, 'NSE', 'CASH');
   }
 
   /**
