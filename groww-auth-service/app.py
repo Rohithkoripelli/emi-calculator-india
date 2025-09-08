@@ -375,19 +375,27 @@ def get_historical(symbol):
         # Use the EXACT working endpoint format provided by user
         historical_url = "https://api.groww.in/v1/historical/candle/range"
         
-        # Prepare parameters exactly as in working example
+        # Prepare parameters with proper interval limits (max 10080 minutes = 1 week)
+        # Choose interval based on the period to stay within Groww's limits
+        if days <= 2:
+            interval_minutes = 60    # 1-hour candles for very short periods
+        elif days <= 7:
+            interval_minutes = 240   # 4-hour candles for week periods
+        elif days <= 30:
+            interval_minutes = 1440  # Daily candles for monthly periods
+        else:
+            interval_minutes = 1440  # Daily candles for longer periods (max allowed)
+        
         params = {
             'exchange': exchange,
             'segment': segment, 
             'trading_symbol': symbol,
             'start_time': formatted_start_datetime,  # Will be URL encoded by requests
             'end_time': formatted_end_datetime,      # Will be URL encoded by requests
-            'interval_in_minutes': 3600 if days <= 30 else 86400  # Hourly for short periods, daily for longer
+            'interval_in_minutes': interval_minutes
         }
         
-        # For longer periods, use daily candles (1440 minutes = 24 hours)
-        if days > 90:
-            params['interval_in_minutes'] = 1440
+        logger.info(f"📊 Using interval: {interval_minutes} minutes for {days}-day period")
         
         headers = {
             'Authorization': f'Bearer {access_token}',
