@@ -52,116 +52,45 @@ class GrowwAuthManager:
             raise
     
     def fetch_access_token(self):
-        """Fetch access token from Groww API using API key and TOTP"""
+        """Fetch access token from Groww API using API key and TOTP - exactly like user's working code"""
         try:
-            logger.info("🔄 Fetching access token from Groww API...")
+            logger.info("🔄 Fetching access token using Groww SDK (like your working local code)...")
             
-            # Generate TOTP
-            totp_code = self.generate_totp()
+            # Generate TOTP - exactly like your code
+            totp_gen = pyotp.TOTP(self.api_secret)
+            totp = totp_gen.now()
+            logger.info(f"🔐 Generated TOTP: {totp}")
             
-            # Try direct API calls with different possible endpoints
-            # Based on research: Groww may not have a public HTTP auth endpoint
-            # They expect users to either use manual tokens or their Python SDK
-            endpoints_to_try = [
-                "https://api.groww.in/v1/auth/token",
-                "https://api.groww.in/v1/user/auth",
-                "https://api.groww.in/auth/login",
-                "https://api.groww.in/v1/login", 
-                "https://groww.in/api/v1/auth/token",
-                "https://groww.in/api/auth/login"
-            ]
+            # Use GrowwAPI.get_access_token - exactly like your code
+            from growwapi import GrowwAPI
+            logger.info("🐍 Calling GrowwAPI.get_access_token...")
             
-            # Try different payload formats that Groww might expect
-            payloads_to_try = [
-                {
-                    "api_key": self.api_key,
-                    "totp": totp_code,
-                    "grant_type": "client_credentials"
-                },
-                {
-                    "apikey": self.api_key,
-                    "totp": totp_code
-                },
-                {
-                    "key": self.api_key,
-                    "secret": totp_code
-                },
-                {
-                    "username": self.api_key,
-                    "password": totp_code
-                }
-            ]
+            access_token = GrowwAPI.get_access_token(self.api_key, totp)
             
-            headers = {
-                "Content-Type": "application/json",
-                "User-Agent": "GrowwAuthService/1.0",
-                "Accept": "application/json"
-            }
+            if access_token:
+                self.access_token = access_token
+                # Set expiry to 11 hours (before 6 AM reset)
+                self.token_expires_at = datetime.now() + timedelta(hours=11)
+                
+                logger.info(f"✅ Access token obtained successfully!")
+                logger.info(f"🎉 Token: {access_token[:20]}...")
+                logger.info(f"⏰ Expires at: {self.token_expires_at}")
+                
+                return self.access_token
+            else:
+                raise ValueError("GrowwAPI.get_access_token returned None")
+                
+        except ImportError as e:
+            logger.error(f"❌ growwapi import failed: {e}")
+            raise ValueError("growwapi package not available - check requirements.txt")
+        except Exception as e:
+            logger.error(f"❌ Error with GrowwAPI.get_access_token: {e}")
             
-            # Try all combinations of endpoints and payload formats
-            for token_url in endpoints_to_try:
-                for i, payload in enumerate(payloads_to_try):
-                    try:
-                        logger.info(f"🔄 Trying endpoint: {token_url} with payload format {i+1}")
-                        response = requests.post(token_url, json=payload, headers=headers, timeout=30)
-                        
-                        logger.info(f"📊 Response status: {response.status_code}")
-                        
-                        if response.status_code == 200:
-                            try:
-                                token_data = response.json()
-                                
-                                # Try different possible token field names
-                                token_fields = ['access_token', 'token', 'auth_token', 'apiToken', 'accessToken']
-                                access_token = None
-                                
-                                for field in token_fields:
-                                    if field in token_data:
-                                        access_token = token_data[field]
-                                        break
-                                
-                                if access_token:
-                                    self.access_token = access_token
-                                    
-                                    # Calculate expiry (default to 11 hours)
-                                    expires_in = token_data.get('expires_in', 39600)  # 11 hours default
-                                    self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-                                    
-                                    logger.info(f"✅ Access token obtained from {token_url} with payload format {i+1}")
-                                    logger.info(f"🎉 Token field found: '{field}' with value: {access_token[:20]}...")
-                                    return self.access_token
-                                else:
-                                    logger.warning(f"⚠️ No token field found in response from {token_url}: {token_data}")
-                                    
-                            except ValueError as json_error:
-                                logger.warning(f"⚠️ Invalid JSON from {token_url}: {response.text[:200]}")
-                                
-                        elif response.status_code in [401, 403]:
-                            logger.warning(f"⚠️ Authentication failed ({response.status_code}) for {token_url}: {response.text[:200]}")
-                        else:
-                            logger.warning(f"⚠️ HTTP {response.status_code} from {token_url}: {response.text[:200]}")
-                            
-                    except requests.exceptions.RequestException as e:
-                        logger.warning(f"⚠️ Network error with {token_url}: {e}")
-                        continue
-            
-            # If we get here, all endpoints failed
-            # IMPORTANT: Groww may not provide direct HTTP authentication endpoints
-            # They expect users to either use manual tokens or their Python SDK
-            
-            logger.error("🚨 All authentication endpoints failed!")
-            logger.error("💡 SOLUTION OPTIONS:")
-            logger.error("   1. Groww may not support direct HTTP TOTP authentication")  
-            logger.error("   2. Generate manual token from: https://groww.in/user/profile/trading-apis")
-            logger.error("   3. Set GROWW_ACCESS_TOKEN environment variable with manual token")
-            logger.error("   4. Use Groww's official Python SDK in a different service")
-            
-            # Check if user provided a manual access token as fallback
+            # Fallback to manual token if provided
             manual_token = os.getenv('GROWW_ACCESS_TOKEN')
             if manual_token:
-                logger.info("🔄 Found manual GROWW_ACCESS_TOKEN, using as fallback...")
+                logger.info("🔄 Using manual GROWW_ACCESS_TOKEN as fallback...")
                 self.access_token = manual_token
-                # Manual tokens expire at 6 AM, set expiry accordingly
                 tomorrow_6am = datetime.now().replace(hour=6, minute=0, second=0, microsecond=0)
                 if tomorrow_6am <= datetime.now():
                     tomorrow_6am += timedelta(days=1)
@@ -170,10 +99,6 @@ class GrowwAuthManager:
                 logger.info(f"✅ Using manual access token. Expires at: {self.token_expires_at}")
                 return self.access_token
             
-            raise ValueError("All Groww authentication methods failed. Consider using manual token generation from Groww's website.")
-                
-        except Exception as e:
-            logger.error(f"❌ Error fetching access token: {e}")
             raise
     
     def get_access_token(self):
