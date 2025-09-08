@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all domains
 
+# Configure Flask for production
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+app.config['JSON_SORT_KEYS'] = False
+
 class GrowwAuthManager:
     def __init__(self):
         self.api_key = os.getenv('GROWW_API_KEY')
@@ -138,6 +142,17 @@ class GrowwAuthManager:
 # Initialize the auth manager
 auth_manager = GrowwAuthManager()
 
+# Add request logging middleware
+@app.before_request
+def log_request_info():
+    logger.info(f"🌐 Request: {request.method} {request.path} from {request.remote_addr}")
+    logger.info(f"📝 Headers: {dict(request.headers)}")
+
+@app.after_request
+def log_response_info(response):
+    logger.info(f"📤 Response: {response.status_code} for {request.method} {request.path}")
+    return response
+
 @app.route('/', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -148,6 +163,23 @@ def health_check():
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
         "railway_deployment": True
+    })
+
+@app.route('/debug', methods=['GET'])
+def debug_routes():
+    """Debug endpoint to list all routes"""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            "endpoint": rule.endpoint,
+            "methods": list(rule.methods),
+            "rule": rule.rule
+        })
+    return jsonify({
+        "success": True,
+        "routes": routes,
+        "flask_version": "2.3.3",
+        "debug": True
     })
 
 @app.route('/auth/token', methods=['POST'])
@@ -235,9 +267,12 @@ def test_auth():
 
 @app.errorhandler(404)
 def not_found(error):
+    logger.error(f"❌ 404 Error: {request.method} {request.path} not found")
+    logger.error(f"Available routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
     return jsonify({
         "success": False,
-        "error": "Endpoint not found"
+        "error": f"Endpoint not found: {request.method} {request.path}",
+        "available_endpoints": [rule.rule for rule in app.url_map.iter_rules() if not rule.rule.startswith('/static')]
     }), 404
 
 @app.errorhandler(500)
