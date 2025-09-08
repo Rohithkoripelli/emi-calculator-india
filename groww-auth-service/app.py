@@ -159,11 +159,17 @@ def health_check():
     logger.info("🏥 Health check endpoint accessed")
     return jsonify({
         "service": "Groww Authentication Service",
-        "status": "running",
+        "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
-        "railway_deployment": True
-    })
+        "railway_deployment": True,
+        "uptime_seconds": time.time() - start_time if 'start_time' in globals() else 0
+    }), 200
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Alternative health check endpoint"""
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/debug', methods=['GET'])
 def debug_routes():
