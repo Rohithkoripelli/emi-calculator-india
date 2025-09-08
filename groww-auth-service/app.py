@@ -59,28 +59,7 @@ class GrowwAuthManager:
             # Generate TOTP
             totp_code = self.generate_totp()
             
-            # Try the Groww Python SDK approach first
-            try:
-                from growwapi import GrowwAPI
-                logger.info("🐍 Using Groww Python SDK method...")
-                access_token = GrowwAPI.get_access_token(self.api_key, totp_code)
-                
-                if access_token:
-                    self.access_token = access_token
-                    # Set expiry to 11 hours from now (before 6 AM daily reset)
-                    self.token_expires_at = datetime.now() + timedelta(hours=11)
-                    
-                    logger.info(f"✅ Access token obtained via SDK. Expires at: {self.token_expires_at}")
-                    return self.access_token
-                else:
-                    raise ValueError("SDK returned empty token")
-                    
-            except ImportError:
-                logger.warning("⚠️ GrowwAPI SDK not available, trying direct API calls...")
-            except Exception as sdk_error:
-                logger.warning(f"⚠️ SDK method failed: {sdk_error}, trying direct API...")
-            
-            # Fallback: Try direct API calls with different possible endpoints
+            # Try direct API calls with different possible endpoints
             endpoints_to_try = [
                 "https://api.groww.in/v1/auth/token",
                 "https://api.groww.in/auth/token", 
@@ -130,7 +109,7 @@ class GrowwAuthManager:
                     continue
             
             # If we get here, all endpoints failed
-            raise ValueError("All authentication endpoints failed. Please check API credentials and Groww API status.")
+            raise ValueError("All Groww authentication endpoints failed. Please verify your API credentials are correct and that Groww's API service is available.")
                 
         except Exception as e:
             logger.error(f"❌ Error fetching access token: {e}")
