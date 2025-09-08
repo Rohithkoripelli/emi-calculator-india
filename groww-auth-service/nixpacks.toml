@@ -1,11 +1,18 @@
+[providers]
+python = "3.11"
+
 [phases.setup]
 nixPkgs = ['python311', 'pip']
 
 [phases.install]
-cmds = ['pip install -r requirements.txt']
+cmds = ['pip install --no-cache-dir -r requirements.txt']
 
 [phases.build]
-cmds = ['echo "Python Flask app - no build needed"']
+cmds = ['echo "Python Flask app - no build step required"']
 
 [start]
-cmd = 'gunicorn --bind 0.0.0.0:$PORT app:app'
+cmd = 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 app:app'
+
+[variables]
+PYTHONPATH = "/app"
+FLASK_ENV = "production"
