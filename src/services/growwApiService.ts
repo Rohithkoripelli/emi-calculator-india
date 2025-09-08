@@ -118,28 +118,36 @@ export class GrowwApiService {
   }
 
   /**
-   * Get real-time stock quote using Railway-authenticated Groww API
+   * Get real-time stock quote using Railway proxy service (CORS-free)
    */
   static async getRealTimeQuote(tradingSymbol: string, exchange: string = 'NSE', segment: string = 'CASH'): Promise<StockQuote | null> {
     try {
-      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via Railway-authenticated Groww API...`);
+      console.log(`📊 Fetching real-time quote for ${tradingSymbol} via Railway proxy service...`);
       
-      // Get auth headers with Railway token
-      const headers = await this.getAuthHeaders();
+      // Use Railway proxy endpoint (CORS-free)
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL || 
+                            'https://emi-calculator-india-production.up.railway.app';
       
-      // Try direct Groww API call
-      const apiUrl = `https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/${exchange}/segment/${segment}/latest_prices_ohlc/${tradingSymbol}`;
+      const apiUrl = `${authServiceUrl}/api/quote/${tradingSymbol}?exchange=${exchange}&segment=${segment}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
-        headers: headers
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const result = await response.json();
         
-        if (result.status === 'SUCCESS' && result.payload) {
-          const data = result.payload;
+        if (result.success && result.data && result.data.status === 'SUCCESS' && result.data.payload) {
+          const data = result.data.payload;
           
           // Get company name from our internal database
           const { ExcelBasedStockAnalysisService } = await import('./excelBasedStockAnalysis');
@@ -167,14 +175,15 @@ export class GrowwApiService {
             sellDepth: data.depth?.sell || this.generateOrderBook(data.last_price, 'sell')
           };
 
-          console.log(`✅ Successfully fetched live quote via Railway+Groww API for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
-          console.log(`🎉 Using Railway-authenticated Groww API!`);
+          console.log(`✅ Successfully fetched live quote via Railway proxy for ${tradingSymbol}: ₹${quote.currentPrice} (${quote.dayChangePercent.toFixed(2)}%)`);
+          console.log(`🎉 Using Railway proxy service (CORS-free)!`);
           return quote;
         } else {
-          console.log(`⚠️ No data returned from Groww API for ${tradingSymbol}`);
+          console.log(`⚠️ No data returned from Railway proxy for ${tradingSymbol}`);
         }
       } else {
-        console.log(`⚠️ Groww API error: ${response.status}`);
+        const errorText = await response.text();
+        console.log(`⚠️ Railway proxy error: ${response.status} - ${errorText}`);
       }
       
       // Fallback: Generate realistic stock data
@@ -189,7 +198,7 @@ export class GrowwApiService {
   }
 
   /**
-   * Get historical candle data for technical analysis - prioritize backend API for authentication
+   * Get historical candle data for technical analysis - uses Railway proxy service
    */
   static async getHistoricalData(
     tradingSymbol: string, 
@@ -198,17 +207,17 @@ export class GrowwApiService {
     segment: string = 'CASH'
   ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} using authenticated backend API...`);
+      console.log(`📈 Fetching ${days}-day historical data for ${tradingSymbol} using Railway proxy service...`);
       
-      // PRIORITY 1: Try Railway-authenticated Groww API first  
-      console.log(`🔄 Trying Railway-authenticated Groww API for ${tradingSymbol} historical data...`);
+      // PRIORITY 1: Try Railway proxy service first  
+      console.log(`🔄 Trying Railway proxy service for ${tradingSymbol} historical data...`);
       const railwayResult = await this.fetchFromRailwayAuthenticatedAPI(tradingSymbol, days, exchange, segment);
       if (railwayResult) {
         return railwayResult;
       }
       
-      // PRIORITY 2: Try legacy backend API (for fallback compatibility)
-      console.log(`🔄 Trying legacy authenticated backend API for ${tradingSymbol}...`);
+      // PRIORITY 2: Try legacy backend API (redirects to Railway anyway)
+      console.log(`🔄 Trying legacy backend API for ${tradingSymbol}...`);
       const backendResult = await this.fetchFromBackendAPIWithHistoricalFormat(tradingSymbol, days, exchange, segment);
       if (backendResult) {
         return backendResult;
@@ -257,7 +266,7 @@ export class GrowwApiService {
   }
 
   /**
-   * Try to fetch historical data using Railway-authenticated Groww API directly
+   * Try to fetch historical data using Railway proxy service (CORS-free)
    */
   private static async fetchFromRailwayAuthenticatedAPI(
     tradingSymbol: string, 
@@ -266,36 +275,35 @@ export class GrowwApiService {
     segment: string = 'CASH'
   ): Promise<HistoricalCandle[] | null> {
     try {
-      console.log(`🚂 Fetching ${days}-day historical data for ${tradingSymbol} via Railway-authenticated Groww API...`);
+      console.log(`🚂 Fetching ${days}-day historical data for ${tradingSymbol} via Railway proxy service...`);
       
-      // Get auth headers with Railway token
-      const headers = await this.getAuthHeaders();
+      // Use Railway proxy endpoint (CORS-free)
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL || 
+                            'https://emi-calculator-india-production.up.railway.app';
       
-      // Calculate date range for historical data
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const apiUrl = `${authServiceUrl}/api/historical/${tradingSymbol}?exchange=${exchange}&segment=${segment}&days=${days}`;
       
-      // Format dates for Groww API (YYYY-MM-DD)
-      const formattedStartDate = startDate.toISOString().split('T')[0];
-      const formattedEndDate = endDate.toISOString().split('T')[0];
-      
-      // Construct Groww API URL for historical data
-      const apiUrl = `https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/${exchange}/segment/${segment}/search_id/${tradingSymbol}/candles?time_format=1D&start_date=${formattedStartDate}&end_date=${formattedEndDate}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
-        headers: headers
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (response.ok) {
-        const result: GrowwHistoricalResponse = await response.json();
+        const result = await response.json();
         
-        if (result.status === 'SUCCESS' && result.payload && result.payload.candles && result.payload.candles.length > 0) {
-          console.log(`✅ Railway+Groww API: ${result.payload.candles.length} historical candles for ${tradingSymbol}`);
+        if (result.success && result.data && result.data.status === 'SUCCESS' && result.data.payload && result.data.payload.candles && result.data.payload.candles.length > 0) {
+          console.log(`✅ Railway proxy: ${result.data.payload.candles.length} historical candles for ${tradingSymbol}`);
           
           // Convert Groww API format to our HistoricalCandle format
-          const candles: HistoricalCandle[] = result.payload.candles.map(([timestamp, open, high, low, close, volume]) => ({
+          const candles: HistoricalCandle[] = result.data.payload.candles.map(([timestamp, open, high, low, close, volume]: number[]) => ({
             timestamp: timestamp, // Already in epoch seconds
             date: new Date(timestamp * 1000).toISOString().split('T')[0], // Convert to YYYY-MM-DD format
             open: open,
@@ -305,18 +313,19 @@ export class GrowwApiService {
             volume: volume
           }));
           
-          console.log(`🚂 Railway converted ${candles.length} candles for technical analysis`);
-          console.log(`📈 Railway sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
+          console.log(`🚂 Railway proxy converted ${candles.length} candles for technical analysis`);
+          console.log(`📈 Railway proxy sample candle: ${candles[0].date} OHLC(${candles[0].open}/${candles[0].high}/${candles[0].low}/${candles[0].close}) Vol:${candles[0].volume}`);
           
           return candles;
         } else {
-          console.log(`⚠️ Railway+Groww API: No historical data for ${tradingSymbol}`);
+          console.log(`⚠️ Railway proxy: No historical data for ${tradingSymbol}`);
         }
       } else {
-        console.log(`⚠️ Railway+Groww API error: ${response.status} - ${await response.text()}`);
+        const errorText = await response.text();
+        console.log(`⚠️ Railway proxy error: ${response.status} - ${errorText}`);
       }
     } catch (error) {
-      console.error(`❌ Railway+Groww API failed for ${tradingSymbol}:`, error);
+      console.error(`❌ Railway proxy failed for ${tradingSymbol}:`, error);
     }
     
     return null;
