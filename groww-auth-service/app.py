@@ -141,10 +141,13 @@ auth_manager = GrowwAuthManager()
 @app.route('/', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    logger.info("🏥 Health check endpoint accessed")
     return jsonify({
         "service": "Groww Authentication Service",
         "status": "running",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "railway_deployment": True
     })
 
 @app.route('/auth/token', methods=['POST'])
@@ -257,4 +260,14 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
     
     logger.info(f"🌐 Starting server on port {port}")
+    logger.info(f"🔧 Flask app routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
     app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development')
+else:
+    # When running with gunicorn
+    start_time = time.time()
+    logger.info("🚀 Groww Authentication Service started with gunicorn")
+    logger.info(f"🔧 Available routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
+    if auth_manager.is_configured():
+        logger.info("✅ Service fully configured and ready")
+    else:
+        logger.warning("⚠️  Service running with incomplete configuration")
