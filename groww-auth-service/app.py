@@ -266,6 +266,133 @@ def test_auth():
             "configured": auth_manager.is_configured()
         }), 500
 
+@app.route('/api/quote/<symbol>', methods=['GET'])
+def get_quote(symbol):
+    """Get real-time quote from Groww API - acts as CORS-free proxy"""
+    try:
+        if not auth_manager.is_configured():
+            return jsonify({
+                "success": False,
+                "error": "Authentication service not configured"
+            }), 500
+        
+        # Get access token
+        access_token = auth_manager.get_access_token()
+        
+        # Default parameters
+        exchange = request.args.get('exchange', 'NSE')
+        segment = request.args.get('segment', 'CASH')
+        
+        # Call Groww API
+        groww_url = f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/latest_prices_ohlc/{symbol}"
+        
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+            'X-API-VERSION': '1.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        logger.info(f"🔄 Proxying quote request for {symbol} to Groww API...")
+        response = requests.get(groww_url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"✅ Successfully fetched quote for {symbol}")
+            return jsonify({
+                "success": True,
+                "data": data,
+                "proxied_from": "groww_api"
+            })
+        else:
+            logger.error(f"❌ Groww API error for {symbol}: {response.status_code} - {response.text}")
+            return jsonify({
+                "success": False,
+                "error": f"Groww API error: {response.status_code}",
+                "details": response.text
+            }), response.status_code
+            
+    except Exception as e:
+        logger.error(f"❌ Error in /api/quote/{symbol}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/api/historical/<symbol>', methods=['GET'])
+def get_historical(symbol):
+    """Get historical data from Groww API - acts as CORS-free proxy"""
+    try:
+        if not auth_manager.is_configured():
+            return jsonify({
+                "success": False,
+                "error": "Authentication service not configured"
+            }), 500
+        
+        # Get access token
+        access_token = auth_manager.get_access_token()
+        
+        # Parameters
+        exchange = request.args.get('exchange', 'NSE')
+        segment = request.args.get('segment', 'CASH')
+        days = int(request.args.get('days', 30))
+        
+        # Calculate date range
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Format dates for Groww API (YYYY-MM-DD)
+        formatted_start_date = start_date.strftime('%Y-%m-%d')
+        formatted_end_date = end_date.strftime('%Y-%m-%d')
+        
+        # Call Groww API
+        groww_url = f"https://api.groww.in/v1/api/stocks_data/v1/accord_points/exchange/{exchange}/segment/{segment}/search_id/{symbol}/candles"
+        params = {
+            'time_format': '1D',
+            'start_date': formatted_start_date,
+            'end_date': formatted_end_date
+        }
+        
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json',
+            'X-API-VERSION': '1.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        logger.info(f"🔄 Proxying historical request for {symbol} ({days} days) to Groww API...")
+        response = requests.get(groww_url, headers=headers, params=params, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"✅ Successfully fetched {days}-day historical data for {symbol}")
+            return jsonify({
+                "success": True,
+                "data": data,
+                "proxied_from": "groww_api",
+                "params": {
+                    "symbol": symbol,
+                    "days": days,
+                    "start_date": formatted_start_date,
+                    "end_date": formatted_end_date
+                }
+            })
+        else:
+            logger.error(f"❌ Groww API historical error for {symbol}: {response.status_code} - {response.text}")
+            return jsonify({
+                "success": False,
+                "error": f"Groww API error: {response.status_code}",
+                "details": response.text
+            }), response.status_code
+            
+    except Exception as e:
+        logger.error(f"❌ Error in /api/historical/{symbol}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.errorhandler(404)
 def not_found(error):
     logger.error(f"❌ 404 Error: {request.method} {request.path} not found")
