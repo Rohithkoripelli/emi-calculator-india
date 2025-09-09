@@ -195,11 +195,15 @@ ANALYSIS REQUIREMENTS:
    - Must be realistic and based on actual price action
 
 4. **RECOMMENDATION**: BUY/SELL/HOLD based on:
-   - Price position vs key moving averages
-   - RSI momentum and divergences (RSI=${basicMetrics.rsi.toFixed(1)} - ${basicMetrics.rsi > 70 ? 'OVERBOUGHT WARNING' : basicMetrics.rsi < 30 ? 'OVERSOLD OPPORTUNITY' : 'NEUTRAL'})
-   - Volume confirmation
-   - Support/resistance proximity
-   - Current trend strength
+   - **BUY**: Clear bullish signals, RSI < 65, not near resistance
+   - **SELL**: Clear bearish signals, RSI > 35, above support
+   - **HOLD**: Use for wait-and-watch scenarios like:
+     * Approaching key resistance (wait for breakout/rejection)
+     * Near key support (wait for bounce/breakdown)  
+     * Sideways trend with neutral momentum (35 < RSI < 65)
+     * Mixed technical signals requiring patience
+   - Current RSI=${basicMetrics.rsi.toFixed(1)} - ${basicMetrics.rsi > 70 ? 'OVERBOUGHT WARNING' : basicMetrics.rsi < 30 ? 'OVERSOLD OPPORTUNITY' : 'NEUTRAL'}
+   - Support/resistance proximity and trend strength
 
 **CRITICAL RSI ANALYSIS REQUIRED:**
 - Current RSI: ${basicMetrics.rsi.toFixed(1)}
@@ -305,7 +309,7 @@ Return response in this exact JSON format:
       trend,
       confidence: 75,
       recommendation,
-      reasoning: this.generateReasoning(trend, rsi, currentPrice, sma20),
+      reasoning: this.generateReasoning(trend, rsi, currentPrice, sma20, support, resistance, recommendation),
       keyInsights: [`Real volatility: ${volatility.toFixed(1)}%`, `Key levels: Support ₹${support}, Resistance ₹${resistance}`]
     };
 
@@ -390,17 +394,84 @@ Return response in this exact JSON format:
     rsi: number, 
     trend: string
   ): 'BUY' | 'SELL' | 'HOLD' {
-    if (trend === 'BULLISH' && rsi < 70 && currentPrice < resistance * 0.95) return 'BUY';
-    if (trend === 'BEARISH' && rsi > 30 && currentPrice > support * 1.05) return 'SELL';
+    // Strong bullish conditions - clear BUY signal
+    if (trend === 'BULLISH' && rsi < 65 && currentPrice < resistance * 0.92) {
+      return 'BUY';
+    }
+    
+    // Strong bearish conditions - clear SELL signal  
+    if (trend === 'BEARISH' && rsi > 35 && currentPrice > support * 1.08) {
+      return 'SELL';
+    }
+    
+    // Additional BUY conditions - oversold bounce opportunity
+    if (rsi < 35 && currentPrice > support * 1.03) {
+      return 'BUY';
+    }
+    
+    // Additional SELL conditions - overbought correction
+    if (rsi > 65 && currentPrice < resistance * 0.97) {
+      return 'SELL';
+    }
+    
+    // HOLD conditions - specific wait and watch scenarios
+    const priceRange = (resistance - support) / support * 100;
+    const midPoint = (support + resistance) / 2;
+    const priceFromMid = Math.abs(currentPrice - midPoint) / midPoint * 100;
+    
+    // HOLD when price is in middle of range with neutral momentum
+    if (priceFromMid < 8 && rsi >= 40 && rsi <= 60 && trend === 'SIDEWAYS') {
+      return 'HOLD';
+    }
+    
+    // HOLD when approaching key resistance in uptrend (wait for breakout)
+    if (trend === 'BULLISH' && currentPrice >= resistance * 0.95 && rsi < 75) {
+      return 'HOLD';
+    }
+    
+    // HOLD when approaching key support in downtrend (wait for breakdown/bounce)
+    if (trend === 'BEARISH' && currentPrice <= support * 1.05 && rsi > 25) {
+      return 'HOLD';
+    }
+    
+    // HOLD when RSI is in neutral zone with mixed signals
+    if (rsi >= 35 && rsi <= 65 && trend === 'SIDEWAYS') {
+      return 'HOLD';
+    }
+    
+    // Default to BUY/SELL based on trend if not in specific HOLD conditions
+    if (trend === 'BULLISH') return 'BUY';
+    if (trend === 'BEARISH') return 'SELL';
+    
     return 'HOLD';
   }
 
-  private static generateReasoning(trend: string, rsi: number, currentPrice: number, sma20: number): string[] {
-    return [
+  private static generateReasoning(trend: string, rsi: number, currentPrice: number, sma20: number, support: number, resistance: number, recommendation: string): string[] {
+    const baseReasons = [
       `Trend analysis shows ${trend.toLowerCase()} momentum`,
       `RSI at ${rsi.toFixed(1)} indicates ${rsi > 70 ? 'overbought' : rsi < 30 ? 'oversold' : 'neutral'} conditions`,
       `Price ${currentPrice > sma20 ? 'above' : 'below'} key moving average (₹${sma20.toFixed(2)})`
     ];
+    
+    // Add specific reasoning for HOLD recommendations
+    if (recommendation === 'HOLD') {
+      const midPoint = (support + resistance) / 2;
+      const priceFromMid = Math.abs(currentPrice - midPoint) / midPoint * 100;
+      
+      if (currentPrice >= resistance * 0.95 && trend === 'BULLISH') {
+        baseReasons.push(`Approaching resistance at ₹${resistance.toFixed(2)} - wait for breakout confirmation`);
+      } else if (currentPrice <= support * 1.05 && trend === 'BEARISH') {
+        baseReasons.push(`Near support at ₹${support.toFixed(2)} - wait for bounce or breakdown`);
+      } else if (priceFromMid < 8 && rsi >= 40 && rsi <= 60) {
+        baseReasons.push(`Price in neutral zone with balanced momentum - suitable for wait and watch`);
+      } else if (rsi >= 35 && rsi <= 65 && trend === 'SIDEWAYS') {
+        baseReasons.push(`Sideways trend with neutral RSI suggests consolidation phase`);
+      } else {
+        baseReasons.push(`Mixed technical signals warrant cautious approach`);
+      }
+    }
+    
+    return baseReasons;
   }
 
   /**
