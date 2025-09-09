@@ -179,11 +179,7 @@ export class InvestmentAnalysisService {
         return null;
       }
       
-      // Step 3: Get enhanced technical analysis using real historical data and GPT-4o
-      console.log(`🔍 Getting enhanced technical analysis for ${symbol}...`);
-      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice);
-      
-      // Get real 30-day performance from historical data
+      // Step 3: Get basic technical analysis for 30-day performance calculation
       console.log(`📊 Calculating actual 30-day performance for ${symbol}...`);
       const historicalData = await GrowwApiService.getHistoricalData(symbol, 30);
       let actual30DayPerformance = 0;
@@ -202,21 +198,6 @@ export class InvestmentAnalysisService {
           console.log(`🔄 Using fallback 30-day performance: ${actual30DayPerformance > 0 ? '+' : ''}${actual30DayPerformance.toFixed(2)}%`);
         }
       }
-
-      // Convert to legacy format for compatibility
-      const technicalAnalysis: TechnicalAnalysis = {
-        trend: enhancedTechnicalAnalysis.trend,
-        support: enhancedTechnicalAnalysis.support,
-        resistance: enhancedTechnicalAnalysis.resistance,
-        sma20: enhancedTechnicalAnalysis.sma20,
-        sma50: enhancedTechnicalAnalysis.sma50,
-        rsi: enhancedTechnicalAnalysis.rsi,
-        volatility: enhancedTechnicalAnalysis.volatility,
-        priceChange30Days: Math.round(actual30DayPerformance * 100) / 100, // Use actual calculated value
-        volumeAverage: quote.volume || 0,
-        recommendation: enhancedTechnicalAnalysis.recommendation,
-        confidence: enhancedTechnicalAnalysis.confidence
-      };
       
       // Step 4: Get comprehensive financial metrics from Screener.in
       console.log(`📊 Fetching comprehensive financial metrics from Screener.in for ${symbol}...`);
@@ -235,7 +216,31 @@ export class InvestmentAnalysisService {
       const stockNews = await NewsSearchService.getStockNews(symbol, companyInfo.name);
       const newsSentiment = this.analyzeNewsSentiment(stockNews);
       
-      // Step 7: Generate comprehensive recommendation using all data
+      // Step 7: NOW get enhanced technical analysis with ALL comprehensive data
+      console.log(`🔍 Getting comprehensive AI analysis with all collected data for ${symbol}...`);
+      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice, {
+        screenerData,
+        quote,
+        newsSentiment,
+        webResearch
+      });
+      
+      // Create legacy technical analysis format for compatibility
+      const technicalAnalysis: TechnicalAnalysis = {
+        trend: enhancedTechnicalAnalysis.trend,
+        support: enhancedTechnicalAnalysis.support,
+        resistance: enhancedTechnicalAnalysis.resistance,
+        sma20: enhancedTechnicalAnalysis.sma20,
+        sma50: enhancedTechnicalAnalysis.sma50,
+        rsi: enhancedTechnicalAnalysis.rsi,
+        volatility: enhancedTechnicalAnalysis.volatility,
+        priceChange30Days: Math.round(actual30DayPerformance * 100) / 100, // Use actual calculated value
+        volumeAverage: quote.volume || 0,
+        recommendation: enhancedTechnicalAnalysis.recommendation,
+        confidence: enhancedTechnicalAnalysis.confidence
+      };
+      
+      // Step 8: Generate comprehensive recommendation using all data
       const recommendation = await this.generateStockRecommendation({
         quote,
         technicalAnalysis,
