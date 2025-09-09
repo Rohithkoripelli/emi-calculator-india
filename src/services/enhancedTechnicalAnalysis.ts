@@ -47,6 +47,13 @@ export class EnhancedTechnicalAnalysisService {
       quote?: any;
       newsSentiment?: any;
       webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
     }
   ): Promise<EnhancedTechnicalAnalysis> {
     try {
@@ -150,6 +157,13 @@ export class EnhancedTechnicalAnalysisService {
       quote?: any;
       newsSentiment?: any;
       webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
     }
   ): Promise<GPTAnalysisResult> {
     try {
@@ -253,6 +267,44 @@ REAL-TIME MARKET DATA:
    ⚠️ NO SENTIMENT DATA AVAILABLE - PROCEED WITH CAUTION`;
       }
 
+      // Build user context analysis
+      let userContext = '';
+      if (comprehensiveData?.userPreferences) {
+        const up = comprehensiveData.userPreferences;
+        const isHolder = up.currentHolding === 'yes';
+        userContext = `
+
+=== 👤 USER INVESTMENT CONTEXT ===
+- Current Position: ${isHolder ? 'EXISTING STOCKHOLDER' : 'NEW INVESTOR (No current holdings)'}
+- Investment Horizon: ${up.investmentPeriod.toUpperCase().replace('-', ' ')} (${up.investmentPeriod === 'short-term' ? '< 1 year' : '> 1 year'})
+- Risk Tolerance: ${up.riskTolerance.toUpperCase()} risk appetite
+- Stock: ${up.stockName} (${up.stockSymbol})
+
+🚨 CRITICAL RECOMMENDATION LOGIC:
+${isHolder ? `
+⚠️ USER OWNS THE STOCK - Can recommend BUY (add more), HOLD, or SELL
+- BUY = Add to existing position if fundamentals/technicals are strong
+- HOLD = Keep existing position, wait for better entry/exit
+- SELL = Exit position if fundamentals/technicals are weak or overvalued` : `
+⚠️ USER DOES NOT OWN THE STOCK - Can ONLY recommend BUY or HOLD, NEVER SELL
+- BUY = Good opportunity to enter a new position  
+- HOLD = Wait for better entry point, not compelling enough to buy now
+- SELL = INVALID RECOMMENDATION (cannot sell what you don't own!)`}
+
+Risk Tolerance Impact:
+- ${up.riskTolerance === 'low' ? 'Conservative investor - prefer stable, dividend-paying stocks with strong fundamentals' : up.riskTolerance === 'medium' ? 'Balanced investor - mix of growth and stability, moderate volatility acceptable' : 'Aggressive investor - growth-focused, higher volatility acceptable for higher returns'}
+
+Time Horizon Impact:
+- ${up.investmentPeriod === 'short-term' ? 'Short-term focus - prioritize technical analysis, momentum, near-term catalysts' : 'Long-term focus - prioritize fundamental analysis, business quality, competitive advantages'}`;
+      } else {
+        userContext = `
+
+=== 👤 USER INVESTMENT CONTEXT ===
+⚠️ NO USER CONTEXT AVAILABLE - ASSUMING NEW INVESTOR
+- Will provide general recommendation without specific user context
+- Cannot recommend SELL without knowing user's current position`;
+      }
+
       const systemPrompt = `You are a COMPREHENSIVE INVESTMENT ANALYST with 20+ years of experience combining technical, fundamental, and sentiment analysis for Indian stock markets. 
 
 **CRITICAL MISSION**: Provide a HOLISTIC investment recommendation that considers ALL available data - not just price charts. You have access to real fundamental metrics, news sentiment, and technical indicators.
@@ -274,7 +326,7 @@ ${JSON.stringify(priceData, null, 2)}
 
 === NEWS & SENTIMENT ===${newsData}
 
-=== MARKET METRICS ===${marketData}
+=== MARKET METRICS ===${marketData}${userContext}
 
 **COMPREHENSIVE ANALYSIS FRAMEWORK**:
 
@@ -295,10 +347,20 @@ ${JSON.stringify(priceData, null, 2)}
 
 **3. SENTIMENT ANALYSIS WEIGHT (25%)**:${sentimentAnalysis}
 
-**🎯 FINAL RECOMMENDATION LOGIC**:
-- **BUY**: Strong fundamentals + bullish technicals + positive sentiment
-- **SELL**: Weak fundamentals + bearish technicals + negative sentiment  
-- **HOLD**: Mixed signals across pillars OR approaching key levels
+**🎯 FINAL RECOMMENDATION LOGIC** (MUST consider user context):
+${comprehensiveData?.userPreferences?.currentHolding === 'yes' ? `
+🏠 **EXISTING STOCKHOLDER** - Can recommend BUY/HOLD/SELL:
+- **BUY** (add more): Strong fundamentals + bullish technicals + positive sentiment + user risk tolerance supports it
+- **HOLD**: Mixed signals OR approaching key levels OR wait for better entry/exit point
+- **SELL**: Weak fundamentals + bearish technicals + negative sentiment + profit-taking opportunity` : `
+🆕 **NEW INVESTOR** - Can ONLY recommend BUY/HOLD (NEVER SELL):
+- **BUY**: Good entry opportunity with favorable fundamentals/technicals/sentiment matching user's risk/timeline  
+- **HOLD**: Not compelling enough to enter OR wait for better entry point OR risk doesn't match user profile
+- **SELL**: ❌ STRICTLY FORBIDDEN (user doesn't own the stock!)`}
+
+⚠️ **USER RISK TOLERANCE CHECK**:
+- Current user tolerance: ${comprehensiveData?.userPreferences?.riskTolerance || 'UNKNOWN'}
+- Stock volatility vs user risk must align for BUY recommendation
 
 **CRITICAL RSI WARNING SYSTEM**:
 - RSI ${basicMetrics.rsi.toFixed(1)}: ${basicMetrics.rsi > 70 ? '🚩 OVERBOUGHT - High correction risk ahead!' : basicMetrics.rsi < 30 ? '💎 OVERSOLD - Potential bounce opportunity!' : '⚖️ Normal momentum range'}
@@ -307,12 +369,13 @@ Provide ONLY accurate values derived from the actual data. No generic or placeho
 
 **MANDATORY COMPREHENSIVE ANALYSIS REQUIRED:**
 
-🎯 Your reasoning MUST explain the weighting across all three pillars:
+🎯 Your reasoning MUST explain the weighting across all pillars INCLUDING user context:
 1. **Fundamental Factor**: What do the P/E, ROE, growth rates tell us?
 2. **Technical Factor**: What do price action, RSI, support/resistance indicate?
 3. **Sentiment Factor**: How does news sentiment influence the decision?
-4. **Risk Assessment**: What are the key risks and opportunities?
-5. **Time Horizon**: Is this better for SHORT/MEDIUM/LONG term?
+4. **User Context Factor**: How does current holdings status affect the recommendation?
+5. **Risk Alignment**: Does stock volatility match user's risk tolerance?
+6. **Time Horizon**: Does analysis match user's investment period?
 
 Return response in this exact JSON format:
 {
@@ -328,8 +391,9 @@ Return response in this exact JSON format:
     "Fundamental factor: [P/E, ROE, growth analysis]",
     "Technical factor: [RSI, trend, support/resistance analysis]", 
     "Sentiment factor: [news impact and market sentiment]",
-    "Risk factor: [key risks and risk-reward assessment]",
-    "Time factor: [optimal investment horizon]"
+    "User context factor: [current holdings impact and recommendation logic]",
+    "Risk alignment: [stock volatility vs user risk tolerance]",
+    "Time horizon: [analysis fit with user investment period]"
   ],
   "keyInsights": [
     "Valuation insight: [cheap/fair/expensive with specific metrics]",
