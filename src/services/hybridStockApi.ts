@@ -155,7 +155,11 @@ export class HybridStockApiService {
   }
 
   // Number formatting utilities
-  static formatNumber(num: number): string {
+  static formatNumber(num: number | undefined | null): string {
+    if (num === undefined || num === null || isNaN(num)) {
+      return 'N/A';
+    }
+    
     if (num >= 10000000) { // 1 crore
       return `₹${(num / 10000000).toFixed(2)}Cr`;
     } else if (num >= 100000) { // 1 lakh
@@ -166,7 +170,11 @@ export class HybridStockApiService {
     return `₹${num.toFixed(2)}`;
   }
 
-  static formatIndianNumber(num: number): string {
+  static formatIndianNumber(num: number | undefined | null): string {
+    if (num === undefined || num === null || isNaN(num)) {
+      return 'N/A';
+    }
+    
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',

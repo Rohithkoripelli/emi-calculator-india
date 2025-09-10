@@ -336,46 +336,70 @@ ${JSON.stringify(priceData, null, 2)}
 
 **2. TECHNICAL ANALYSIS WEIGHT (35%)**:
    📈 PRICE ACTION & MOMENTUM:
-   - Support/Resistance: Use ACTUAL price levels from historical data
-   - Trend Direction: Current vs SMA20 (${currentPrice > basicMetrics.sma20 ? 'BULLISH' : 'BEARISH'}) vs SMA50 (${currentPrice > basicMetrics.sma50 ? 'BULLISH' : 'BEARISH'})
-   - RSI Momentum: ${basicMetrics.rsi.toFixed(1)} (${basicMetrics.rsi > 70 ? '🚩 OVERBOUGHT' : basicMetrics.rsi < 30 ? '💎 OVERSOLD' : '⚖️ NEUTRAL'})
-   - Volatility Assessment: Calculate from price data
+   - Current Price: ₹${currentPrice}
+   - SMA20: ₹${basicMetrics.sma20.toFixed(2)} | SMA50: ₹${basicMetrics.sma50.toFixed(2)}
+   - RSI Level: ${basicMetrics.rsi.toFixed(1)}
+   - Recent High: ₹${basicMetrics.recentHigh} | Recent Low: ₹${basicMetrics.recentLow}
+   - Historical Data: ${JSON.stringify(priceData.slice(-5))} (last 5 days)
    
-   🎯 TECHNICAL RULES:
-   - Support MUST be below ₹${currentPrice} (range: ₹${(currentPrice * 0.85).toFixed(0)}-₹${(currentPrice * 0.97).toFixed(0)})
-   - Resistance MUST be above ₹${currentPrice} (range: ₹${(currentPrice * 1.03).toFixed(0)}-₹${(currentPrice * 1.18).toFixed(0)})
+   🎯 INTELLIGENT TECHNICAL INTERPRETATION:
+   Analyze the price action contextually - don't use rigid RSI/SMA rules. Consider:
+   - Is the stock at a technical inflection point (support/resistance test)?
+   - Does current price level make sense relative to recent trading range?
+   - What story does the price action tell when combined with fundamentals?
+   - Support MUST be below current price, Resistance MUST be above - use actual levels from data
 
 **3. SENTIMENT ANALYSIS WEIGHT (25%)**:${sentimentAnalysis}
 
-**🎯 FINAL RECOMMENDATION LOGIC** (MUST consider user context):
+**🎯 INTELLIGENT RECOMMENDATION FRAMEWORK** (Think holistically, not mechanically):
+
 ${comprehensiveData?.userPreferences?.currentHolding === 'yes' ? `
-🏠 **EXISTING STOCKHOLDER** - Can recommend BUY/HOLD/SELL:
-- **BUY** (add more): Strong fundamentals + bullish technicals + positive sentiment + user risk tolerance supports it
-- **HOLD**: Mixed signals OR approaching key levels OR wait for better entry/exit point
-- **SELL**: Weak fundamentals + bearish technicals + negative sentiment + profit-taking opportunity` : `
-🆕 **NEW INVESTOR** - Can ONLY recommend BUY/HOLD (NEVER SELL):
-- **BUY**: Good entry opportunity with favorable fundamentals/technicals/sentiment matching user's risk/timeline  
-- **HOLD**: Not compelling enough to enter OR wait for better entry point OR risk doesn't match user profile
-- **SELL**: ❌ STRICTLY FORBIDDEN (user doesn't own the stock!)`}
+🏠 **EXISTING STOCKHOLDER CONTEXT** - Consider position management:
+You can recommend BUY (add more), HOLD (maintain), or SELL (exit/reduce). Think beyond simple rules:
 
-⚠️ **USER RISK TOLERANCE CHECK**:
-- Current user tolerance: ${comprehensiveData?.userPreferences?.riskTolerance || 'UNKNOWN'}
-- Stock volatility vs user risk must align for BUY recommendation
+Examples of nuanced recommendations:
+- "HOLD - Stock trading near highs, wait for dip toward ₹X before adding"
+- "SELL 50% - Book profits after strong run, hold rest for long-term"  
+- "BUY on dips - Strong fundamentals support higher prices over time"
+- "HOLD but avoid fresh buying - Overvalued short-term, good long-term"` : `
 
-**CRITICAL RSI WARNING SYSTEM**:
-- RSI ${basicMetrics.rsi.toFixed(1)}: ${basicMetrics.rsi > 70 ? '🚩 OVERBOUGHT - High correction risk ahead!' : basicMetrics.rsi < 30 ? '💎 OVERSOLD - Potential bounce opportunity!' : '⚖️ Normal momentum range'}
+🆕 **NEW INVESTOR CONTEXT** - Entry point analysis:
+Can ONLY recommend BUY or HOLD (NEVER SELL - they don't own it!). Be nuanced:
+
+Examples of intelligent entry advice:
+- "HOLD - Wait for dip toward ₹X-₹Y support zone before buying"
+- "BUY gradually - Good fundamentals, enter in 2-3 tranches over 3-6 months"
+- "BUY - Attractive entry at current levels with 12-18 month horizon"
+- "HOLD - Stock fairly valued, wait for better entry or market correction"`}
+
+🧠 **CONTEXTUAL ANALYSIS REQUIREMENTS**:
+- User Risk Tolerance: ${comprehensiveData?.userPreferences?.riskTolerance || 'UNKNOWN'}  
+- Investment Horizon: ${comprehensiveData?.userPreferences?.investmentPeriod || 'UNKNOWN'}
+- Current RSI: ${basicMetrics.rsi.toFixed(1)} (interpret contextually, not mechanically)
+- Price vs Moving Averages: Analyze trend and momentum intelligently
+- News Sentiment: Factor into timing and conviction level
+
+🎯 **AVOID MECHANICAL RULES** - Think like a professional analyst:
+- Don't just say "RSI >70 = SELL" - maybe it's "HOLD, reduce on strength"
+- Don't just say "Low P/E = BUY" - maybe it's a value trap
+- Consider market context, sector rotation, business cycles
+- Provide specific entry/exit levels and timeframes
+- Give conditional recommendations: "IF this THEN that"
 
 Provide ONLY accurate values derived from the actual data. No generic or placeholder numbers.
 
 **MANDATORY COMPREHENSIVE ANALYSIS REQUIRED:**
 
-🎯 Your reasoning MUST explain the weighting across all pillars INCLUDING user context:
-1. **Fundamental Factor**: What do the P/E, ROE, growth rates tell us?
-2. **Technical Factor**: What do price action, RSI, support/resistance indicate?
-3. **Sentiment Factor**: How does news sentiment influence the decision?
-4. **User Context Factor**: How does current holdings status affect the recommendation?
-5. **Risk Alignment**: Does stock volatility match user's risk tolerance?
-6. **Time Horizon**: Does analysis match user's investment period?
+🎯 Your reasoning MUST be NUANCED and CONTEXTUAL across all pillars:
+1. **Fundamental Factor**: Don't just state metrics - interpret them in context (Is low P/E a bargain or value trap?)
+2. **Technical Factor**: Think beyond RSI rules - what does price action really tell us about supply/demand?
+3. **Sentiment Factor**: How does news sentiment affect timing and conviction levels?
+4. **User Context Factor**: How does holdings status change the risk/reward calculation?
+5. **Risk Alignment**: Does the stock's risk profile truly match user's tolerance and timeline?
+6. **Holistic Synthesis**: What's the most intelligent action given ALL the evidence?
+
+🚨 **CRITICAL**: Provide specific, actionable guidance with price levels, timeframes, and conditions.
+Examples: "HOLD until ₹250-260, then consider buying" or "BUY 50% now, 50% if drops to ₹X"
 
 Return response in this exact JSON format:
 {
@@ -388,17 +412,17 @@ Return response in this exact JSON format:
   "confidence": number (0-100, weighted across all three analysis pillars),
   "recommendation": "BUY" | "SELL" | "HOLD",
   "reasoning": [
-    "Fundamental factor: [P/E, ROE, growth analysis]",
-    "Technical factor: [RSI, trend, support/resistance analysis]", 
-    "Sentiment factor: [news impact and market sentiment]",
-    "User context factor: [current holdings impact and recommendation logic]",
-    "Risk alignment: [stock volatility vs user risk tolerance]",
-    "Time horizon: [analysis fit with user investment period]"
+    "Fundamental factor: [Contextual analysis - is valuation justified? Any red flags?]",
+    "Technical factor: [Price action story - what's really happening with supply/demand?]", 
+    "Sentiment factor: [How does market mood affect timing and risk?]",
+    "User context factor: [How does holdings status change the optimal action?]",
+    "Risk-reward synthesis: [Is the potential return worth the risk for this user?]",
+    "Actionable guidance: [Specific prices, timeframes, conditions for action]"
   ],
   "keyInsights": [
-    "Valuation insight: [cheap/fair/expensive with specific metrics]",
-    "Momentum insight: [bullish/bearish momentum with RSI/trend data]",
-    "News insight: [sentiment impact on stock prospects]"
+    "Market positioning: [Where is stock in its cycle? Cheap/fair/expensive and why?]",
+    "Timing intelligence: [Is now the right time or should we wait? Why?]",
+    "Strategic approach: [Best way to approach this opportunity given all factors]"
   ]
 }`;
 
@@ -583,35 +607,38 @@ Return response in this exact JSON format:
       return 'SELL';
     }
     
-    // HOLD conditions - specific wait and watch scenarios
+    // Contextual recommendation logic - avoid mechanical rules
     const priceRange = (resistance - support) / support * 100;
     const midPoint = (support + resistance) / 2;
     const priceFromMid = Math.abs(currentPrice - midPoint) / midPoint * 100;
     
-    // HOLD when price is in middle of range with neutral momentum
-    if (priceFromMid < 8 && rsi >= 40 && rsi <= 60 && trend === 'SIDEWAYS') {
+    // Intelligent analysis considering multiple factors
+    const isNearResistance = currentPrice >= resistance * 0.95;
+    const isNearSupport = currentPrice <= support * 1.05;
+    const isInMiddleRange = priceFromMid < 8;
+    const hasNeutralMomentum = rsi >= 35 && rsi <= 65;
+    
+    // Priority 1: Context-aware decision making
+    if (isNearResistance && trend === 'BULLISH') {
+      // At resistance in uptrend - could breakout or pullback
+      return hasNeutralMomentum ? 'HOLD' : (rsi > 70 ? 'HOLD' : 'BUY');
+    }
+    
+    if (isNearSupport && trend === 'BEARISH') {
+      // At support in downtrend - could bounce or breakdown  
+      return hasNeutralMomentum ? 'HOLD' : (rsi < 30 ? 'BUY' : 'HOLD');
+    }
+    
+    if (isInMiddleRange && trend === 'SIDEWAYS') {
+      // In middle of range with sideways trend - typically HOLD
       return 'HOLD';
     }
     
-    // HOLD when approaching key resistance in uptrend (wait for breakout)
-    if (trend === 'BULLISH' && currentPrice >= resistance * 0.95 && rsi < 75) {
-      return 'HOLD';
-    }
+    // Priority 2: Trend-based with momentum consideration
+    if (trend === 'BULLISH' && rsi < 70) return 'BUY';
+    if (trend === 'BEARISH' && rsi > 30) return 'SELL';
     
-    // HOLD when approaching key support in downtrend (wait for breakdown/bounce)
-    if (trend === 'BEARISH' && currentPrice <= support * 1.05 && rsi > 25) {
-      return 'HOLD';
-    }
-    
-    // HOLD when RSI is in neutral zone with mixed signals
-    if (rsi >= 35 && rsi <= 65 && trend === 'SIDEWAYS') {
-      return 'HOLD';
-    }
-    
-    // Default to BUY/SELL based on trend if not in specific HOLD conditions
-    if (trend === 'BULLISH') return 'BUY';
-    if (trend === 'BEARISH') return 'SELL';
-    
+    // Default: HOLD when signals are mixed or extreme
     return 'HOLD';
   }
 
