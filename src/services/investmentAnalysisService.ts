@@ -216,10 +216,10 @@ export class InvestmentAnalysisService {
       const stockNews = await NewsSearchService.getStockNews(symbol, companyInfo.name);
       const newsSentiment = this.analyzeNewsSentiment(stockNews);
       
-      // Step 7: NOW get enhanced technical analysis with ALL comprehensive data including user context
-      console.log(`🔍 Getting comprehensive AI analysis with all collected data for ${symbol}...`);
+      // Step 7: Get technical indicators without OpenAI call (to avoid duplicate AI analysis)
+      console.log(`🔍 Getting technical indicators for ${symbol}...`);
       console.log(`👤 User context: ${userPreferences?.currentHolding === 'yes' ? 'EXISTING HOLDER' : 'NEW INVESTOR'}, Risk: ${userPreferences?.riskTolerance || 'UNKNOWN'}, Period: ${userPreferences?.investmentPeriod || 'UNKNOWN'}`);
-      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice, {
+      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStockWithoutAI(symbol, quote.currentPrice, {
         screenerData,
         quote,
         newsSentiment,

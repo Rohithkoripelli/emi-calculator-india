@@ -97,6 +97,78 @@ export class EnhancedTechnicalAnalysisService {
   }
 
   /**
+   * Perform technical analysis WITHOUT AI to avoid duplicate OpenAI calls
+   */
+  static async analyzeStockWithoutAI(
+    symbol: string, 
+    currentPrice: number, 
+    comprehensiveData?: {
+      screenerData?: any;
+      quote?: any;
+      newsSentiment?: any;
+      webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
+    }
+  ): Promise<EnhancedTechnicalAnalysis> {
+    try {
+      console.log(`🔍 Starting technical analysis (no AI) for ${symbol} at ₹${currentPrice}`);
+
+      // Get 90 days of historical data for comprehensive analysis
+      const historicalData = await GrowwApiService.getHistoricalData(symbol, 90);
+      
+      if (!historicalData || historicalData.length < 20) {
+        console.warn(`⚠️ Insufficient data for ${symbol}, using fallback analysis`);
+        return this.fallbackAnalysis(symbol, currentPrice);
+      }
+
+      console.log(`📊 Retrieved ${historicalData.length} candles for technical analysis`);
+
+      // Calculate basic technical indicators from real data
+      const basicMetrics = this.calculateBasicMetrics(historicalData, currentPrice);
+      
+      // Calculate support and resistance levels
+      const closes = historicalData.map(c => c.close);
+      const highs = historicalData.map(c => c.high);
+      const lows = historicalData.map(c => c.low);
+      
+      const recentHigh = Math.max(...highs.slice(-20));
+      const recentLow = Math.min(...lows.slice(-20));
+      
+      // Calculate volatility
+      const returns = [];
+      for (let i = 1; i < closes.length; i++) {
+        returns.push((closes[i] - closes[i-1]) / closes[i-1]);
+      }
+      const volatility = Math.sqrt(returns.reduce((sum, ret) => sum + ret * ret, 0) / returns.length) * Math.sqrt(252) * 100;
+      
+      return {
+        support: Math.round(recentLow * 100) / 100,
+        resistance: Math.round(recentHigh * 100) / 100,
+        volatility: Math.min(Math.round(volatility * 10) / 10, 15), // Cap at 15%
+        targetPrice: Math.round(currentPrice * 1.15 * 100) / 100, // 15% upside
+        stopLoss: Math.round(currentPrice * 0.85 * 100) / 100, // 15% downside
+        trend: currentPrice > basicMetrics.sma20 ? 'BULLISH' : 'BEARISH',
+        rsi: basicMetrics.rsi,
+        sma20: basicMetrics.sma20,
+        sma50: basicMetrics.sma50,
+        confidence: 70, // Default confidence
+        recommendation: 'HOLD', // Default recommendation - will be overridden by comprehensive analysis
+        reasoning: ['Technical indicators calculated from historical data']
+      };
+
+    } catch (error) {
+      console.error(`❌ Error in technical analysis for ${symbol}:`, error);
+      return this.fallbackAnalysis(symbol, currentPrice);
+    }
+  }
+
+  /**
    * Calculate basic technical metrics from historical data
    */
   private static calculateBasicMetrics(candles: HistoricalCandle[], currentPrice: number) {

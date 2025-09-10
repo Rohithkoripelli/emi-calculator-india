@@ -67,6 +67,7 @@ export class HybridStockApiService {
     const mappings: Record<string, string> = {
       '^NSEI': 'NIFTY',
       '^BSESN': 'SENSEX', 
+      '^BSE100': 'BSE100',
       '^CNXBANK': 'BANKNIFTY',
       '^CNXIT': 'NIFTYIT',
       '^CNX100': 'NIFTY100',
@@ -261,38 +262,38 @@ export class HybridStockApiService {
       // Fetch real stock data for companies in this page only
       for (let i = 0; i < companiesForPage.length; i++) {
         try {
-          // Add timeout to prevent hanging
+          // Add timeout to prevent hanging - increased timeout for Railway API
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced to 3 seconds
+          const timeoutId = setTimeout(() => controller.abort(), 8000); // Increased to 8 seconds for Railway API
 
-          const response = await fetch('/api/groww-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              symbols: [companiesForPage[i]], 
-              type: 'stock'
-            }),
-            signal: controller.signal
-          });
-
+          // Use Railway proxy endpoint for constituent data
+          const response = await NewGrowwApiService.getRealTimeQuote(companiesForPage[i], 'NSE', 'CASH');
+          
           clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const data = await response.json();
-            const stockData = data.data?.[companiesForPage[i]];
-            
-            if (stockData) {
-              results.push({
-                symbol: `${companiesForPage[i]}.NS`,
-                name: stockData.name || companiesForPage[i],
-                price: stockData.price || 0,
-                change: stockData.change || 0,
-                changePercent: stockData.changePercent || 0,
-                sector: this.getSectorForStock(companiesForPage[i]),
-                industry: this.getIndustryForStock(companiesForPage[i])
-              });
-            }
+          
+          if (response) {
+            results.push({
+              symbol: `${companiesForPage[i]}.NS`,
+              name: response.companyName || companiesForPage[i],
+              price: response.currentPrice || 0,
+              change: response.dayChange || 0,
+              changePercent: response.dayChangePercent || 0,
+              sector: this.getSectorForStock(companiesForPage[i]),
+              industry: this.getIndustryForStock(companiesForPage[i])
+            });
+          } else {
+            // Fallback with safe default values
+            results.push({
+              symbol: `${companiesForPage[i]}.NS`,
+              name: companiesForPage[i] || 'Unknown Company',
+              price: 0,
+              change: 0,
+              changePercent: 0,
+              sector: this.getSectorForStock(companiesForPage[i]) || 'Other',
+              industry: 'Data unavailable'
+            });
           }
+
         } catch (error) {
           console.warn(`Failed to fetch data for ${companiesForPage[i]}:`, error);
           // Add placeholder for failed companies with safe default values
