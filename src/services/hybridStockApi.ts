@@ -34,7 +34,7 @@ export class HybridStockApiService {
           lastUpdated: new Date().toISOString()
         };
         
-        console.log(`✅ Got Railway proxy data for ${symbol}: ₹${indexData.price} (${indexData.changePercent.toFixed(2)}%)`);
+        console.log(`✅ Got Railway proxy data for ${symbol}: ${this.formatIndexPointsDetailed(indexData.price)} (${indexData.changePercent.toFixed(2)}%)`);
         return indexData;
       } else {
         console.warn(`⚠️ No data from Railway proxy for ${symbol}, trying legacy API...`);
@@ -179,6 +179,31 @@ export class HybridStockApiService {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  }
+
+  // Index-specific formatting (no currency symbols, just points)
+  static formatIndexPoints(num: number | undefined | null): string {
+    if (num === undefined || num === null || isNaN(num)) {
+      return 'N/A';
+    }
+    
+    if (num >= 100000) { // 1 lakh points
+      return `${(num / 1000).toFixed(1)}K`;
+    } else if (num >= 1000) { // 1 thousand points
+      return `${(num / 1000).toFixed(2)}K`;
+    }
+    return num.toFixed(2);
+  }
+
+  static formatIndexPointsDetailed(num: number | undefined | null): string {
+    if (num === undefined || num === null || isNaN(num)) {
+      return 'N/A';
+    }
+    
+    return new Intl.NumberFormat('en-IN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(num);

@@ -8,6 +8,7 @@ import { NewsSearchService, TrendingStock, StockNews, MarketTrends } from './new
 import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
 import { EnhancedTechnicalAnalysisService } from './enhancedTechnicalAnalysis';
 import { ScreenerDataService } from './screenerDataService';
+import { StockAnalysisPreferences } from '../components/ai/StockAnalysisQuestionnaire';
 
 interface StockAnalysisReport {
   stock_info: {
@@ -1079,6 +1080,7 @@ export class InvestmentAnalysisService {
         - Consider position sizing relative to overall portfolio
         - Address dollar-cost averaging vs lump sum investment
         - Highlight key levels to watch for better entry opportunities
+        - 🚨 IMPORTANT: Since user DOES NOT OWN this stock, NEVER recommend "SELL" - only "BUY" or "HOLD" (don't buy)
         `}
         
         ${data.userPreferences.riskTolerance === 'low' ? `
@@ -1109,7 +1111,7 @@ export class InvestmentAnalysisService {
       `;
       
       const response = await this.callOpenAI(prompt);
-      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol);
+      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol, data.userPreferences);
       
     } catch (error) {
       console.error('❌ Error generating professional recommendation:', error);
@@ -2580,7 +2582,7 @@ export class InvestmentAnalysisService {
     };
   }
 
-  private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string): Promise<any> {
+  private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string, userPreferences?: StockAnalysisPreferences): Promise<any> {
     try {
       console.log(`📊 Parsing OpenAI recommendation response...`);
       console.log(`📊 Raw response preview: ${response.substring(0, 300)}...`);
@@ -2650,6 +2652,17 @@ export class InvestmentAnalysisService {
       
       // Validate that the parsed response has required fields
       if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
+        
+        // 🚨 CRITICAL: Enforce logical constraint for non-stockholders
+        if (userPreferences?.currentHolding === 'no' && parsed.action === 'SELL') {
+          console.warn(`⚠️ LOGICAL ERROR: Converting SELL to HOLD for non-stockholder`);
+          parsed.action = 'HOLD';
+          // Add explanation to reasoning
+          if (parsed.reasoning && Array.isArray(parsed.reasoning)) {
+            parsed.reasoning.push('Recommendation adjusted from SELL to HOLD since user does not currently own this stock');
+          }
+        }
+        
         console.log(`✅ OpenAI recommendation parsed successfully: ${parsed.action} (${parsed.confidence}% confidence)`);
         
         // Log technical analysis if present
