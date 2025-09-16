@@ -1,6 +1,6 @@
 /**
  * Web Search Utility for finding stock symbols
- * Uses existing Google Custom Search API implementation
+ * Uses existing Google Custom Search API implementation with intelligent rate limiting
  */
 
 interface SearchResult {
@@ -9,13 +9,86 @@ interface SearchResult {
   url: string;
 }
 
+// Rate limiting and caching system
+class GoogleApiRateLimiter {
+  private static lastApiCall = 0;
+  private static readonly API_DELAY = 1200; // 1.2 seconds between calls to be conservative
+  private static readonly requestCache = new Map<string, { data: SearchResult[], timestamp: number }>();
+  private static readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes cache
+  private static requestCount = 0;
+  private static readonly MAX_REQUESTS_PER_MINUTE = 40; // Conservative limit
+  private static requestTimestamps: number[] = [];
+
+  static async throttleRequest(cacheKey: string): Promise<{ shouldProceed: boolean, cachedData?: SearchResult[] }> {
+    // Check cache first
+    const cached = this.requestCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      console.log(`📦 Using cached result for: ${cacheKey}`);
+      return { shouldProceed: false, cachedData: cached.data };
+    }
+
+    // Clean old request timestamps
+    const now = Date.now();
+    this.requestTimestamps = this.requestTimestamps.filter(timestamp => now - timestamp < 60000);
+
+    // Check if we're approaching rate limits
+    if (this.requestTimestamps.length >= this.MAX_REQUESTS_PER_MINUTE) {
+      console.warn(`⚠️ Approaching Google API rate limits. Requests in last minute: ${this.requestTimestamps.length}`);
+      return { shouldProceed: false, cachedData: [] };
+    }
+
+    // Rate limiting: ensure minimum delay between API calls
+    const timeSinceLastCall = now - this.lastApiCall;
+    if (timeSinceLastCall < this.API_DELAY) {
+      const delayNeeded = this.API_DELAY - timeSinceLastCall;
+      console.log(`⏳ Rate limiting: waiting ${delayNeeded}ms before Google API call`);
+      await new Promise(resolve => setTimeout(resolve, delayNeeded));
+    }
+
+    this.lastApiCall = Date.now();
+    this.requestTimestamps.push(this.lastApiCall);
+    this.requestCount++;
+    
+    console.log(`📊 Google API usage: ${this.requestCount} total requests, ${this.requestTimestamps.length} in last minute`);
+    return { shouldProceed: true };
+  }
+
+  static cacheResult(cacheKey: string, data: SearchResult[]) {
+    this.requestCache.set(cacheKey, { data, timestamp: Date.now() });
+    console.log(`💾 Cached result for: ${cacheKey}`);
+  }
+
+  static getStats() {
+    const now = Date.now();
+    const recentRequests = this.requestTimestamps.filter(timestamp => now - timestamp < 60000);
+    return {
+      totalRequests: this.requestCount,
+      requestsLastMinute: recentRequests.length,
+      cacheSize: this.requestCache.size
+    };
+  }
+}
+
 /**
  * Search for stock symbol using Google Custom Search API
  * This function should ONLY be called when stock is not found in Excel database
  */
 export async function WebSearch(query: string, maxResults: number = 3, isMobile: boolean = false): Promise<SearchResult[]> {
   try {
-    console.log(`🔍 Google Search for stock symbol: "${query}"`);
+    console.log(`🔍 Rate-limited Google Search for: "${query}"`);
+    
+    // Apply rate limiting and check cache first
+    const cacheKey = `${query}-${maxResults}`;
+    const rateLimitResult = await GoogleApiRateLimiter.throttleRequest(cacheKey);
+    
+    if (!rateLimitResult.shouldProceed) {
+      if (rateLimitResult.cachedData && rateLimitResult.cachedData.length > 0) {
+        return rateLimitResult.cachedData;
+      } else {
+        console.log(`⚠️ Rate limited or no cached data, using intelligent fallback for: ${query}`);
+        return getIntelligentFallback(query, maxResults);
+      }
+    }
     
     // Get API credentials
     const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
@@ -71,7 +144,13 @@ export async function WebSearch(query: string, maxResults: number = 3, isMobile:
         url: item.link || '#'
       }));
       
-      console.log(`✅ Found ${results.length} Google search results`);
+      // Cache the successful result
+      GoogleApiRateLimiter.cacheResult(cacheKey, results);
+      
+      console.log(`✅ Found ${results.length} Google search results and cached them`);
+      const stats = GoogleApiRateLimiter.getStats();
+      console.log(`📊 API Stats: ${stats.totalRequests} total, ${stats.requestsLastMinute}/40 last minute, ${stats.cacheSize} cached`);
+      
       return results;
     }
 
