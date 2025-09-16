@@ -95,12 +95,56 @@ export class NewsSearchService {
         .slice(0, 15); // Return top 15 stocks
       
       console.log(`✅ Discovered ${trendingStocks.length} trending stocks`);
-      return trendingStocks;
+      
+      // If we found stocks, return them; otherwise use fallback
+      if (trendingStocks.length > 0) {
+        return trendingStocks;
+      } else {
+        console.log(`⚠️ No trending stocks found via web search, using quality fallback stocks...`);
+        return this.getFallbackQualityStocks();
+      }
       
     } catch (error) {
       console.error('❌ Error discovering trending stocks:', error);
-      return [];
+      console.log(`🎯 Using fallback quality stocks due to discovery error...`);
+      return this.getFallbackQualityStocks();
     }
+  }
+
+  /**
+   * Fallback quality stocks when web discovery fails
+   */
+  private static getFallbackQualityStocks(): TrendingStock[] {
+    const qualityStocks: TrendingStock[] = [
+      // Large Cap (Market Cap > ₹20,000 Cr)
+      { symbol: 'RELIANCE', companyName: 'Reliance Industries Limited', marketCap: 'LARGE_CAP', sector: 'Oil & Gas', reason: 'Market leader in diversified business portfolio', confidence: 95 },
+      { symbol: 'TCS', companyName: 'Tata Consultancy Services Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'Leading IT services company with global presence', confidence: 94 },
+      { symbol: 'HDFCBANK', companyName: 'HDFC Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Top private bank with strong financials', confidence: 93 },
+      { symbol: 'INFY', companyName: 'Infosys Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'Premier IT services with consistent growth', confidence: 92 },
+      { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', marketCap: 'LARGE_CAP', sector: 'FMCG', reason: 'FMCG leader with strong brand portfolio', confidence: 91 },
+      { symbol: 'ICICIBANK', companyName: 'ICICI Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Leading private bank with digital innovation', confidence: 90 },
+      { symbol: 'KOTAKBANK', companyName: 'Kotak Mahindra Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Premium banking services with strong growth', confidence: 89 },
+      { symbol: 'LT', companyName: 'Larsen & Toubro Limited', marketCap: 'LARGE_CAP', sector: 'Construction', reason: 'Engineering & construction giant with diverse portfolio', confidence: 88 },
+      
+      // Mid Cap (Market Cap ₹5,000 - ₹20,000 Cr)
+      { symbol: 'CIPLA', companyName: 'Cipla Limited', marketCap: 'MID_CAP', sector: 'Pharmaceuticals', reason: 'Leading pharmaceutical company with global reach', confidence: 87 },
+      { symbol: 'BPCL', companyName: 'Bharat Petroleum Corporation Limited', marketCap: 'MID_CAP', sector: 'Oil & Gas', reason: 'Major oil & gas company with refining capabilities', confidence: 86 },
+      { symbol: 'APOLLOHOSP', companyName: 'Apollo Hospitals Enterprise Limited', marketCap: 'MID_CAP', sector: 'Healthcare', reason: 'Healthcare leader with expanding network', confidence: 85 },
+      { symbol: 'TATACONSUM', companyName: 'Tata Consumer Products Limited', marketCap: 'MID_CAP', sector: 'FMCG', reason: 'Consumer goods with strong brand recognition', confidence: 84 },
+      { symbol: 'EICHERMOT', companyName: 'Eicher Motors Limited', marketCap: 'MID_CAP', sector: 'Automobile', reason: 'Premium motorcycle manufacturer Royal Enfield', confidence: 83 },
+      { symbol: 'BRITANNIA', companyName: 'Britannia Industries Limited', marketCap: 'MID_CAP', sector: 'FMCG', reason: 'Leading biscuit and dairy company', confidence: 82 },
+      
+      // Small Cap (Market Cap < ₹5,000 Cr)
+      { symbol: 'TRENT', companyName: 'Trent Limited', marketCap: 'SMALL_CAP', sector: 'Retail', reason: 'Retail chain with strong growth in fashion segment', confidence: 81 },
+      { symbol: 'PAGEIND', companyName: 'Page Industries Limited', marketCap: 'SMALL_CAP', sector: 'Textiles', reason: 'Leading innerwear manufacturer Jockey brand', confidence: 80 },
+      { symbol: 'HAVELLS', companyName: 'Havells India Limited', marketCap: 'SMALL_CAP', sector: 'Consumer Durables', reason: 'Electrical equipment with strong brand presence', confidence: 79 },
+      { symbol: 'BERGEPAINT', companyName: 'Berger Paints India Limited', marketCap: 'SMALL_CAP', sector: 'Paints', reason: 'Paint industry leader with decorative focus', confidence: 78 },
+      { symbol: 'MPHASIS', companyName: 'Mphasis Limited', marketCap: 'SMALL_CAP', sector: 'Information Technology', reason: 'IT services with specialized digital transformation', confidence: 77 },
+      { symbol: 'VOLTAS', companyName: 'Voltas Limited', marketCap: 'SMALL_CAP', sector: 'Consumer Durables', reason: 'Air conditioning and engineering services', confidence: 76 }
+    ];
+    
+    console.log(`🎯 Using ${qualityStocks.length} fallback quality stocks for portfolio allocation`);
+    return qualityStocks;
   }
 
   /**
