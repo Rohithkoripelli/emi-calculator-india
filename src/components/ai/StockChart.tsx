@@ -34,7 +34,7 @@ export const StockChart: React.FC<StockChartProps> = ({
   dayChangePercent, 
   className = '' 
 }) => {
-  const [activeTimeFrame, setActiveTimeFrame] = useState('1M');
+  const [activeTimeFrame, setActiveTimeFrame] = useState('1D');
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
