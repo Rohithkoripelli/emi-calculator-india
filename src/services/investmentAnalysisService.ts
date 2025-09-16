@@ -986,9 +986,31 @@ export class InvestmentAnalysisService {
         ` : ''}
         Technical Score: ${data.technicalAnalysis?.priceChange30Days && data.technicalAnalysis.priceChange30Days > 0 ? '✅' : '⚠️'} Momentum, ${data.technicalAnalysis?.rsi && data.technicalAnalysis.rsi >= 40 && data.technicalAnalysis.rsi <= 70 ? '✅' : '⚠️'} RSI
 
-        Provide your analysis in this exact JSON format (prefer STRONG_BUY/STRONG_SELL for clear signals):
+        🧠 HUMAN-LIKE DECISION MAKING APPROACH:
+        Think like a cautious professional investor. HOLD should be your default when:
+        - High volatility (>12%) suggests uncertain times - wait for stability
+        - Mixed signals from technical vs fundamental analysis - patience is key
+        - Market conditions are uncertain or transitional - preserve capital
+        - P/E ratios are neither clearly cheap nor expensive - await clarity
+        - RSI in 40-60 range suggests sideways movement - watch and wait
+        - Recent sharp price movements up/down - let dust settle before deciding
+        - Economic uncertainty or sector headwinds - exercise caution
+        
+        Remember: A good investor says "I don't know, let's wait" more often than "BUY/SELL"
+        
+        🌍 MARKET CONTEXT THINKING:
+        Before making any recommendation, consider:
+        - Is this stock moving with or against broader market trends?
+        - Are we in a bull market (be more optimistic) or bear market (be more cautious)?
+        - Is the sector experiencing headwinds or tailwinds?
+        - Are there upcoming earnings, events, or market catalysts that create uncertainty?
+        - Would a patient investor benefit from waiting for a better entry/exit point?
+        
+        When market conditions are uncertain, sectors are volatile, or you see conflicting signals - HOLD is often the wisest choice.
+        
+        Provide your analysis in this exact JSON format:
         {
-          "action": "STRONG_BUY|BUY|SELL|STRONG_SELL",
+          "action": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
           "confidence": number (0-100),
           "target_price": number or null,
           "stop_loss": number or null,
@@ -1068,11 +1090,14 @@ export class InvestmentAnalysisService {
         
         ${data.userPreferences.currentHolding === 'yes' ? `
         **CURRENT HOLDER CONSIDERATIONS:**
-        - Provide specific guidance on whether to HOLD, ADD more shares, or SELL position
-        - Consider portfolio concentration and position sizing
-        - Evaluate cost averaging opportunities if stock has declined
+        - HOLD is often the best advice: "When in doubt, don't act" - patience beats panic
+        - Only recommend SELL if fundamentals have clearly deteriorated or stock is severely overvalued
+        - Consider partial profit-taking instead of full SELL when stock has run up significantly
+        - If stock is down but fundamentals remain strong, often HOLD is better than panic selling
+        - Evaluate cost averaging opportunities if stock has declined (ADD more vs HOLD existing)
         - Address position management and profit-taking strategies
         - Compare current levels to user's likely average purchase price
+        - Remember: Good companies can have temporarily bad stock prices - HOLD through volatility
         ` : `
         **NEW INVESTOR CONSIDERATIONS:**
         - Focus on optimal entry points and timing
@@ -1085,10 +1110,12 @@ export class InvestmentAnalysisService {
         
         ${data.userPreferences.riskTolerance === 'low' ? `
         **LOW RISK TOLERANCE ADJUSTMENTS:**
-        - Recommend only if stock shows strong fundamentals with limited downside
+        - FREQUENTLY recommend HOLD when any uncertainty exists - better safe than sorry
+        - Only recommend BUY for blue-chip stocks with strong fundamentals and stable earnings
+        - If volatility >8% or P/E >25 or mixed signals, DEFAULT to HOLD
         - Emphasize dividend yield, stable earnings, and blue-chip qualities
         - Set conservative target prices and tighter stop losses
-        - Focus on capital preservation over aggressive growth
+        - Focus on capital preservation over aggressive growth - when in doubt, HOLD
         - Highlight quality metrics: ROE >15%, low debt/equity, stable margins
         ` : data.userPreferences.riskTolerance === 'high' ? `
         **HIGH RISK TOLERANCE ADJUSTMENTS:**
@@ -1099,11 +1126,13 @@ export class InvestmentAnalysisService {
         - Emphasize growth potential over dividend income
         ` : `
         **MODERATE RISK TOLERANCE ADJUSTMENTS:**
+        - Use HOLD frequently when signals are mixed or unclear - patience pays off
         - Balance growth potential with stability and risk management
+        - If volatility >12% or conflicting technical/fundamental signals, prefer HOLD
         - Focus on quality growth stocks with reasonable valuations
         - Set moderate target prices with balanced stop loss levels
-        - Consider both technical momentum and fundamental strength
-        - Look for stocks with good risk-reward ratio
+        - Consider both technical momentum and fundamental strength - if they disagree, HOLD
+        - Look for stocks with good risk-reward ratio - unclear ratio = HOLD
         `}
         
         **⚠️ MANDATORY: Your recommendation MUST reflect this user profile. A short-term, high-risk investor needs different advice than a long-term, conservative investor for the SAME stock.**
