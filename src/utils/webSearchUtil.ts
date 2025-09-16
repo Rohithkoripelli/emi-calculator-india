@@ -9,21 +9,23 @@ interface SearchResult {
   url: string;
 }
 
-// Rate limiting and caching system
+// Global request queue and rate limiting system
 class GoogleApiRateLimiter {
   private static lastApiCall = 0;
-  private static readonly API_DELAY = 1200; // 1.2 seconds between calls to be conservative
+  private static readonly API_DELAY = 2000; // 2 seconds between calls - very conservative
   private static readonly requestCache = new Map<string, { data: SearchResult[], timestamp: number }>();
-  private static readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes cache
+  private static readonly CACHE_DURATION = 15 * 60 * 1000; // 15 minutes cache - longer to reduce API calls
   private static requestCount = 0;
-  private static readonly MAX_REQUESTS_PER_MINUTE = 40; // Conservative limit
+  private static readonly MAX_REQUESTS_PER_MINUTE = 20; // Much more conservative limit
   private static requestTimestamps: number[] = [];
+  private static readonly requestQueue: Array<() => Promise<any>> = [];
+  private static isProcessingQueue = false;
 
   static async throttleRequest(cacheKey: string): Promise<{ shouldProceed: boolean, cachedData?: SearchResult[] }> {
-    // Check cache first
+    // Check cache first - extend cache check to be more aggressive
     const cached = this.requestCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
-      console.log(`📦 Using cached result for: ${cacheKey}`);
+      console.log(`📦 Using cached result for: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}s old)`);
       return { shouldProceed: false, cachedData: cached.data };
     }
 
@@ -31,26 +33,72 @@ class GoogleApiRateLimiter {
     const now = Date.now();
     this.requestTimestamps = this.requestTimestamps.filter(timestamp => now - timestamp < 60000);
 
-    // Check if we're approaching rate limits
+    // Much stricter rate limit checking
     if (this.requestTimestamps.length >= this.MAX_REQUESTS_PER_MINUTE) {
-      console.warn(`⚠️ Approaching Google API rate limits. Requests in last minute: ${this.requestTimestamps.length}`);
+      console.warn(`🚫 HARD LIMIT: Google API rate limits exceeded. Requests in last minute: ${this.requestTimestamps.length}/${this.MAX_REQUESTS_PER_MINUTE}`);
       return { shouldProceed: false, cachedData: [] };
     }
 
-    // Rate limiting: ensure minimum delay between API calls
+    // Even stricter spacing - ensure longer delays
     const timeSinceLastCall = now - this.lastApiCall;
     if (timeSinceLastCall < this.API_DELAY) {
       const delayNeeded = this.API_DELAY - timeSinceLastCall;
-      console.log(`⏳ Rate limiting: waiting ${delayNeeded}ms before Google API call`);
+      console.log(`⏳ STRICT rate limiting: waiting ${delayNeeded}ms before Google API call`);
       await new Promise(resolve => setTimeout(resolve, delayNeeded));
     }
+
+    // Add extra buffer time to be super conservative
+    await new Promise(resolve => setTimeout(resolve, 200)); // Extra 200ms buffer
 
     this.lastApiCall = Date.now();
     this.requestTimestamps.push(this.lastApiCall);
     this.requestCount++;
     
-    console.log(`📊 Google API usage: ${this.requestCount} total requests, ${this.requestTimestamps.length} in last minute`);
+    console.log(`📊 Google API usage: ${this.requestCount} total requests, ${this.requestTimestamps.length}/${this.MAX_REQUESTS_PER_MINUTE} last minute`);
     return { shouldProceed: true };
+  }
+
+  static async queueRequest<T>(requestFunction: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push(async () => {
+        try {
+          const result = await requestFunction();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      this.processQueue();
+    });
+  }
+
+  private static async processQueue() {
+    if (this.isProcessingQueue || this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    console.log(`🔄 Processing Google API queue: ${this.requestQueue.length} requests pending`);
+
+    while (this.requestQueue.length > 0) {
+      const request = this.requestQueue.shift();
+      if (request) {
+        try {
+          await request();
+        } catch (error) {
+          console.error('Queue request failed:', error);
+        }
+        
+        // Add delay between queue processing
+        if (this.requestQueue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, this.API_DELAY));
+        }
+      }
+    }
+
+    this.isProcessingQueue = false;
+    console.log(`✅ Google API queue processing completed`);
   }
 
   static cacheResult(cacheKey: string, data: SearchResult[]) {

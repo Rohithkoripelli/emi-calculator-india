@@ -115,24 +115,20 @@ export class NewsSearchService {
    * Targeted stock discovery using rate-limited searches for specific high-quality companies
    */
   private static async getTargetedStockDiscovery(): Promise<TrendingStock[]> {
-    console.log(`🎯 Starting targeted stock discovery with rate-limited searches...`);
+    console.log(`🎯 Starting CONSERVATIVE targeted stock discovery with minimal API calls...`);
     
-    // Define targeted search queries for different market cap categories
+    // MUCH reduced targeted search queries - only essential ones to minimize API usage
     const targetedQueries = [
-      // Large cap searches  
-      "RELIANCE NSE stock price analysis latest",
-      "TCS Tata Consultancy Services stock performance", 
-      "HDFCBANK HDFC Bank share price target",
-      "HINDUNILVR Hindustan Unilever stock news",
+      // Only top 3 large cap searches  
+      "TCS Tata Consultancy Services stock NSE latest",
+      "HDFCBANK HDFC Bank stock analysis",
+      "RELIANCE Industries stock price",
       
-      // Mid cap searches
-      "CIPLA pharmaceutical stock analysis",
-      "APOLLOHOSP Apollo Hospitals share price",
-      "BRITANNIA Industries stock performance",
+      // Only 1 mid cap search
+      "CIPLA pharmaceutical stock NSE",
       
-      // Small cap searches  
-      "TRENT retail stock growth potential",
-      "HAVELLS electrical equipment share price"
+      // Only 1 small cap search  
+      "TRENT retail stock NSE performance"
     ];
     
     const discoveredStocks: Map<string, TrendingStock> = new Map();
@@ -155,8 +151,8 @@ export class NewsSearchService {
           });
         }
         
-        // Add delay between searches to be conservative with API usage
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Add LONGER delay between searches to be very conservative with API usage
+        await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 seconds between searches
         
       } catch (error) {
         console.warn(`⚠️ Error in targeted search for "${query}":`, error);
@@ -318,34 +314,22 @@ export class NewsSearchService {
    * Get search queries for different timeframes
    */
   private static getTrendingStockQueries(timeframe: string): string[] {
+    // DRASTICALLY reduced queries to prevent API overuse
     const baseQueries = [
-      'best performing indian stocks NSE BSE',
-      'top gainers indian stock market today',
-      'most active stocks india high volume'
+      'best indian stocks NSE 2025' // Only 1 base query instead of 3
     ];
     
     switch (timeframe) {
       case '6months':
         return [
-          'best performing indian stocks last 6 months 2025',
-          'top stock gainers india 6 month returns',
-          'highest return stocks india 2024 2025',
-          ...baseQueries
+          'top indian stocks 6 months 2025' // Only 1 query per timeframe
         ];
       case '1year':
         return [
-          'best performing indian stocks 2024 annual returns',
-          'top stock performers india yearly gains',
-          'multibagger stocks india 2024 2025',
-          ...baseQueries
+          'best indian stocks 2024 returns' // Only 1 query per timeframe
         ];
       default: // recent
-        return [
-          'trending stocks india today latest',
-          'breakout stocks NSE BSE current month',
-          'momentum stocks indian market 2025',
-          ...baseQueries
-        ];
+        return baseQueries; // Use only the 1 base query
     }
   }
 
