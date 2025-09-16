@@ -125,42 +125,49 @@ export class PortfolioAllocationService {
   /**
    * Create multiple portfolio approaches (Conservative, Balanced, Aggressive)
    */
-  static createMultipleApproaches(
+  static async createMultipleApproaches(
     investmentAmount: number,
     frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING',
     stockQuotes: StockQuote[],
     trendingStocks: TrendingStock[],
     marketSentiment: 'BULLISH' | 'BEARISH' | 'MIXED'
-  ): {
+  ): Promise<{
     conservative: StructuredPortfolioResponse,
     balanced: StructuredPortfolioResponse,
     aggressive: StructuredPortfolioResponse
-  } {
+  }> {
     const strategies = this.getAllocationStrategies();
     
+    // Execute all three approaches in parallel for better performance
+    const [conservative, balanced, aggressive] = await Promise.all([
+      this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.conservative),
+      this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.balanced),
+      this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.aggressive)
+    ]);
+    
     return {
-      conservative: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.conservative),
-      balanced: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.balanced),
-      aggressive: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.aggressive)
+      conservative,
+      balanced,
+      aggressive
     };
   }
   
   /**
    * Create structured portfolio response for specific allocation
    */
-  static createStructuredResponse(
+  static async createStructuredResponse(
     investmentAmount: number,
     frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING',
     stockQuotes: StockQuote[],
     trendingStocks: TrendingStock[],
     marketSentiment: 'BULLISH' | 'BEARISH' | 'MIXED',
     customAllocation?: { large: number, mid: number, small: number }
-  ): StructuredPortfolioResponse {
+  ): Promise<StructuredPortfolioResponse> {
     
     console.log(`📋 Creating structured portfolio response for ₹${investmentAmount}...`);
     
-    // Categorize stocks by market cap
-    const categorizedStocks = this.categorizeStocksByMarketCap(stockQuotes, trendingStocks);
+    // Categorize stocks by market cap using screener.in data
+    const categorizedStocks = await this.categorizeStocksByMarketCapWithScreener(stockQuotes, trendingStocks);
     
     // Create allocation based on investment amount and custom ratios
     const allocation = this.createAllocation(investmentAmount, categorizedStocks, customAllocation);
@@ -452,35 +459,99 @@ export class PortfolioAllocationService {
   }
 
   // Helper methods
-  private static categorizeStocksByMarketCap(stockQuotes: StockQuote[], trendingStocks: TrendingStock[]) {
+  /**
+   * Categorize stocks using real-time screener.in data for accurate market cap classification
+   */
+  private static async categorizeStocksByMarketCapWithScreener(stockQuotes: StockQuote[], trendingStocks: TrendingStock[]) {
+    // Filter out penny stocks and low-quality stocks first
+    const qualityStocks = stockQuotes.filter(quote => {
+      // Filter criteria for quality stocks
+      return quote.currentPrice >= 50 &&  // Minimum ₹50 to avoid penny stocks
+             quote.volume > 100000 &&      // Minimum trading volume
+             quote.symbol.length <= 12;    // Avoid obscure symbols
+    });
+    
+    console.log(`🔍 Filtered ${qualityStocks.length} quality stocks from ${stockQuotes.length} total stocks`);
+    
     const largeCap: any[] = [];
     const midCap: any[] = [];
     const smallCap: any[] = [];
     
-    stockQuotes.forEach(quote => {
-      const trendingStock = trendingStocks.find(ts => ts.symbol === quote.symbol);
-      const marketCapCategory = trendingStock?.marketCap || this.determineMarketCapFromPrice(quote.currentPrice);
-      
-      const stockData = {
-        ...quote,
-        marketCapCategory,
-        reason: trendingStock?.reason || 'Strong market performance'
-      };
-      
-      if (marketCapCategory === 'LARGE_CAP') {
-        largeCap.push(stockData);
-      } else if (marketCapCategory === 'MID_CAP') {
-        midCap.push(stockData);
-      } else {
-        smallCap.push(stockData);
+    // Fetch screener.in data for each stock to get accurate market cap
+    for (const quote of qualityStocks) {
+      try {
+        console.log(`📊 Fetching screener.in data for ${quote.symbol}...`);
+        const { ScreenerDataService } = await import('./screenerDataService');
+        const screenerData = await ScreenerDataService.getFinancialMetrics(quote.symbol);
+        
+        let marketCapCategory: 'LARGE_CAP' | 'MID_CAP' | 'SMALL_CAP';
+        
+        if (screenerData?.marketCap) {
+          // Parse market cap from screener.in (e.g., "₹7,758 Cr" or "₹1.2 L Cr")
+          marketCapCategory = this.parseMarketCapCategory(screenerData.marketCap);
+          console.log(`✅ ${quote.symbol}: ${screenerData.marketCap} → ${marketCapCategory}`);
+        } else {
+          // Fallback to trending stock data or company knowledge
+          const trendingStock = trendingStocks.find(ts => ts.symbol === quote.symbol);
+          marketCapCategory = trendingStock?.marketCap || this.determineMarketCapFromCompany(quote.symbol, quote.currentPrice);
+          console.log(`⚠️ ${quote.symbol}: Using fallback → ${marketCapCategory}`);
+        }
+        
+        const stockData = {
+          ...quote,
+          marketCapCategory,
+          screenerData,
+          reason: screenerData ? 'Strong fundamentals with verified financial metrics' : 'Strong market performance'
+        };
+        
+        if (marketCapCategory === 'LARGE_CAP') {
+          largeCap.push(stockData);
+        } else if (marketCapCategory === 'MID_CAP') {
+          midCap.push(stockData);
+        } else {
+          smallCap.push(stockData);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching screener data for ${quote.symbol}:`, error);
+        // Fallback to basic categorization
+        const marketCapCategory = this.determineMarketCapFromCompany(quote.symbol, quote.currentPrice);
+        smallCap.push({
+          ...quote,
+          marketCapCategory,
+          reason: 'Market performance (limited fundamental data)'
+        });
       }
-    });
+    }
+    
+    // Sort by quality metrics from screener.in data
+    const sortStocks = (stocks: any[]) => {
+      return stocks.sort((a, b) => {
+        // Prefer stocks with screener.in data and good fundamentals
+        const scoreA = this.calculateQualityScore(a);
+        const scoreB = this.calculateQualityScore(b);
+        return scoreB - scoreA;
+      });
+    };
+    
+    const sortedLargeCap = sortStocks(largeCap);
+    const sortedMidCap = sortStocks(midCap);
+    const sortedSmallCap = sortStocks(smallCap);
+    
+    console.log(`📊 Categorized stocks with screener.in data: ${sortedLargeCap.length} Large, ${sortedMidCap.length} Mid, ${sortedSmallCap.length} Small`);
     
     return {
-      largeCap: largeCap.slice(0, 4), // Top 4 large cap
-      midCap: midCap.slice(0, 3),     // Top 3 mid cap
-      smallCap: smallCap.slice(0, 2)  // Top 2 small cap
+      largeCap: sortedLargeCap.slice(0, 4),   // Top 4 large cap for better diversification
+      midCap: sortedMidCap.slice(0, 3),       // Top 3 mid cap  
+      smallCap: sortedSmallCap.slice(0, 2)    // Top 2 small cap
     };
+  }
+  
+  /**
+   * Legacy method for backwards compatibility - now calls the screener-enhanced version
+   */
+  private static categorizeStocksByMarketCap(stockQuotes: StockQuote[], trendingStocks: TrendingStock[]) {
+    // For now, call the async version - in production, this should be refactored
+    return this.categorizeStocksByMarketCapWithScreener(stockQuotes, trendingStocks);
   }
 
   private static createAllocation(investmentAmount: number, categorizedStocks: any, customAllocation?: { large: number, mid: number, small: number }): AllocationTable[] {
@@ -703,9 +774,130 @@ export class PortfolioAllocationService {
     return new Intl.NumberFormat('en-IN').format(Math.round(amount));
   }
 
+  /**
+   * Parse market cap category from screener.in market cap string
+   * Examples: "₹7,758 Cr" → MID_CAP, "₹1.2 L Cr" → LARGE_CAP
+   */
+  private static parseMarketCapCategory(marketCapStr: string): 'LARGE_CAP' | 'MID_CAP' | 'SMALL_CAP' {
+    // Remove currency symbol and normalize
+    const cleanStr = marketCapStr.replace(/[₹,]/g, '').trim().toUpperCase();
+    
+    // Extract numeric value and unit
+    const match = cleanStr.match(/(\d+(?:\.\d+)?)\s*([A-Z]+)/);
+    if (!match) return 'SMALL_CAP';
+    
+    const value = parseFloat(match[1]);
+    const unit = match[2];
+    
+    // Convert to crores for comparison
+    let crores: number;
+    if (unit.includes('L')) {
+      // Lakh crores (L Cr) = value * 100,000 crores
+      crores = value * 100000;
+    } else if (unit.includes('CR') || unit.includes('CRORE')) {
+      // Just crores
+      crores = value;
+    } else {
+      // Unknown unit, assume crores
+      crores = value;
+    }
+    
+    // Classification based on SEBI guidelines:
+    // Large Cap: > ₹20,000 Cr market cap
+    // Mid Cap: ₹5,000 Cr - ₹20,000 Cr
+    // Small Cap: < ₹5,000 Cr
+    if (crores > 20000) {
+      return 'LARGE_CAP';
+    } else if (crores > 5000) {
+      return 'MID_CAP';
+    } else {
+      return 'SMALL_CAP';
+    }
+  }
+  
+  /**
+   * Calculate quality score based on screener.in fundamentals
+   */
+  private static calculateQualityScore(stock: any): number {
+    let score = 0;
+    
+    // Base score for having screener data
+    if (stock.screenerData) {
+      score += 10;
+      
+      // ROE score (higher is better)
+      if (stock.screenerData.roe) {
+        if (stock.screenerData.roe > 15) score += 5;
+        else if (stock.screenerData.roe > 10) score += 3;
+        else if (stock.screenerData.roe > 5) score += 1;
+      }
+      
+      // P/E ratio score (moderate is better)
+      if (stock.screenerData.pe) {
+        if (stock.screenerData.pe > 5 && stock.screenerData.pe < 25) score += 5;
+        else if (stock.screenerData.pe < 40) score += 2;
+      }
+      
+      // ROCE score
+      if (stock.screenerData.roce) {
+        if (stock.screenerData.roce > 15) score += 5;
+        else if (stock.screenerData.roce > 10) score += 3;
+      }
+      
+      // Debt-to-equity score (lower is better)
+      if (stock.screenerData.debtToEquity !== undefined) {
+        if (stock.screenerData.debtToEquity < 0.5) score += 5;
+        else if (stock.screenerData.debtToEquity < 1) score += 3;
+        else if (stock.screenerData.debtToEquity < 2) score += 1;
+      }
+    }
+    
+    // Volume and price stability
+    if (stock.volume > 500000) score += 3;
+    if (stock.currentPrice > 100) score += 2;
+    
+    return score;
+  }
+  
+  /**
+   * Determine market cap based on company knowledge, not just stock price
+   */
+  private static determineMarketCapFromCompany(symbol: string, price: number): 'LARGE_CAP' | 'MID_CAP' | 'SMALL_CAP' {
+    // Known large cap companies (market cap > ₹1 lakh crore)
+    const largeCaps = [
+      'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'KOTAKBANK', 
+      'LT', 'ITC', 'SBIN', 'BHARTIARTL', 'ASIANPAINT', 'AXISBANK', 'MARUTI', 
+      'BAJFINANCE', 'HCLTECH', 'M&M', 'SUNPHARMA', 'TITAN', 'NESTLEIND',
+      'BAJAJFINSV', 'ULTRACEMCO', 'WIPRO', 'ONGC', 'TECHM', 'POWERGRID',
+      'LTIM', 'NTPC', 'JSWSTEEL', 'TATAMOTORS', 'COALINDIA', 'GRASIM',
+      'HINDALCO', 'ADANIENT', 'INDUSINDBK', 'HDFCLIFE', 'SBILIFE'
+    ];
+    
+    // Known mid cap companies (market cap ₹20K-₹1L crore)
+    const midCaps = [
+      'CIPLA', 'BPCL', 'TATACONSUM', 'EICHERMOT', 'APOLLOHOSP', 'BRITANNIA',
+      'DIVISLAB', 'ADANIPORTS', 'HEROMOTOCO', 'DRREDDY', 'UPL', 'BAJAJ-AUTO',
+      'SHRIRAMFIN', 'GODREJCP', 'PIDILITIND', 'DABUR', 'MARICO', 'MCDOWELL-N',
+      'COLPAL', 'BERGEPAINT', 'TRENT', 'PAGEIND', 'HAVELLS', 'VOLTAS',
+      'CUMMINSIND', 'MPHASIS', 'PERSISTENT', 'COFORGE', 'MINDTREE'
+    ];
+    
+    if (largeCaps.includes(symbol)) {
+      return 'LARGE_CAP';
+    } else if (midCaps.includes(symbol)) {
+      return 'MID_CAP';
+    } else {
+      // For unknown companies, use price as a rough indicator with higher thresholds
+      if (price > 1500) return 'LARGE_CAP';
+      if (price > 200) return 'MID_CAP';
+      return 'SMALL_CAP';
+    }
+  }
+  
   private static determineMarketCapFromPrice(price: number): 'LARGE_CAP' | 'MID_CAP' | 'SMALL_CAP' {
-    if (price > 2000) return 'LARGE_CAP';
-    if (price > 500) return 'MID_CAP';
+    // Legacy method - still used as fallback
+    if (price > 1500) return 'LARGE_CAP';
+    if (price > 200) return 'MID_CAP';
     return 'SMALL_CAP';
   }
 

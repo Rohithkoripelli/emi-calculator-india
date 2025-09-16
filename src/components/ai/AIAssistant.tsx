@@ -624,7 +624,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       
       let structuredResponse;
       if (customAllocation) {
-        structuredResponse = PortfolioAllocationService.createStructuredResponse(
+        structuredResponse = await PortfolioAllocationService.createStructuredResponse(
           amount,
           frequency,
           stockQuotes,
@@ -654,7 +654,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         response = PortfolioAllocationService.formatResponseForDisplay(structuredResponse);
       } else {
         // No custom allocation - show all 3 approaches
-        const approaches = PortfolioAllocationService.createMultipleApproaches(
+        const approaches = await PortfolioAllocationService.createMultipleApproaches(
           amount,
           frequency,
           stockQuotes,
