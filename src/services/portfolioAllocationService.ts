@@ -76,14 +76,85 @@ interface StructuredPortfolioResponse {
 export class PortfolioAllocationService {
   
   /**
-   * Create structured portfolio response similar to ChatGPT example
+   * Get predefined allocation strategies
+   */
+  static getAllocationStrategies(): { 
+    conservative: { large: number, mid: number, small: number },
+    balanced: { large: number, mid: number, small: number },
+    aggressive: { large: number, mid: number, small: number }
+  } {
+    return {
+      conservative: { large: 60, mid: 30, small: 10 }, // Safety-focused
+      balanced: { large: 50, mid: 30, small: 20 },     // Default balanced
+      aggressive: { large: 30, mid: 40, small: 30 }    // Growth-focused
+    };
+  }
+  
+  /**
+   * Parse allocation ratios from user question
+   * E.g., "40,30,30 ratio in large, mid & small cap" → {large: 40, mid: 30, small: 30}
+   */
+  static parseAllocationRatio(userQuestion: string): { large: number, mid: number, small: number } | null {
+    console.log(`🔍 Parsing allocation ratio from: "${userQuestion}"`);
+    
+    // Pattern for ratios like "40,30,30", "50:30:20", "60-25-15"
+    const ratioPatterns = [
+      /(\d+)[\s,]*(\d+)[\s,]*(\d+).*(?:ratio|split).*(?:large|mid|small)/i,
+      /(?:large|mid|small).*(\d+)[\s,]*(\d+)[\s,]*(\d+)/i,
+      /(\d+)[\s,:;\-]*(\d+)[\s,:;\-]*(\d+)[\s%]*(?:in|for|across).*(?:cap|fund)/i
+    ];
+    
+    for (const pattern of ratioPatterns) {
+      const match = userQuestion.match(pattern);
+      if (match) {
+        const [, first, second, third] = match;
+        const allocation = {
+          large: parseInt(first),
+          mid: parseInt(second), 
+          small: parseInt(third)
+        };
+        console.log(`✅ Found allocation ratio:`, allocation);
+        return allocation;
+      }
+    }
+    
+    console.log(`⚠️ No custom allocation ratio found, using default`);
+    return null;
+  }
+  
+  /**
+   * Create multiple portfolio approaches (Conservative, Balanced, Aggressive)
+   */
+  static createMultipleApproaches(
+    investmentAmount: number,
+    frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING',
+    stockQuotes: StockQuote[],
+    trendingStocks: TrendingStock[],
+    marketSentiment: 'BULLISH' | 'BEARISH' | 'MIXED'
+  ): {
+    conservative: StructuredPortfolioResponse,
+    balanced: StructuredPortfolioResponse,
+    aggressive: StructuredPortfolioResponse
+  } {
+    const strategies = this.getAllocationStrategies();
+    
+    return {
+      conservative: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.conservative),
+      balanced: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.balanced),
+      aggressive: this.createStructuredResponse(investmentAmount, frequency, stockQuotes, trendingStocks, marketSentiment, strategies.aggressive)
+    };
+  }
+  
+  /**
+   * Create structured portfolio response for specific allocation
    */
   static createStructuredResponse(
     investmentAmount: number,
     frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING',
     stockQuotes: StockQuote[],
     trendingStocks: TrendingStock[],
-    marketSentiment: 'BULLISH' | 'BEARISH' | 'MIXED'
+    marketSentiment: 'BULLISH' | 'BEARISH' | 'MIXED',
+    customAllocation?: { large: number, mid: number, small: number }
   ): StructuredPortfolioResponse {
     
     console.log(`📋 Creating structured portfolio response for ₹${investmentAmount}...`);
@@ -91,8 +162,8 @@ export class PortfolioAllocationService {
     // Categorize stocks by market cap
     const categorizedStocks = this.categorizeStocksByMarketCap(stockQuotes, trendingStocks);
     
-    // Create allocation based on investment amount
-    const allocation = this.createAllocation(investmentAmount, categorizedStocks);
+    // Create allocation based on investment amount and custom ratios
+    const allocation = this.createAllocation(investmentAmount, categorizedStocks, customAllocation);
     
     // Generate SIP strategy if applicable
     const sipStrategy = frequency === 'SIP' ? 
@@ -158,6 +229,78 @@ export class PortfolioAllocationService {
   /**
    * Format the response for display similar to ChatGPT example
    */
+  /**
+   * Format multiple approaches for display
+   */
+  static formatMultipleApproachesForDisplay(approaches: {
+    conservative: StructuredPortfolioResponse,
+    balanced: StructuredPortfolioResponse,
+    aggressive: StructuredPortfolioResponse
+  }, investmentAmount: number): string {
+    let output = '';
+    
+    // Header
+    output += `# 💼 Portfolio Investment Strategies for ₹${this.formatCurrency(investmentAmount)}\n\n`;
+    output += `Choose the approach that best matches your risk tolerance and investment goals:\n\n`;
+    
+    // Strategy Overview Table
+    output += `## 📊 Strategy Comparison\n\n`;
+    output += `| Approach | Large Cap | Mid Cap | Small Cap | Risk Level | Best For |\n`;
+    output += `|----------|-----------|---------|-----------|------------|----------|\n`;
+    output += `| 🛡️ **Conservative** | 60% | 30% | 10% | Low | Capital preservation, stable returns |\n`;
+    output += `| ⚖️ **Balanced** | 50% | 30% | 20% | Medium | Balanced growth and stability |\n`;
+    output += `| 🚀 **Aggressive** | 30% | 40% | 30% | High | Maximum growth potential |\n\n`;
+    
+    // Conservative Approach
+    output += `---\n\n## 🛡️ CONSERVATIVE APPROACH (60-30-10)\n`;
+    output += `**Best for:** First-time investors, risk-averse investors, those nearing retirement\n\n`;
+    output += this.formatSingleApproachForDisplay(approaches.conservative, 'Conservative');
+    
+    // Balanced Approach  
+    output += `\n---\n\n## ⚖️ BALANCED APPROACH (50-30-20)\n`;
+    output += `**Best for:** Most investors seeking growth with manageable risk\n\n`;
+    output += this.formatSingleApproachForDisplay(approaches.balanced, 'Balanced');
+    
+    // Aggressive Approach
+    output += `\n---\n\n## 🚀 AGGRESSIVE APPROACH (30-40-30)\n`;
+    output += `**Best for:** Young investors, high risk tolerance, long-term wealth building\n\n`;
+    output += this.formatSingleApproachForDisplay(approaches.aggressive, 'Aggressive');
+    
+    // Conclusion
+    output += `\n---\n\n## 🎯 Recommendation Summary\n\n`;
+    output += `- **New to investing?** Start with **Conservative** approach\n`;
+    output += `- **Want balanced growth?** Go with **Balanced** approach\n`;
+    output += `- **Seeking maximum returns?** Consider **Aggressive** approach\n\n`;
+    output += `**Remember:** You can always adjust your strategy as your experience and risk tolerance evolve!\n\n`;
+    
+    return output;
+  }
+  
+  /**
+   * Format single approach for display (simplified version)
+   */
+  static formatSingleApproachForDisplay(response: StructuredPortfolioResponse, approachName: string): string {
+    let output = '';
+    
+    // Allocation Summary
+    const totalAllocated = response.allocation_table.reduce((sum, item) => {
+      const amount = parseFloat(item.amount.replace(/[₹,]/g, ''));
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    output += `**Total Allocated:** ₹${this.formatCurrency(totalAllocated)}\n\n`;
+    
+    // Allocation Table
+    output += `| Stock | Sector | Investment Details | Reasoning |\n`;
+    output += `|-------|--------|------------------|----------|\n`;
+    
+    response.allocation_table.forEach(allocation => {
+      output += `| ${allocation.stock} | ${allocation.sector} | ${allocation.amount} | ${allocation.reasoning} |\n`;
+    });
+    
+    return output;
+  }
+  
   static formatResponseForDisplay(response: StructuredPortfolioResponse): string {
     let output = '';
     
@@ -179,8 +322,18 @@ export class PortfolioAllocationService {
     
     // Recommended Allocation Table
     output += `## 💼 Suggested Portfolio Allocation\n\n`;
-    output += `| Stock | Sector | Amount | Reasoning |\n`;
-    output += `|-------|--------|--------|----------|\n`;
+    
+    // Calculate and display allocation summary
+    const totalAllocated = response.allocation_table.reduce((sum, item) => {
+      const amount = parseFloat(item.amount.replace(/[₹,]/g, ''));
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    output += `**Total Investment:** ${response.executive_summary.investment_amount}\n`;
+    output += `**Total Allocated:** ₹${this.formatCurrency(totalAllocated)}\n\n`;
+    
+    output += `| Stock | Sector | Investment Details | Reasoning |\n`;
+    output += `|-------|--------|------------------|----------|\n`;
     
     response.allocation_table.forEach(allocation => {
       output += `| ${allocation.stock} | ${allocation.sector} | ${allocation.amount} | ${allocation.reasoning} |\n`;
@@ -330,57 +483,101 @@ export class PortfolioAllocationService {
     };
   }
 
-  private static createAllocation(investmentAmount: number, categorizedStocks: any): AllocationTable[] {
+  private static createAllocation(investmentAmount: number, categorizedStocks: any, customAllocation?: { large: number, mid: number, small: number }): AllocationTable[] {
     const allocation: AllocationTable[] = [];
     
-    // Define allocation percentages
-    const largeCapPercent = 0.50; // 50%
-    const midCapPercent = 0.30;   // 30%
-    const smallCapPercent = 0.20; // 20%
+    // Use custom allocation or default percentages
+    const largeCapPercent = (customAllocation?.large || 50) / 100;
+    const midCapPercent = (customAllocation?.mid || 30) / 100;
+    const smallCapPercent = (customAllocation?.small || 20) / 100;
     
-    const largeCapAmount = investmentAmount * largeCapPercent;
-    const midCapAmount = investmentAmount * midCapPercent;
-    const smallCapAmount = investmentAmount * smallCapPercent;
+    let largeCapAmount = investmentAmount * largeCapPercent;
+    let midCapAmount = investmentAmount * midCapPercent;
+    let smallCapAmount = investmentAmount * smallCapPercent;
     
-    // Large Cap Allocation with proper share calculations
+    let totalAllocated = 0;
+    let skippedAmount = 0;
+    
+    console.log(`💰 Allocating ₹${investmentAmount}: Large ₹${largeCapAmount.toFixed(0)}, Mid ₹${midCapAmount.toFixed(0)}, Small ₹${smallCapAmount.toFixed(0)}`);
+    
+    // Large Cap Allocation with smart skipping
     if (categorizedStocks.largeCap.length > 0) {
       const perLargeCapStock = largeCapAmount / categorizedStocks.largeCap.length;
+      
       categorizedStocks.largeCap.forEach((stock: any) => {
         const shareCalc = this.calculateOptimalShares(stock.currentPrice, perLargeCapStock, investmentAmount);
-        allocation.push({
-          stock: `${stock.companyName} (${stock.symbol})`,
-          sector: this.determineSector(stock.companyName),
-          amount: shareCalc.displayAmount,
-          reasoning: this.generateStockReasoning(stock, 'Large Cap')
-        });
+        
+        if (shareCalc.isAffordable && shareCalc.shares > 0) {
+          allocation.push({
+            stock: `${stock.companyName} (${stock.symbol})`,
+            sector: this.determineSector(stock.companyName),
+            amount: shareCalc.displayAmount,
+            reasoning: this.generateStockReasoning(stock, 'Large Cap')
+          });
+          totalAllocated += shareCalc.actualAmount;
+        } else {
+          console.log(`🚫 Skipping ${stock.symbol}: ${shareCalc.displayAmount}`);
+          skippedAmount += perLargeCapStock;
+        }
       });
     }
     
-    // Mid Cap Allocation with proper share calculations
+    // Mid Cap Allocation with smart skipping
     if (categorizedStocks.midCap.length > 0) {
       const perMidCapStock = midCapAmount / categorizedStocks.midCap.length;
+      
       categorizedStocks.midCap.forEach((stock: any) => {
         const shareCalc = this.calculateOptimalShares(stock.currentPrice, perMidCapStock, investmentAmount);
-        allocation.push({
-          stock: `${stock.companyName} (${stock.symbol})`,
-          sector: this.determineSector(stock.companyName),
-          amount: shareCalc.displayAmount,
-          reasoning: this.generateStockReasoning(stock, 'Mid Cap')
-        });
+        
+        if (shareCalc.isAffordable && shareCalc.shares > 0) {
+          allocation.push({
+            stock: `${stock.companyName} (${stock.symbol})`,
+            sector: this.determineSector(stock.companyName),
+            amount: shareCalc.displayAmount,
+            reasoning: this.generateStockReasoning(stock, 'Mid Cap')
+          });
+          totalAllocated += shareCalc.actualAmount;
+        } else {
+          console.log(`🚫 Skipping ${stock.symbol}: ${shareCalc.displayAmount}`);
+          skippedAmount += perMidCapStock;
+        }
       });
     }
     
-    // Small Cap Allocation with proper share calculations  
+    // Small Cap Allocation with smart skipping
     if (categorizedStocks.smallCap.length > 0) {
       const perSmallCapStock = smallCapAmount / categorizedStocks.smallCap.length;
+      
       categorizedStocks.smallCap.forEach((stock: any) => {
         const shareCalc = this.calculateOptimalShares(stock.currentPrice, perSmallCapStock, investmentAmount);
-        allocation.push({
-          stock: `${stock.companyName} (${stock.symbol})`,
-          sector: this.determineSector(stock.companyName),
-          amount: shareCalc.displayAmount,
-          reasoning: this.generateStockReasoning(stock, 'Small Cap')
-        });
+        
+        if (shareCalc.isAffordable && shareCalc.shares > 0) {
+          allocation.push({
+            stock: `${stock.companyName} (${stock.symbol})`,
+            sector: this.determineSector(stock.companyName),
+            amount: shareCalc.displayAmount,
+            reasoning: this.generateStockReasoning(stock, 'Small Cap')
+          });
+          totalAllocated += shareCalc.actualAmount;
+        } else {
+          console.log(`🚫 Skipping ${stock.symbol}: ${shareCalc.displayAmount}`);
+          skippedAmount += perSmallCapStock;
+        }
+      });
+    }
+    
+    console.log(`📊 Allocation Summary: Allocated ₹${totalAllocated.toFixed(0)} of ₹${investmentAmount} (${((totalAllocated/investmentAmount)*100).toFixed(1)}%)`);
+    if (skippedAmount > 0) {
+      console.log(`⚠️ Skipped ₹${skippedAmount.toFixed(0)} due to expensive stocks`);
+    }
+    
+    // Add summary comment if significantly under-allocated
+    if (totalAllocated < investmentAmount * 0.8) {
+      allocation.push({
+        stock: '📝 Portfolio Note',
+        sector: 'Summary',
+        amount: `₹${(investmentAmount - totalAllocated).toFixed(0)} remaining`,
+        reasoning: 'Some stocks were too expensive for allocation. Consider lower-priced alternatives or increase budget for expensive stocks.'
       });
     }
     
@@ -388,55 +585,58 @@ export class PortfolioAllocationService {
   }
 
   /**
-   * Calculate optimal share quantities avoiding fractional shares
+   * Calculate optimal share quantities with intelligent allocation logic
    */
   private static calculateOptimalShares(sharePrice: number, idealAmount: number, totalInvestment: number): { 
     shares: number; 
     actualAmount: number; 
     displayAmount: string; 
+    isAffordable: boolean;
   } {
     
-    // For expensive stocks (>₹2000), suggest minimum viable quantity
-    if (sharePrice > 2000) {
-      const minShares = Math.max(1, Math.floor(idealAmount / sharePrice));
-      const actualAmount = minShares * sharePrice;
-      
-      // If even 1 share exceeds the ideal amount significantly, suggest reducing allocation
-      if (actualAmount > idealAmount * 1.5 && totalInvestment < 50000) {
-        return {
-          shares: 0,
-          actualAmount: 0,
-          displayAmount: `Skip (₹${this.formatCurrency(sharePrice)} per share - too expensive for allocation)`
-        };
-      }
-      
+    // SMART LOGIC: If stock price is more than 80% of allocation, it's too expensive
+    if (sharePrice > idealAmount * 0.8) {
       return {
-        shares: minShares,
-        actualAmount: actualAmount,
-        displayAmount: `${minShares} share${minShares > 1 ? 's' : ''} = ₹${this.formatCurrency(actualAmount)}`
+        shares: 0,
+        actualAmount: 0,
+        displayAmount: `Skip (₹${this.formatCurrency(sharePrice)} per share - exceeds 80% of ₹${this.formatCurrency(idealAmount)} allocation)`,
+        isAffordable: false
       };
     }
     
-    // For moderately priced stocks (₹500-2000), calculate optimal quantity  
-    if (sharePrice > 500) {
-      const optimalShares = Math.round(idealAmount / sharePrice);
-      const actualAmount = optimalShares * sharePrice;
-      
+    // SMART LOGIC: If stock price is more than 50% of allocation, buy only 1 share
+    if (sharePrice > idealAmount * 0.5) {
       return {
-        shares: optimalShares,
-        actualAmount: actualAmount,
-        displayAmount: `${optimalShares} share${optimalShares > 1 ? 's' : ''} = ₹${this.formatCurrency(actualAmount)}`
+        shares: 1,
+        actualAmount: sharePrice,
+        displayAmount: `1 share = ₹${this.formatCurrency(sharePrice)} (50%+ of allocation)`,
+        isAffordable: true
       };
     }
     
-    // For affordable stocks (<₹500), can buy multiple shares
-    const optimalShares = Math.round(idealAmount / sharePrice);
+    // OPTIMAL LOGIC: Calculate best whole number of shares within allocation
+    const maxAffordableShares = Math.floor(idealAmount / sharePrice);
+    const optimalShares = Math.max(1, maxAffordableShares);
     const actualAmount = optimalShares * sharePrice;
+    
+    // Ensure we don't exceed allocation by more than 20%
+    if (actualAmount > idealAmount * 1.2) {
+      const conservativeShares = Math.floor(idealAmount / sharePrice);
+      const conservativeAmount = conservativeShares * sharePrice;
+      
+      return {
+        shares: conservativeShares,
+        actualAmount: conservativeAmount,
+        displayAmount: `${conservativeShares} share${conservativeShares > 1 ? 's' : ''} = ₹${this.formatCurrency(conservativeAmount)}`,
+        isAffordable: conservativeShares > 0
+      };
+    }
     
     return {
       shares: optimalShares,
       actualAmount: actualAmount,
-      displayAmount: `${optimalShares} shares = ₹${this.formatCurrency(actualAmount)}`
+      displayAmount: `${optimalShares} share${optimalShares > 1 ? 's' : ''} = ₹${this.formatCurrency(actualAmount)}`,
+      isAffordable: true
     };
   }
 

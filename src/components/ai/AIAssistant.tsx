@@ -619,13 +619,20 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         trendingStocks.slice(0, 9).map(stock => stock.symbol)
       );
       
-      const structuredResponse = PortfolioAllocationService.createStructuredResponse(
-        amount,
-        frequency,
-        stockQuotes,
-        trendingStocks,
-        recommendation.market_overview.current_sentiment
-      );
+      // Parse custom allocation ratios from user question  
+      const customAllocation = PortfolioAllocationService.parseAllocationRatio(query);
+      
+      let structuredResponse;
+      if (customAllocation) {
+        structuredResponse = PortfolioAllocationService.createStructuredResponse(
+          amount,
+          frequency,
+          stockQuotes,
+          trendingStocks,
+          recommendation.market_overview.current_sentiment,
+          customAllocation
+        );
+      }
       
       // Final phase
       setMessages(prev => prev.map(msg => 
@@ -639,8 +646,23 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       
       await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Format response for display
-      const response = PortfolioAllocationService.formatResponseForDisplay(structuredResponse);
+      // Format response for display - show multiple approaches if no custom allocation
+      let response: string;
+      
+      if (customAllocation && structuredResponse) {
+        // User specified custom allocation - create single response  
+        response = PortfolioAllocationService.formatResponseForDisplay(structuredResponse);
+      } else {
+        // No custom allocation - show all 3 approaches
+        const approaches = PortfolioAllocationService.createMultipleApproaches(
+          amount,
+          frequency,
+          stockQuotes,
+          trendingStocks,
+          recommendation.market_overview.current_sentiment
+        );
+        response = PortfolioAllocationService.formatMultipleApproachesForDisplay(approaches, amount);
+      }
       
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
