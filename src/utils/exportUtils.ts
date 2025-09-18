@@ -1,15 +1,14 @@
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+// Dynamic imports for heavy libraries to reduce initial bundle size
 import { PaymentScheduleItem, EMICalculation, EMIInput } from '../types';
-import { formatCurrency, formatNumber } from './calculations';
 import { format } from 'date-fns';
 
-export const exportToPDF = (
+export const exportToPDF = async (
   calculation: EMICalculation,
   inputs: EMIInput,
   schedule: PaymentScheduleItem[],
   calculatorType: string = 'EMI'
 ) => {
+  const jsPDF = (await import('jspdf')).default;
   const doc = new jsPDF();
   let currentPage = 1;
   
@@ -232,12 +231,13 @@ export const exportToPDF = (
   doc.save(`${calculatorType.toLowerCase()}-calculation-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 };
 
-export const exportToExcel = (
+export const exportToExcel = async (
   calculation: EMICalculation,
   inputs: EMIInput,
   schedule: PaymentScheduleItem[],
   calculatorType: string = 'EMI'
 ) => {
+  const XLSX = await import('xlsx');
   const workbook = XLSX.utils.book_new();
   
   // Enhanced Summary Sheet

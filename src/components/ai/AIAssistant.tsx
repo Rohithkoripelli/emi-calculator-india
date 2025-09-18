@@ -3,29 +3,22 @@ import { Button } from '../ui/Button';
 import { XMarkIcon, PaperAirplaneIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { AIResponseFormatter } from './AIResponseFormatter';
 
-// Import new services
-import { GrowwApiService, StockQuote, TechnicalAnalysis } from '../../services/growwApiService';
-import { NewsSearchService, TrendingStock, StockNews } from '../../services/newsSearchService';
-import { InvestmentAnalysisService, StockAnalysisReport, InvestmentRecommendation, UserInvestmentPreferences } from '../../services/investmentAnalysisService';
-// Note: PortfolioAllocationService moved to backend API calls
-import { ExcelBasedStockAnalysisService } from '../../services/excelBasedStockAnalysis';
-import { IntentAnalysisService, QueryIntent } from '../../services/intentAnalysisService';
-import { StockComparisonService, StockComparison } from '../../services/stockComparisonService';
-import InvestmentQuestionnaire, { InvestmentPreferences } from './InvestmentQuestionnaire';
-import { detectGenericInvestmentQuery } from '../../utils/investmentQuestionDetector';
-import { TailoredInvestmentService } from '../../services/tailoredInvestmentService';
-import StockAnalysisQuestionnaire, { StockAnalysisPreferences } from './StockAnalysisQuestionnaire';
-import { detectStockAnalysisQuery } from '../../utils/stockAnalysisQuestionDetector';
-import { PersonalizedStockAnalysisService } from '../../services/personalizedStockAnalysisService';
+// Types only - no runtime imports
+import type { InvestmentPreferences } from './InvestmentQuestionnaire';
+import type { StockAnalysisPreferences } from './StockAnalysisQuestionnaire';
+
+// Lazy load heavy services to reduce initial bundle size
+const LazyInvestmentQuestionnaire = React.lazy(() => import('./InvestmentQuestionnaire'));
+const LazyStockAnalysisQuestionnaire = React.lazy(() => import('./StockAnalysisQuestionnaire'));
 
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
-  stockAnalysis?: StockAnalysisReport;
-  stockComparison?: StockComparison;
-  investmentRecommendation?: InvestmentRecommendation;
+  stockAnalysis?: any; // Dynamic import
+  stockComparison?: any; // Dynamic import  
+  investmentRecommendation?: any; // Dynamic import
   isStreaming?: boolean;
   isComplete?: boolean;
   showQuestionnaire?: boolean;
@@ -193,12 +186,13 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
   };
 
   /**
-   * Analyze user query using AI-powered intent analysis
+   * Analyze user query using dynamic import for performance
    */
-  const analyzeUserQuery = async (query: string): Promise<QueryIntent> => {
+  const analyzeUserQuery = async (query: string): Promise<any> => {
     console.log(`🧠 Starting intelligent analysis for: "${query}"`);
     
     try {
+      const { IntentAnalysisService } = await import('../../services/intentAnalysisService');
       const intent = await IntentAnalysisService.analyzeIntent(query);
       console.log(`✅ Intent analysis result:`, intent);
       return intent;
@@ -223,6 +217,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
       
       // Check if this is a buy/sell recommendation query that needs questionnaire
       if (originalQuery) {
+        const { detectStockAnalysisQuery } = await import('../../utils/stockAnalysisQuestionDetector');
         const stockAnalysisCheck = detectStockAnalysisQuery(originalQuery);
         console.log('🔍 Stock analysis detection:', stockAnalysisCheck);
         
@@ -230,6 +225,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
           console.log('✅ Detected buy/sell query, showing stock questionnaire');
           
           // Get company name from ExcelBasedStockAnalysisService
+          const { ExcelBasedStockAnalysisService } = await import('../../services/excelBasedStockAnalysis');
           const companyInfo = ExcelBasedStockAnalysisService.getCompanyBySymbol(stockSymbol);
           const stockName = companyInfo?.name || stockSymbol;
           
@@ -308,6 +304,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
       // Now get the complete analysis with mobile-specific timeout
       const stockAnalysisTimeout = isMobile ? 15000 : 75000;
       
+      const { InvestmentAnalysisService } = await import('../../services/investmentAnalysisService');
       const analysisPromise = InvestmentAnalysisService.analyzeStock(stockSymbol);
       const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Stock analysis timeout')), stockAnalysisTimeout)
@@ -409,6 +406,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
       ));
       
       // Get comprehensive stock comparison
+      const { StockComparisonService } = await import('../../services/stockComparisonService');
       const stockComparison = await StockComparisonService.compareStocks(stockSymbols);
       
       // Phase 2: Analysis complete
@@ -464,7 +462,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
   /**
    * Handle market news and sector analysis queries
    */
-  const handleMarketAnalysis = async (query: string, queryIntent: QueryIntent, aiMessageId: string) => {
+  const handleMarketAnalysis = async (query: string, queryIntent: any, aiMessageId: string) => {
     try {
       console.log(`📰 Handling market analysis for: "${query}"`);
       
@@ -508,6 +506,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
       console.log(`💼 Generating investment recommendation for query: "${query}"`);
       
       // First, check if this is a generic investment query that should trigger questionnaire
+      const { detectGenericInvestmentQuery } = await import('../../utils/investmentQuestionDetector');
       const genericCheck = detectGenericInvestmentQuery(query);
       console.log('🔍 Generic investment detection:', genericCheck);
       
@@ -593,6 +592,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       ));
       
       // Generate comprehensive investment recommendation
+      const { InvestmentAnalysisService } = await import('../../services/investmentAnalysisService');
       const recommendation = await InvestmentAnalysisService.generateInvestmentRecommendation(
         query,
         amount,
@@ -613,7 +613,9 @@ Please provide these details so I can give you a comprehensive portfolio recomme
           : msg
       ));
       
-      // Create structured portfolio response
+      // Create structured portfolio response  
+      const { NewsSearchService } = await import('../../services/newsSearchService');
+      const { GrowwApiService } = await import('../../services/growwApiService');
       const trendingStocks = await NewsSearchService.discoverTrendingStocks('recent');
       const stockQuotes = await GrowwApiService.getBatchQuotes(
         trendingStocks.slice(0, 9).map(stock => stock.symbol)
@@ -719,6 +721,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       ));
 
       // Generate tailored recommendation
+      const { TailoredInvestmentService } = await import('../../services/tailoredInvestmentService');
       const tailoredRecommendation = await TailoredInvestmentService.generateTailoredRecommendation(
         preferences,
         originalQuery
@@ -796,6 +799,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       ));
 
       // Get comprehensive stock analysis with user preferences
+      const { InvestmentAnalysisService } = await import('../../services/investmentAnalysisService');
       const stockAnalysis = await InvestmentAnalysisService.analyzeStock(preferences.stockSymbol, preferences);
       
       if (!stockAnalysis) {
@@ -827,6 +831,7 @@ Please provide these details so I can give you a comprehensive portfolio recomme
 
       // Fallback: Generate personalized recommendation if OpenAI analysis is insufficient
       console.log('📊 Using personalized analysis (OpenAI reasoning insufficient)');
+      const { PersonalizedStockAnalysisService } = await import('../../services/personalizedStockAnalysisService');
       const personalizedRecommendation = PersonalizedStockAnalysisService.generatePersonalizedRecommendation(
         stockAnalysis,
         preferences
@@ -1117,7 +1122,7 @@ Present results in a clear table format with before/after comparison.
   /**
    * Format stock analysis response for display
    */
-  const formatStockAnalysisResponse = (analysis: StockAnalysisReport): string => {
+  const formatStockAnalysisResponse = (analysis: any): string => {
     const stock = analysis.stock_info;
     const tech = analysis.technical_analysis;
     const recommendation = analysis.recommendation;
@@ -1161,7 +1166,7 @@ Present results in a clear table format with before/after comparison.
     );
     
     // Display regular reasoning points first
-    regularReasons.forEach((reason, index) => {
+    regularReasons.forEach((reason: any, index: number) => {
       response += `${index + 1}. ${reason}\n`;
     });
     
@@ -1193,7 +1198,7 @@ Present results in a clear table format with before/after comparison.
     response += `## ⚠️ Risk Assessment\n`;
     response += `**Risk Level:** ${risk.risk_level}\n`;
     response += `**Key Risks:**\n`;
-    risk.key_risks.forEach((riskFactor, index) => {
+    risk.key_risks.forEach((riskFactor: any, index: number) => {
       response += `• ${riskFactor}\n`;
     });
     response += '\n';
@@ -1205,7 +1210,7 @@ Present results in a clear table format with before/after comparison.
       // Add news sentiment data for the NewsArticlesCard to process
       if (analysis.news_sentiment.key_news.length > 0) {
         response += `## 📰 Recent News Sentiment: ${analysis.news_sentiment.overall_sentiment}\n`;
-        analysis.news_sentiment.key_news.slice(0, 3).forEach((news, index) => {
+        analysis.news_sentiment.key_news.slice(0, 3).forEach((news: any, index: number) => {
           response += `${index + 1}. **${news.sentiment}**: ${news.headline}\n`;
         });
         response += '\n';
@@ -1216,7 +1221,7 @@ Present results in a clear table format with before/after comparison.
         response += `## 🌐 Market Research Sources\n`;
         response += `Based on comprehensive web research using ${analysis.web_research.search_queries.length} search queries:\n\n`;
         
-        analysis.web_research.search_results.forEach((result, index) => {
+        analysis.web_research.search_results.forEach((result: any, index: number) => {
           console.log(`🔗 Processing web source ${index + 1}:`, { title: result.title, url: result.url, hasUrl: !!result.url });
           response += `**${result.title}**\n`;
           response += `${result.snippet}\n`;
@@ -1362,6 +1367,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
           
           if (queryIntent.entities.stocks && queryIntent.entities.stocks.length > 0) {
             // First try AI-extracted stock names with fuzzy matching
+            const { ExcelBasedStockAnalysisService } = await import('../../services/excelBasedStockAnalysis');
             for (const aiStock of queryIntent.entities.stocks) {
               const fuzzySymbol = ExcelBasedStockAnalysisService.parseStockSymbol(aiStock);
               if (fuzzySymbol) {
@@ -1373,6 +1379,7 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
           
           // If AI extraction failed, use fuzzy logic on the entire query
           if (!stockSymbol) {
+            const { ExcelBasedStockAnalysisService } = await import('../../services/excelBasedStockAnalysis');
             stockSymbol = ExcelBasedStockAnalysisService.parseStockSymbol(userMessage) || undefined;
           }
           
@@ -1424,6 +1431,8 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
         case 'STOCK_COMPARISON':
           // Use fuzzy logic to identify actual stock symbols for comparison
           const stockSymbols: string[] = [];
+          
+          const { ExcelBasedStockAnalysisService } = await import('../../services/excelBasedStockAnalysis');
           
           if (queryIntent.entities.stocks && queryIntent.entities.stocks.length >= 2) {
             // Try AI-extracted stocks with fuzzy matching
@@ -1557,23 +1566,27 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
                     {/* Investment Questionnaire */}
                     {message.showQuestionnaire && (
                       <div className="mt-4">
-                        <InvestmentQuestionnaire
-                          initialAmount={message.questionnaireData?.extractedAmount}
-                          onComplete={(preferences) => handleQuestionnaireComplete(preferences, message.id)}
-                          onCancel={() => handleQuestionnaireCancel(message.id)}
-                        />
+                        <React.Suspense fallback={<div className="animate-pulse bg-gray-200 h-32 rounded"></div>}>
+                          <LazyInvestmentQuestionnaire
+                            initialAmount={message.questionnaireData?.extractedAmount}
+                            onComplete={(preferences) => handleQuestionnaireComplete(preferences, message.id)}
+                            onCancel={() => handleQuestionnaireCancel(message.id)}
+                          />
+                        </React.Suspense>
                       </div>
                     )}
                     
                     {/* Stock Analysis Questionnaire */}
                     {message.showStockQuestionnaire && message.stockQuestionnaireData && (
                       <div className="mt-4">
-                        <StockAnalysisQuestionnaire
-                          stockSymbol={message.stockQuestionnaireData.stockSymbol}
-                          stockName={message.stockQuestionnaireData.stockName}
-                          onComplete={(preferences) => handleStockQuestionnaireComplete(preferences, message.id)}
-                          onCancel={() => handleStockQuestionnaireCancel(message.id)}
-                        />
+                        <React.Suspense fallback={<div className="animate-pulse bg-gray-200 h-32 rounded"></div>}>
+                          <LazyStockAnalysisQuestionnaire
+                            stockSymbol={message.stockQuestionnaireData.stockSymbol}
+                            stockName={message.stockQuestionnaireData.stockName}
+                            onComplete={(preferences) => handleStockQuestionnaireComplete(preferences, message.id)}
+                            onCancel={() => handleStockQuestionnaireCancel(message.id)}
+                          />
+                        </React.Suspense>
                       </div>
                     )}
                     
