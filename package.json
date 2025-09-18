@@ -17,13 +17,9 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
     "buffer": "^6.0.3",
-    "cheerio": "^1.1.2",
     "crypto-browserify": "^3.12.1",
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.1",
-    "mongodb": "^6.19.0",
-    "openai": "^5.10.2",
-    "puppeteer": "^24.17.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.0",
@@ -72,6 +68,10 @@
     "@vercel/node": "^5.3.7",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "cheerio": "^1.1.2",
+    "mongodb": "^6.0.0",
+    "openai": "^4.0.0",
+    "puppeteer": "^21.0.0"
   }
 }

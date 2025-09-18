@@ -7,7 +7,7 @@ import { AIResponseFormatter } from './AIResponseFormatter';
 import { GrowwApiService, StockQuote, TechnicalAnalysis } from '../../services/growwApiService';
 import { NewsSearchService, TrendingStock, StockNews } from '../../services/newsSearchService';
 import { InvestmentAnalysisService, StockAnalysisReport, InvestmentRecommendation, UserInvestmentPreferences } from '../../services/investmentAnalysisService';
-import { PortfolioAllocationService, StructuredPortfolioResponse } from '../../services/portfolioAllocationService';
+// Note: PortfolioAllocationService moved to backend API calls
 import { ExcelBasedStockAnalysisService } from '../../services/excelBasedStockAnalysis';
 import { IntentAnalysisService, QueryIntent } from '../../services/intentAnalysisService';
 import { StockComparisonService, StockComparison } from '../../services/stockComparisonService';
@@ -619,20 +619,8 @@ Please provide these details so I can give you a comprehensive portfolio recomme
         trendingStocks.slice(0, 9).map(stock => stock.symbol)
       );
       
-      // Parse custom allocation ratios from user question  
-      const customAllocation = PortfolioAllocationService.parseAllocationRatio(query);
-      
-      let structuredResponse;
-      if (customAllocation) {
-        structuredResponse = await PortfolioAllocationService.createStructuredResponse(
-          amount,
-          frequency,
-          stockQuotes,
-          trendingStocks,
-          recommendation.market_overview.current_sentiment,
-          customAllocation
-        );
-      }
+      // Note: Portfolio allocation moved to backend services
+      // For now, we'll use the basic recommendation format
       
       // Final phase
       setMessages(prev => prev.map(msg => 
@@ -646,23 +634,34 @@ Please provide these details so I can give you a comprehensive portfolio recomme
       
       await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Format response for display - show multiple approaches if no custom allocation
-      let response: string;
+      // Format basic investment recommendation response
+      let response = `# 💼 Investment Recommendation for ₹${amount.toLocaleString('en-IN')}\n\n`;
+      response += `Based on current market analysis and trending stocks, here's your personalized investment strategy:\n\n`;
+      response += `## 📊 Market Overview\n`;
+      response += `Current sentiment: ${recommendation.market_overview.current_sentiment}\n\n`;
+      response += `## 🎯 Recommended Strategy\n`;
+      response += `Investment Type: ${frequency}\n`;
+      response += `Risk Level: Moderate\n\n`;
+      response += `## 📈 Top Stock Recommendations\n`;
       
-      if (customAllocation && structuredResponse) {
-        // User specified custom allocation - create single response  
-        response = PortfolioAllocationService.formatResponseForDisplay(structuredResponse);
-      } else {
-        // No custom allocation - show all 3 approaches
-        const approaches = await PortfolioAllocationService.createMultipleApproaches(
-          amount,
-          frequency,
-          stockQuotes,
-          trendingStocks,
-          recommendation.market_overview.current_sentiment
-        );
-        response = PortfolioAllocationService.formatMultipleApproachesForDisplay(approaches, amount);
-      }
+      // Show top 5 trending stocks with basic allocation
+      const topStocks = trendingStocks.slice(0, 5);
+      const allocation = Math.floor(amount / topStocks.length);
+      
+      topStocks.forEach((stock, index) => {
+        const quote = stockQuotes.find(q => q.symbol === stock.symbol);
+        const price = quote?.currentPrice || 0;
+        const quantity = price > 0 ? Math.floor(allocation / price) : 0;
+        const actualAllocation = quantity * price;
+        
+        response += `${index + 1}. **${stock.companyName}** (${stock.symbol})\n`;
+        response += `   Price: ₹${price}\n`;
+        response += `   Suggested Investment: ₹${actualAllocation.toLocaleString()}\n`;
+        response += `   Quantity: ${quantity} shares\n\n`;
+      });
+      
+      response += `## ⚠️ Important Note\n`;
+      response += `This is a basic recommendation. For comprehensive portfolio allocation with intelligent diversification, please use our backend services or consult with a financial advisor.`;
       
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
