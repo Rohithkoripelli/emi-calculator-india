@@ -5,6 +5,10 @@
 
 import { StockQuote } from './growwApiService';
 import { TrendingStock } from './newsSearchService';
+import IntelligentPortfolioEngine from './intelligentPortfolioEngine';
+import StockDatabaseService from './stockDatabaseService';
+import StockDataFetcher from './stockDataFetcher';
+import { PortfolioRecommendation } from './stockDataModels';
 
 interface PortfolioStock {
   stock: string;
@@ -1148,6 +1152,248 @@ export class PortfolioAllocationService {
 
   private static generateDisclaimer(): string {
     return `**Investment Advisory Notice:** This recommendation is based on comprehensive analysis of real-time market data, technical indicators, and fundamental research. All investments carry inherent market risks, and returns are not guaranteed. Please align investments with your risk tolerance, financial goals, and investment timeline. Consider consulting a qualified financial advisor for personalized advice. Conduct thorough due diligence before making investment decisions.`;
+  }
+
+  /**
+   * NEW INTELLIGENT SYSTEM: Generate recommendations using MongoDB-based intelligent portfolio engine
+   */
+  static async generateIntelligentRecommendations(
+    investmentAmount: number,
+    frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING' = 'LUMP_SUM'
+  ): Promise<{
+    conservative: StructuredPortfolioResponse;
+    balanced: StructuredPortfolioResponse;
+    aggressive: StructuredPortfolioResponse;
+    dataStatus: {
+      totalStocks: number;
+      stocksWithPrices: number;
+      stocksWithFundamentals: number;
+      lastUpdate: Date | null;
+    };
+  }> {
+    console.log(`🚀 Generating intelligent portfolio recommendations for ₹${investmentAmount.toLocaleString('en-IN')}...`);
+    
+    try {
+      // Ensure data freshness
+      await IntelligentPortfolioEngine.ensureDataFreshness();
+      
+      // Generate multiple strategies using intelligent engine
+      const recommendations = await IntelligentPortfolioEngine.generateMultipleStrategies(investmentAmount, 4);
+      
+      // Convert to legacy format for compatibility
+      const conservative = this.convertIntelligentToLegacyFormat(recommendations.conservative, frequency);
+      const balanced = this.convertIntelligentToLegacyFormat(recommendations.balanced, frequency);
+      const aggressive = this.convertIntelligentToLegacyFormat(recommendations.aggressive, frequency);
+      
+      // Get database status for transparency
+      const dataStatus = await StockDatabaseService.getStats();
+      
+      console.log(`✅ Intelligent recommendations generated using ${dataStatus.stocksWithFundamentals} stocks with fundamentals`);
+      
+      return {
+        conservative,
+        balanced,
+        aggressive,
+        dataStatus
+      };
+      
+    } catch (error) {
+      console.error(`❌ Error generating intelligent recommendations:`, error);
+      console.log(`🔄 Falling back to legacy recommendation system...`);
+      
+      // Fallback to legacy system
+      throw new Error(`Intelligent recommendation system temporarily unavailable. Please try again.`);
+    }
+  }
+
+  /**
+   * Convert intelligent portfolio recommendation to legacy format
+   */
+  private static convertIntelligentToLegacyFormat(
+    recommendation: PortfolioRecommendation,
+    frequency: 'LUMP_SUM' | 'SIP' | 'RECURRING'
+  ): StructuredPortfolioResponse {
+    // Convert stock recommendations to PortfolioStock format
+    const convertToPortfolioStocks = (stocks: any[], marketCapType: 'Large Cap' | 'Mid Cap' | 'Small Cap'): PortfolioStock[] => {
+      return stocks.map(stock => ({
+        stock: `${stock.name} (${stock.symbol})`,
+        sector: stock.sector,
+        suggested_allocation: `${stock.quantity} share${stock.quantity > 1 ? 's' : ''} = ₹${stock.allocation.toLocaleString('en-IN')}`,
+        rationale: stock.reasoning,
+        current_price: stock.price,
+        market_cap: marketCapType
+      }));
+    };
+
+    // Create allocation table
+    const allocation: AllocationTable[] = [];
+    
+    // Add large cap stocks to allocation table
+    recommendation.categories.largeCap.stocks.forEach(stock => {
+      allocation.push({
+        stock: `${stock.name} (${stock.symbol})`,
+        sector: stock.sector,
+        amount: `₹${stock.allocation.toLocaleString('en-IN')}`,
+        reasoning: stock.reasoning
+      });
+    });
+
+    // Add mid cap stocks to allocation table
+    recommendation.categories.midCap.stocks.forEach(stock => {
+      allocation.push({
+        stock: `${stock.name} (${stock.symbol})`,
+        sector: stock.sector,
+        amount: `₹${stock.allocation.toLocaleString('en-IN')}`,
+        reasoning: stock.reasoning
+      });
+    });
+
+    // Add small cap stocks to allocation table
+    recommendation.categories.smallCap.stocks.forEach(stock => {
+      allocation.push({
+        stock: `${stock.name} (${stock.symbol})`,
+        sector: stock.sector,
+        amount: `₹${stock.allocation.toLocaleString('en-IN')}`,
+        reasoning: stock.reasoning
+      });
+    });
+
+    // Calculate percentages for strategy overview
+    const largePct = (recommendation.categories.largeCap.allocatedAmount / recommendation.totalAmount) * 100;
+    const midPct = (recommendation.categories.midCap.allocatedAmount / recommendation.totalAmount) * 100;
+    const smallPct = (recommendation.categories.smallCap.allocatedAmount / recommendation.totalAmount) * 100;
+
+    const strategyName = largePct >= 60 ? 'Conservative' : smallPct >= 30 ? 'Aggressive' : 'Balanced';
+    
+    // Extract unique sectors for trending sectors
+    const allStocks = [
+      ...recommendation.categories.largeCap.stocks,
+      ...recommendation.categories.midCap.stocks,
+      ...recommendation.categories.smallCap.stocks
+    ];
+    const trendingSectors = Array.from(new Set(allStocks.map(stock => stock.sector))).slice(0, 5);
+
+    return {
+      executive_summary: {
+        investment_amount: `₹${recommendation.totalAmount.toLocaleString('en-IN')}`,
+        investment_type: frequency === 'SIP' ? 'Systematic Investment Plan (SIP)' : 'Lump Sum Investment',
+        strategy_overview: `${strategyName} approach (${largePct.toFixed(0)}-${midPct.toFixed(0)}-${smallPct.toFixed(0)}) using data-driven stock selection with ${recommendation.summary.totalStocks} carefully selected stocks based on fundamental analysis. Average quality score: ${(recommendation.summary.avgScore * 100).toFixed(1)}%.`,
+        expected_timeline: frequency === 'SIP' ? '12-24 months for portfolio building' : '18-36 months for wealth creation'
+      },
+      market_analysis: {
+        current_sentiment: `📊 Data-Driven - Using real-time fundamentals and ${recommendation.summary.riskLevel.toLowerCase()} risk profile`,
+        trending_sectors: trendingSectors,
+        market_highlights: [
+          `${recommendation.summary.totalStocks} stocks selected from comprehensive fundamental analysis`,
+          `Average quality score of ${(recommendation.summary.avgScore * 100).toFixed(1)}% ensures high-quality selections`,
+          `Expected returns: ${recommendation.summary.expectedReturn} based on current fundamentals`,
+          `Allocation efficiency: ${((recommendation.allocatedAmount / recommendation.totalAmount) * 100).toFixed(1)}%`
+        ]
+      },
+      recommended_allocation: {
+        large_cap_stocks: convertToPortfolioStocks(recommendation.categories.largeCap.stocks, 'Large Cap'),
+        mid_cap_stocks: convertToPortfolioStocks(recommendation.categories.midCap.stocks, 'Mid Cap'),
+        small_cap_stocks: convertToPortfolioStocks(recommendation.categories.smallCap.stocks, 'Small Cap')
+      },
+      allocation_table: allocation,
+      investment_strategy: {
+        strategy_type: `Data-Driven ${strategyName} Strategy`,
+        key_benefits: [
+          'Real-time fundamental analysis ensures quality stock selection',
+          `Comprehensive scoring model evaluates ${Object.keys(allStocks[0]?.fundamentals || {}).length}+ financial metrics`,
+          'Automated index-based classification (Nifty50, Nifty Next 50, etc.)',
+          'Rate-limited data fetching ensures reliable and fresh information',
+          `Expected returns: ${recommendation.summary.expectedReturn} based on historical performance`
+        ],
+        risk_level: recommendation.summary.riskLevel,
+        suggested_approach: [
+          `Start with ${strategyName.toLowerCase()} allocation: ${largePct.toFixed(0)}% Large, ${midPct.toFixed(0)}% Mid, ${smallPct.toFixed(0)}% Small cap`,
+          'Monitor quarterly earnings and fundamental changes',
+          'Rebalance portfolio every 6 months or when allocation drifts >5%',
+          'Review stock quality scores monthly for any significant changes'
+        ]
+      },
+      sip_strategy: frequency === 'SIP' ? this.createSIPStrategy(recommendation.totalAmount, {
+        largeCap: recommendation.categories.largeCap.stocks,
+        midCap: recommendation.categories.midCap.stocks,
+        smallCap: recommendation.categories.smallCap.stocks
+      }) : [],
+      risk_management: {
+        diversification_approach: `${recommendation.summary.totalStocks}-stock diversification across ${trendingSectors.length} sectors with data-driven selection`,
+        stop_loss_strategy: `8-10% stop-loss with trailing stops; monitor quality score changes`,
+        portfolio_review: frequency === 'SIP' ? 'Monthly SIP execution with quarterly fundamental review' : 'Monthly performance review with quarterly rebalancing',
+        risk_mitigation: [
+          'Fundamental-based stock selection reduces company-specific risks',
+          'Cross-sector diversification minimizes sector concentration',
+          'Real-time price and fundamental monitoring for early warning signals',
+          'Quality score threshold ensures only high-grade stocks are selected'
+        ]
+      },
+      tax_considerations: {
+        investment_type: 'Equity Investment',
+        tax_benefits: this.generateTaxBenefits(),
+        holding_strategy: 'Hold for more than 1 year to qualify for Long Term Capital Gains (LTCG) tax benefits'
+      },
+      next_steps: {
+        immediate_actions: [
+          'Open Demat and Trading account with a reliable broker',
+          'Complete KYC and bank account linking',
+          'Set up fund transfer methods (UPI/Net Banking)',
+          frequency === 'SIP' ? 'Set up SIP mandates for automated investments' : 'Plan entry timing over 1-2 sessions'
+        ],
+        platform_suggestions: this.generatePlatformSuggestions(),
+        monitoring_approach: [
+          'Track portfolio performance using mobile apps',
+          'Set price alerts for major movements (>5%)',
+          'Monitor monthly fundamental updates from screener.in',
+          'Review quality scores and rebalance when needed'
+        ]
+      },
+      disclaimer: this.generateDisclaimer()
+    };
+  }
+
+  /**
+   * Initialize the intelligent portfolio system
+   */
+  static async initializeIntelligentSystem(): Promise<void> {
+    console.log(`🚀 Initializing intelligent portfolio system...`);
+    
+    try {
+      // Initialize essential stocks data
+      await StockDataFetcher.initializeEssentialStocks();
+      
+      const stats = await StockDatabaseService.getStats();
+      console.log(`✅ Intelligent system initialized with ${stats.stocksWithFundamentals} stocks with fundamental data`);
+      
+    } catch (error) {
+      console.error(`❌ Error initializing intelligent system:`, error);
+      throw new Error('Failed to initialize intelligent portfolio system');
+    }
+  }
+
+  /**
+   * Get system status for debugging
+   */
+  static async getSystemStatus(): Promise<{
+    database: any;
+    rateLimits: any;
+    recommendations: {
+      available: boolean;
+      lastGenerated: Date | null;
+    };
+  }> {
+    const database = await StockDatabaseService.getStats();
+    const rateLimits = StockDataFetcher.getRateLimitStats();
+    
+    return {
+      database,
+      rateLimits,
+      recommendations: {
+        available: database.stocksWithFundamentals >= 10,
+        lastGenerated: database.lastUpdate
+      }
+    };
   }
 }
 
