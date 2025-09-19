@@ -1,0 +1,20 @@
+{
+  "name": "stock-scheduler-service",
+  "version": "1.0.0",
+  "description": "Daily 2 AM stock data scheduler service",
+  "main": "daily-scheduler-2am.js",
+  "scripts": {
+    "start": "node daily-scheduler-2am.js",
+    "update-now": "node daily-scheduler-2am.js --immediate",
+    "populate-real-data": "node real-data-fetcher-2600.js"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "mongodb": "^6.0.0",
+    "cheerio": "^1.1.2",
+    "puppeteer": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
