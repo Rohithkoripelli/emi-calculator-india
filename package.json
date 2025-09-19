@@ -44,7 +44,10 @@
     "production-score": "npx tsc && node -e \"const StockScoringService = require('./dist/src/services/stockScoringService').default; (async () => { await StockScoringService.calculateAllStockScores(); process.exit(0); })()\"",
     "production-recommend": "npx tsc && node -e \"const RecommendationEngine = require('./dist/src/services/recommendationEngine').default; (async () => { const result = await RecommendationEngine.generateStandardRecommendations(10000); console.log(JSON.stringify(result.allocations, null, 2)); process.exit(0); })()\"",
     "production-fetch-prices": "npx tsc && node -e \"const ProductionDataFetcher = require('./dist/src/services/productionDataFetcher').default; (async () => { await ProductionDataFetcher.fetchAllStockPrices(); process.exit(0); })()\"",
-    "production-fetch-fundamentals": "npx tsc && node -e \"const ProductionDataFetcher = require('./dist/src/services/productionDataFetcher').default; (async () => { await ProductionDataFetcher.fetchAllStockFundamentals(); process.exit(0); })()\""
+    "production-fetch-fundamentals": "npx tsc && node -e \"const ProductionDataFetcher = require('./dist/src/services/productionDataFetcher').default; (async () => { await ProductionDataFetcher.fetchAllStockFundamentals(); process.exit(0); })()\"",
+    "start-scheduler": "node daily-scheduler-2am.js",
+    "update-now": "node daily-scheduler-2am.js --immediate",
+    "populate-real-data": "node real-data-fetcher-2600.js"
   },
   "eslintConfig": {
     "extends": [
