@@ -89,25 +89,46 @@ class RailwayDataFetcher {
       source: 'screener.in'
     };
 
-    // Extract Current Price
-    const pricePatterns = [
-      /Current Price[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi,
-      /Price[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi
-    ];
+    // Extract all numbers from HTML (they appear in span class="number")
+    const numberMatches = html.match(/<span class="number">([0-9,]+(?:\.[0-9]+)?)<\/span>/gi);
     
-    for (const pattern of pricePatterns) {
-      const priceMatch = html.match(pattern);
-      if (priceMatch) {
-        const priceValue = priceMatch[0].match(/([0-9,]+(?:\.[0-9]+)?)/);
-        if (priceValue) {
-          fundamentals.currentPrice = parseFloat(priceValue[1].replace(/,/g, ''));
-          console.log(`💰 Found Current Price: ₹${fundamentals.currentPrice}`);
-          break;
-        }
+    if (numberMatches && numberMatches.length >= 1) {
+      // Extract Market Cap (first number)
+      const marketCapValue = numberMatches[0].match(/([0-9,]+(?:\.[0-9]+)?)/);
+      if (marketCapValue) {
+        const capValue = parseFloat(marketCapValue[1].replace(/,/g, ''));
+        fundamentals.marketCap = capValue;
+        fundamentals.marketCapValue = capValue;
+        console.log(`💰 Found Market Cap: ₹${capValue} Cr`);
       }
     }
 
-    // Extract financial metrics using multiple selectors
+    if (numberMatches && numberMatches.length >= 2) {
+      // Extract Current Price (second number)
+      const priceValue = numberMatches[1].match(/([0-9,]+(?:\.[0-9]+)?)/);
+      if (priceValue) {
+        fundamentals.currentPrice = parseFloat(priceValue[1].replace(/,/g, ''));
+        console.log(`💰 Found Current Price: ₹${fundamentals.currentPrice}`);
+      }
+    }
+
+    if (numberMatches && numberMatches.length >= 4) {
+      // Extract 52W High (third number)
+      const highValue = numberMatches[2].match(/([0-9,]+(?:\.[0-9]+)?)/);
+      if (highValue) {
+        fundamentals.week52High = parseFloat(highValue[1].replace(/,/g, ''));
+        console.log(`📈 Found 52W High: ₹${fundamentals.week52High}`);
+      }
+      
+      // Extract 52W Low (fourth number)
+      const lowValue = numberMatches[3].match(/([0-9,]+(?:\.[0-9]+)?)/);
+      if (lowValue) {
+        fundamentals.week52Low = parseFloat(lowValue[1].replace(/,/g, ''));
+        console.log(`📉 Found 52W Low: ₹${fundamentals.week52Low}`);
+      }
+    }
+
+    // Extract other financial metrics using regex patterns
     const metrics = {
       'Book Value': /Book Value[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi,
       'Dividend Yield': /Dividend Yield[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
@@ -115,7 +136,7 @@ class RailwayDataFetcher {
       'P/E Ratio': /P\/E[^\d]*([0-9,]+(?:\.[0-9]+)?)/gi,
       'ROE': /ROE[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
       'ROCE': /ROCE[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
-      'Market Cap': /Market Cap[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)\s*Cr/gi
+      'Debt to Equity': /Debt to Equity[^\d]*([0-9,]+(?:\.[0-9]+)?)/gi
     };
 
     for (const [metric, pattern] of Object.entries(metrics)) {
@@ -149,13 +170,42 @@ class RailwayDataFetcher {
               fundamentals.roce = numValue;
               console.log(`📊 Found ROCE: ${numValue}%`);
               break;
-            case 'Market Cap':
-              fundamentals.marketCap = numValue;
-              console.log(`💰 Found Market Cap: ₹${numValue} Cr`);
+            case 'Debt to Equity':
+              fundamentals.debtToEquity = numValue;
+              console.log(`📊 Found Debt/Equity: ${numValue}`);
               break;
           }
         }
       }
+    }
+
+    // Extract growth metrics
+    const growthMetrics = [
+      { pattern: /Revenue Growth[^\d\-]*([0-9,\-]+(?:\.[0-9]+)?)%/gi, field: 'revenueGrowth', name: 'Revenue Growth' },
+      { pattern: /Profit Growth[^\d\-]*([0-9,\-]+(?:\.[0-9]+)?)%/gi, field: 'profitGrowth', name: 'Profit Growth' }
+    ];
+
+    for (const metric of growthMetrics) {
+      const match = html.match(metric.pattern);
+      if (match) {
+        const value = match[0].match(/([0-9,\-]+(?:\.[0-9]+)?)/);
+        if (value) {
+          const numValue = parseFloat(value[1].replace(/,/g, ''));
+          fundamentals[metric.field] = numValue;
+          console.log(`📊 Found ${metric.name}: ${numValue}%`);
+        }
+      }
+    }
+
+    // Calculate price change if we have current price and 52W low
+    if (fundamentals.currentPrice && fundamentals.week52Low) {
+      const change = fundamentals.currentPrice - fundamentals.week52Low;
+      const changePercent = (change / fundamentals.week52Low) * 100;
+      
+      fundamentals.priceChange = parseFloat(change.toFixed(2));
+      fundamentals.priceChangePercent = parseFloat(changePercent.toFixed(2));
+      
+      console.log(`📊 Calculated Price Change: ₹${fundamentals.priceChange} (${fundamentals.priceChangePercent}%)`);
     }
 
     return fundamentals;
