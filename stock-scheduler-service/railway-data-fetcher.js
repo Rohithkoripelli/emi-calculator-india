@@ -169,7 +169,7 @@ class RailwayDataFetcher {
     console.log(`🚀 Starting REAL data population for ${STOCK_SYMBOLS.length}+ stocks`);
     console.log('⏱️ Rate limit: 1 stock per 5 seconds (safe for Screener.in)');
     
-    for (let i = 0; i < Math.min(STOCK_SYMBOLS.length, 50); i++) { // Limit to 50 for Railway testing
+    for (let i = 0; i < STOCK_SYMBOLS.length; i++) { // Process ALL 2600+ stocks
       const symbol = STOCK_SYMBOLS[i];
       this.processedCount++;
       
