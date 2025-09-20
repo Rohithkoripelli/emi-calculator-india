@@ -205,7 +205,7 @@ export class StockRecommendationService {
       return data;
     } catch (error) {
       console.error('❌ Error calling Railway recommendation API:', error);
-      throw new Error(`Failed to get stock recommendations: ${error.message}`);
+      throw new Error(`Failed to get stock recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -239,7 +239,7 @@ export class StockRecommendationService {
       return data;
     } catch (error) {
       console.error('❌ Error calling Railway top stocks API:', error);
-      throw new Error(`Failed to get top stocks: ${error.message}`);
+      throw new Error(`Failed to get top stocks: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -266,7 +266,7 @@ export class StockRecommendationService {
       return data;
     } catch (error) {
       console.error('❌ Error calling Railway scoring info API:', error);
-      throw new Error(`Failed to get scoring info: ${error.message}`);
+      throw new Error(`Failed to get scoring info: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
