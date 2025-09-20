@@ -199,14 +199,14 @@ class RobustDataCollector {
       }
     }
 
-    // Extract detailed financial metrics
+    // Extract detailed financial metrics with improved patterns
     const metrics = {
       'Book Value': /Book Value[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi,
       'Dividend Yield': /Dividend Yield[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
       'Face Value': /Face Value[^\d]*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi,
       'P/E Ratio': /P\/E[^\d]*([0-9,]+(?:\.[0-9]+)?)/gi,
-      'ROE': /ROE[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
-      'ROCE': /ROCE[^\d]*([0-9,]+(?:\.[0-9]+)?)%/gi,
+      'ROE': /ROE[\s\S]{0,200}?([0-9,]+(?:\.[0-9]+)?)%/gi,
+      'ROCE': /ROCE[\s\S]{0,200}?([0-9,]+(?:\.[0-9]+)?)%/gi,
       'Debt to Equity': /Debt to Equity[^\d]*([0-9,]+(?:\.[0-9]+)?)/gi,
       'Revenue Growth': /Revenue Growth[^\d\-]*([0-9,\-]+(?:\.[0-9]+)?)%/gi,
       'Profit Growth': /Profit Growth[^\d\-]*([0-9,\-]+(?:\.[0-9]+)?)%/gi
@@ -218,16 +218,40 @@ class RobustDataCollector {
         const value = match[0].match(/([0-9,\-]+(?:\.[0-9]+)?)/);
         if (value) {
           const numValue = parseFloat(value[1].replace(/,/g, ''));
-          switch (metric) {
-            case 'Book Value': fundamentals.bookValue = numValue; break;
-            case 'Dividend Yield': fundamentals.dividendYield = numValue; break;
-            case 'Face Value': fundamentals.faceValue = numValue; break;
-            case 'P/E Ratio': fundamentals.peRatio = numValue; break;
-            case 'ROE': fundamentals.roe = numValue; break;
-            case 'ROCE': fundamentals.roce = numValue; break;
-            case 'Debt to Equity': fundamentals.debtToEquity = numValue; break;
-            case 'Revenue Growth': fundamentals.revenueGrowth = numValue; break;
-            case 'Profit Growth': fundamentals.profitGrowth = numValue; break;
+          if (!isNaN(numValue)) {
+            switch (metric) {
+              case 'Book Value': fundamentals.bookValue = numValue; break;
+              case 'Dividend Yield': fundamentals.dividendYield = numValue; break;
+              case 'Face Value': fundamentals.faceValue = numValue; break;
+              case 'P/E Ratio': fundamentals.peRatio = numValue; break;
+              case 'ROE': fundamentals.roe = numValue; break;
+              case 'ROCE': fundamentals.roce = numValue; break;
+              case 'Debt to Equity': fundamentals.debtToEquity = numValue; break;
+              case 'Revenue Growth': fundamentals.revenueGrowth = numValue; break;
+              case 'Profit Growth': fundamentals.profitGrowth = numValue; break;
+            }
+          }
+        }
+      }
+    }
+
+    // Try alternative patterns for ROCE if not found
+    if (!fundamentals.roce) {
+      const roceAlternatives = [
+        /Return on Capital Employed[\s\S]{0,200}?([0-9,]+(?:\.[0-9]+)?)%/gi,
+        /Capital Employed[\s\S]{0,200}?([0-9,]+(?:\.[0-9]+)?)%/gi
+      ];
+      
+      for (const pattern of roceAlternatives) {
+        const match = html.match(pattern);
+        if (match) {
+          const value = match[0].match(/([0-9,]+(?:\.[0-9]+)?)/);
+          if (value) {
+            const numValue = parseFloat(value[1].replace(/,/g, ''));
+            if (!isNaN(numValue)) {
+              fundamentals.roce = numValue;
+              break;
+            }
           }
         }
       }
