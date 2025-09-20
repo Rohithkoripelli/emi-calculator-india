@@ -90,6 +90,40 @@ class DailyStockScheduler {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: 'Triggering immediate update...' }));
         this.runImmediateUpdate();
+      } else if (url === '/status') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const fs = require('fs');
+        try {
+          const dataExists = fs.existsSync('/tmp/stock_data.json');
+          let dataInfo = { exists: dataExists };
+          
+          if (dataExists) {
+            const stats = fs.statSync('/tmp/stock_data.json');
+            const data = fs.readFileSync('/tmp/stock_data.json', 'utf8');
+            const jsonData = JSON.parse(data);
+            
+            dataInfo = {
+              exists: true,
+              fileSize: stats.size,
+              lastModified: stats.mtime,
+              stockCount: jsonData.length,
+              sampleStock: jsonData[0] || null,
+              fieldsPerStock: jsonData[0] ? Object.keys(jsonData[0]).length : 0
+            };
+          }
+          
+          res.end(JSON.stringify({
+            isRunning: this.isRunning,
+            dataCollection: dataInfo,
+            lastUpdate: new Date().toISOString()
+          }, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            error: error.message,
+            isRunning: this.isRunning,
+            lastUpdate: new Date().toISOString()
+          }));
+        }
       } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
