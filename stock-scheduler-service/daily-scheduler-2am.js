@@ -24,13 +24,13 @@ class DailyStockScheduler {
     console.log('🚀 Starting scheduled incremental update at', new Date().toISOString());
 
     try {
-      // Run robust resumable data collector
-      const RobustDataCollector = require('./robust-data-collector');
-      const collector = new RobustDataCollector();
+      // Run Yahoo Finance data collector - MUCH more reliable!
+      const YahooFinanceCollector = require('./yahoo-finance-collector');
+      const collector = new YahooFinanceCollector();
       
-      console.log('🚀 Starting robust data collection...');
+      console.log('🚀 Starting Yahoo Finance data collection...');
       const results = await collector.processAllStocks();
-      console.log(`✅ Data collection completed: ${results.length} stocks processed`);
+      console.log(`✅ Yahoo Finance collection completed: ${results.length} stocks processed`);
       
       // Also update the old format for compatibility
       const fs = require('fs');
@@ -88,25 +88,30 @@ class DailyStockScheduler {
         this.runImmediateUpdate();
       } else if (url === '/collect') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Starting robust data collection in background...' }));
+        res.end(JSON.stringify({ message: 'Starting Yahoo Finance collection in background...' }));
         
-        // Run robust collector in background
-        const RobustDataCollector = require('./robust-data-collector');
-        const collector = new RobustDataCollector();
+        // Run Yahoo Finance collector in background
+        const YahooFinanceCollector = require('./yahoo-finance-collector');
+        const collector = new YahooFinanceCollector();
         
         // Don't wait for completion, run in background
         collector.processAllStocks().catch(error => {
-          console.error('❌ Background collection failed:', error);
+          console.error('❌ Yahoo Finance collection failed:', error);
         });
       } else if (url === '/status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const fs = require('fs');
         try {
-          // Check robust collector progress
+          // Check Yahoo Finance collector progress
           let progressInfo = { exists: false };
-          if (fs.existsSync('/tmp/collection_progress.json')) {
+          if (fs.existsSync('/tmp/yahoo_collection_progress.json')) {
+            progressInfo = JSON.parse(fs.readFileSync('/tmp/yahoo_collection_progress.json', 'utf8'));
+            progressInfo.exists = true;
+            progressInfo.dataSource = 'yahoo-finance';
+          } else if (fs.existsSync('/tmp/collection_progress.json')) {
             progressInfo = JSON.parse(fs.readFileSync('/tmp/collection_progress.json', 'utf8'));
             progressInfo.exists = true;
+            progressInfo.dataSource = 'screener-scraping';
           }
 
           // Check data file
