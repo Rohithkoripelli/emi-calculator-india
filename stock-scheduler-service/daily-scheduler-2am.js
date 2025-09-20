@@ -6,6 +6,7 @@
 
 const cron = require('node-cron');
 const { MongoClient } = require('mongodb');
+const http = require('http');
 
 const ATLAS_URI = 'mongodb+srv://reddyrohith705:jehu5yDOINJIMNoI@cluster0.hgipoar.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const DB_NAME = 'intelligent_portfolio';
@@ -98,11 +99,43 @@ class DailyStockScheduler {
   start() {
     console.log('🎯 Starting Daily Stock Scheduler...');
     
+    // Create HTTP server to prevent Railway from sleeping
+    const server = http.createServer((req, res) => {
+      const url = req.url;
+      
+      if (url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'running',
+          scheduler: 'active',
+          nextUpdate: this.getNextScheduledTime().toISOString(),
+          timezone: 'Asia/Kolkata',
+          currentTime: new Date().toISOString()
+        }));
+      } else if (url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('OK');
+      } else if (url === '/trigger') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Triggering immediate update...' }));
+        this.runImmediateUpdate();
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+      }
+    });
+
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`🌐 HTTP server running on port ${PORT} (prevents Railway sleep)`);
+    });
+    
     // Schedule for 2:00 AM IST daily
     // Cron format: minute hour day month weekday
     const cronExpression = '0 2 * * *'; // Every day at 2:00 AM
     
     cron.schedule(cronExpression, async () => {
+      console.log('⏰ 2 AM IST - Triggering scheduled stock update...');
       await this.runStockUpdate();
     }, {
       scheduled: true,
