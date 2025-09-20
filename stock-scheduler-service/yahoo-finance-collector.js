@@ -19,8 +19,8 @@ class YahooFinanceCollector {
     this.results = [];
     this.progressFile = '/tmp/yahoo_collection_progress.json';
     this.dataFile = '/tmp/stock_data.json';
-    this.batchSize = 5; // Smaller batches for API rate limiting
-    this.delayBetweenRequests = 3000; // 3 seconds for API respect
+    this.batchSize = 10; // Optimized batch size for 2600+ stocks
+    this.delayBetweenRequests = 500; // 500ms for faster processing of all stocks
     this.maxRetries = 2;
     
     // Suppress Yahoo Finance notices
@@ -273,10 +273,10 @@ class YahooFinanceCollector {
       
       console.log(`📊 Batch completed: ${this.successCount} success, ${this.errorCount} errors`);
       
-      // Longer delay between batches
+      // Shorter delay between batches for faster processing
       if (i + this.batchSize < remainingStocks.length) {
-        console.log('⏸️ Waiting 15 seconds before next batch...');
-        await new Promise(resolve => setTimeout(resolve, 15000));
+        console.log('⏸️ Waiting 2 seconds before next batch...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
@@ -312,7 +312,7 @@ class YahooFinanceCollector {
 
   getEstimatedTimeRemaining() {
     const remaining = STOCK_SYMBOLS.length - this.processedCount;
-    const avgTimePerStock = (this.delayBetweenRequests + 2000) / 1000; // seconds
+    const avgTimePerStock = (this.delayBetweenRequests + 1000) / 1000; // seconds (optimized)
     const estimatedSeconds = remaining * avgTimePerStock;
     
     const hours = Math.floor(estimatedSeconds / 3600);
