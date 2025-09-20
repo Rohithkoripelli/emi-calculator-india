@@ -494,6 +494,154 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
   };
 
   /**
+   * Handle Railway API-based recommendations
+   */
+  const handleRailwayApiRecommendation = async (
+    query: string,
+    amount: number | undefined,
+    intentResult: any,
+    aiMessageId: string
+  ) => {
+    console.log('🎯 Using Railway API for investment recommendation');
+    
+    setStreamingMessageId(aiMessageId);
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === aiMessageId 
+        ? { 
+            ...msg, 
+            text: `🎯 Analyzing your investment request...\n\n⏳ Processing intelligent investment strategy\n⏳ Connecting to AI-powered stock scoring engine\n⏳ Analyzing 1800+ stocks with comprehensive metrics\n⏳ Generating optimal portfolio recommendations`, 
+            isStreaming: true,
+            isComplete: false
+          }
+        : msg
+    ));
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { StockRecommendationService } = await import('../../services/stockRecommendationService');
+      
+      // Use market cap allocation if detected, otherwise default allocation
+      const allocation = intentResult.extractedParams.marketCapPreference || {
+        largeCap: 30,
+        midCap: 40,
+        smallCap: 30
+      };
+      
+      const finalAmount = amount || 10000;
+      const recommendations = await StockRecommendationService.getRecommendations(finalAmount, allocation);
+      const formattedResponse = StockRecommendationService.formatRecommendationResponse(recommendations, query);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: formattedResponse, 
+              isStreaming: false, 
+              isComplete: true,
+              investmentData: {
+                query,
+                amount: finalAmount,
+                recommendation: formattedResponse
+              }
+            }
+          : msg
+      ));
+      
+      setStreamingMessageId(null);
+      return;
+    } catch (error) {
+      console.error('❌ Railway API failed:', error);
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { 
+              ...msg, 
+              text: `❌ I'm having trouble connecting to our recommendation engine right now. Please try again in a few moments.\n\nIn the meantime, you can ask me about:\n• Specific stocks you're interested in\n• General investment advice\n• Market trends and analysis`, 
+              isStreaming: false, 
+              isComplete: true
+            }
+          : msg
+      ));
+      
+      setStreamingMessageId(null);
+    }
+  };
+
+  /**
+   * Handle specific stock analysis
+   */
+  const handleSpecificStockAnalysis = async (
+    query: string,
+    intentResult: any,
+    aiMessageId: string
+  ) => {
+    console.log('📈 Handling specific stock analysis request');
+    
+    setStreamingMessageId(aiMessageId);
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === aiMessageId 
+        ? { 
+            ...msg, 
+            text: `📈 Analyzing specific stocks for you...\n\n⏳ Researching mentioned companies\n⏳ Fetching real-time market data\n⏳ Analyzing fundamentals and technicals\n⏳ Generating detailed analysis`, 
+            isStreaming: true,
+            isComplete: false
+          }
+        : msg
+    ));
+
+    // For now, fall back to the existing stock analysis flow
+    // TODO: Implement specific stock analysis logic
+    
+    setMessages(prev => prev.map(msg => 
+      msg.id === aiMessageId 
+        ? { 
+            ...msg, 
+            text: `📈 **Stock Analysis Request Detected**\n\nI can help you analyze specific stocks! For the most accurate analysis, please specify:\n\n• **Stock Symbol or Company Name** (e.g., "TCS", "Reliance", "HDFC Bank")\n• **Analysis Type** (technical, fundamental, or both)\n• **Time Horizon** (short-term or long-term)\n\nFor example:\n• "Analyze TCS stock for long-term investment"\n• "Should I buy Reliance stock now?"\n• "Technical analysis of HDFC Bank"`, 
+            isStreaming: false, 
+            isComplete: true
+          }
+        : msg
+    ));
+    
+    setStreamingMessageId(null);
+  };
+
+  /**
+   * Handle questionnaire flow for detailed preferences
+   */
+  const handleQuestionnaireFlow = async (
+    query: string,
+    amount: number | undefined,
+    intentResult: any,
+    aiMessageId: string
+  ) => {
+    console.log('📋 Initiating questionnaire flow for detailed investment planning');
+    
+    const questionnaireResponse = `I'd love to help you create a personalized investment strategy! 
+
+Let me ask you a few quick questions to provide the best recommendations tailored to your goals and preferences.`;
+
+    setMessages(prev => prev.map(msg => 
+      msg.id === aiMessageId 
+        ? { 
+            ...msg, 
+            text: questionnaireResponse, 
+            isStreaming: false, 
+            isComplete: true,
+            showQuestionnaire: true,
+            questionnaireData: {
+              originalQuery: query,
+              extractedAmount: amount || intentResult.extractedParams.amount
+            }
+          }
+        : msg
+    ));
+  };
+
+  /**
    * Handle investment recommendation queries
    */
   const handleInvestmentRecommendation = async (
@@ -505,58 +653,34 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
     try {
       console.log(`💼 Generating investment recommendation for query: "${query}"`);
       
-      // Check if this is a market cap allocation query
-      const { StockRecommendationService } = await import('../../services/stockRecommendationService');
-      if (StockRecommendationService.isMarketCapAllocationQuery(query)) {
-        console.log('🎯 Detected market cap allocation query, using Railway API');
-        
-        // Use the new Railway-based stock recommendation service
-        setStreamingMessageId(aiMessageId);
-        
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMessageId 
-            ? { 
-                ...msg, 
-                text: `🎯 Analyzing your portfolio allocation request...\n\n⏳ Processing market cap allocation strategy\n⏳ Connecting to stock scoring engine\n⏳ Analyzing 1800+ stocks with AI-powered metrics\n⏳ Generating optimal recommendations`, 
-                isStreaming: true,
-                isComplete: false
-              }
-            : msg
-        ));
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        try {
-          const recommendation = await StockRecommendationService.generateMarketCapRecommendation(query, amount);
+      // Use intelligent intent detection to determine the best strategy
+      const { IntelligentInvestmentDetector } = await import('../../services/intelligentInvestmentDetector');
+      const intentResult = IntelligentInvestmentDetector.detectInvestmentIntent(query);
+      console.log('🧠 Intelligent intent analysis:', intentResult);
+      
+      // Use extracted amount if not provided
+      const finalAmount = amount || intentResult.extractedParams.amount;
+      
+      // Route based on intelligent recommendation strategy
+      switch (intentResult.recommendationStrategy) {
+        case 'RAILWAY_API':
+          return await handleRailwayApiRecommendation(query, finalAmount, intentResult, aiMessageId);
           
-          setMessages(prev => prev.map(msg => 
-            msg.id === aiMessageId 
-              ? { 
-                  ...msg, 
-                  text: recommendation, 
-                  isStreaming: false, 
-                  isComplete: true,
-                  investmentData: {
-                    query,
-                    amount: amount || StockRecommendationService.extractAmount(query) || 10000,
-                    recommendation
-                  }
-                }
-              : msg
-          ));
+        case 'SPECIFIC_ANALYSIS':
+          return await handleSpecificStockAnalysis(query, intentResult, aiMessageId);
           
-          setStreamingMessageId(null);
-          return;
-        } catch (error) {
-          console.error('❌ Railway API failed, falling back to default service:', error);
-          // Continue with default flow below
-        }
+        case 'QUESTIONNAIRE':
+          return await handleQuestionnaireFlow(query, finalAmount, intentResult, aiMessageId);
+          
+        default:
+          // Continue with default flow
+          break;
       }
       
-      // First, check if this is a generic investment query that should trigger questionnaire
+      // Legacy fallback - check if this is a generic investment query that should trigger questionnaire
       const { detectGenericInvestmentQuery } = await import('../../utils/investmentQuestionDetector');
       const genericCheck = detectGenericInvestmentQuery(query);
-      console.log('🔍 Generic investment detection:', genericCheck);
+      console.log('🔍 Generic investment detection (fallback):', genericCheck);
       
       if (genericCheck.isGeneric && genericCheck.confidence >= 75) {
         console.log('✅ Detected generic investment query, showing questionnaire');

@@ -305,9 +305,9 @@ export class StockRecommendationService {
   }
 
   /**
-   * Format recommendation response for UI display
+   * Format recommendation response for UI display (public method)
    */
-  private static formatRecommendationResponse(
+  static formatRecommendationResponse(
     recommendations: RecommendationResponse,
     originalQuery: string
   ): string {
