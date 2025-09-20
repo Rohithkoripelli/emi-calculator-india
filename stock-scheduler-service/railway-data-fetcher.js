@@ -1,11 +1,10 @@
 /**
  * RAILWAY-COMPATIBLE DATA FETCHER 
  * Simplified version that works around Node.js compatibility issues
- * Uses only https + cheerio (no MongoDB driver issues)
+ * Uses only built-in Node.js modules (no external dependencies)
  */
 
 const https = require('https');
-const cheerio = require('cheerio');
 const fs = require('fs');
 
 // Import the complete stock universe
@@ -18,7 +17,7 @@ class RailwayDataFetcher {
     this.errorCount = 0;
     this.results = [];
     console.log('🔥 Railway Data Fetcher initialized');
-    console.log('📊 Using Screener.in scraping only');
+    console.log('📊 Using pure Node.js regex parsing (no external deps)');
     console.log('❌ NO MOCK DATA - Only real market data');
   }
 
@@ -80,10 +79,8 @@ class RailwayDataFetcher {
     });
   }
 
-  // Extract fundamentals from Screener.in HTML
+  // Extract fundamentals from Screener.in HTML using pure regex
   extractFundamentals(html, symbol) {
-    const $ = cheerio.load(html);
-    
     console.log(`🔍 Extracting COMPLETE data for ${symbol} from Screener.in...`);
     
     const fundamentals = {

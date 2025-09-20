@@ -9,8 +9,7 @@
     "populate-real-data": "node real-data-fetcher-2600.js"
   },
   "dependencies": {
-    "node-cron": "^3.0.3",
-    "cheerio": "^1.1.2"
+    "node-cron": "^3.0.3"
   },
   "engines": {
     "node": ">=18"
