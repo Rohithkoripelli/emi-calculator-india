@@ -6,6 +6,8 @@
 
 const cron = require('node-cron');
 const http = require('http');
+const url = require('url');
+const StockScoringEngine = require('./stock-scoring-engine');
 
 class DailyStockScheduler {
   constructor() {
@@ -146,6 +148,77 @@ class DailyStockScheduler {
             lastUpdate: new Date().toISOString()
           }));
         }
+      } else if (url.startsWith('/recommend')) {
+        // Stock recommendation endpoint
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        try {
+          const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+          const amount = parseInt(parsedUrl.searchParams.get('amount')) || 10000;
+          const largeCap = parseInt(parsedUrl.searchParams.get('largeCap')) || 30;
+          const midCap = parseInt(parsedUrl.searchParams.get('midCap')) || 40;
+          const smallCap = parseInt(parsedUrl.searchParams.get('smallCap')) || 30;
+          const topN = parseInt(parsedUrl.searchParams.get('topN')) || 3;
+
+          const engine = new StockScoringEngine();
+          const recommendations = engine.generateRecommendations(amount, {
+            largeCap,
+            midCap,
+            smallCap
+          }, topN);
+
+          res.end(JSON.stringify(recommendations, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            error: 'Failed to generate recommendations',
+            message: error.message 
+          }));
+        }
+      } else if (url.startsWith('/top-stocks')) {
+        // Top stocks by category endpoint
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        try {
+          const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+          const category = parsedUrl.searchParams.get('category') || 'all';
+          const limit = parseInt(parsedUrl.searchParams.get('limit')) || 10;
+
+          const engine = new StockScoringEngine();
+          const topStocks = engine.getTopStocks(category, limit);
+
+          res.end(JSON.stringify({
+            category,
+            limit,
+            stocks: topStocks
+          }, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            error: 'Failed to get top stocks',
+            message: error.message 
+          }));
+        }
+      } else if (url === '/scoring-info') {
+        // Scoring methodology information
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          methodology: 'Weighted scoring model based on financial metrics',
+          weights: {
+            peRatio: '15% (lower is better)',
+            roe: '20% (higher is better)',
+            roce: '20% (higher is better)',
+            debtToEquity: '10% (lower is better)',
+            revenueGrowth: '15% (higher is better)',
+            profitMargins: '20% (higher is better)'
+          },
+          categories: {
+            largeCap: 'Market Cap > ₹20,000 crores',
+            midCap: 'Market Cap ₹5,000 - ₹20,000 crores',
+            smallCap: 'Market Cap < ₹5,000 crores'
+          },
+          endpoints: {
+            '/recommend': 'Get portfolio recommendations',
+            '/top-stocks': 'Get top performing stocks by category',
+            '/scoring-info': 'Get scoring methodology information'
+          }
+        }, null, 2));
       } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
