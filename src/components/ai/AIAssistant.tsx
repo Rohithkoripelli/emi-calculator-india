@@ -505,6 +505,54 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
     try {
       console.log(`💼 Generating investment recommendation for query: "${query}"`);
       
+      // Check if this is a market cap allocation query
+      const { StockRecommendationService } = await import('../../services/stockRecommendationService');
+      if (StockRecommendationService.isMarketCapAllocationQuery(query)) {
+        console.log('🎯 Detected market cap allocation query, using Railway API');
+        
+        // Use the new Railway-based stock recommendation service
+        setStreamingMessageId(aiMessageId);
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId 
+            ? { 
+                ...msg, 
+                text: `🎯 Analyzing your portfolio allocation request...\n\n⏳ Processing market cap allocation strategy\n⏳ Connecting to stock scoring engine\n⏳ Analyzing 1800+ stocks with AI-powered metrics\n⏳ Generating optimal recommendations`, 
+                isStreaming: true,
+                isComplete: false
+              }
+            : msg
+        ));
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        try {
+          const recommendation = await StockRecommendationService.generateMarketCapRecommendation(query, amount);
+          
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { 
+                  ...msg, 
+                  text: recommendation, 
+                  isStreaming: false, 
+                  isComplete: true,
+                  investmentData: {
+                    query,
+                    amount: amount || StockRecommendationService.extractAmount(query) || 10000,
+                    recommendation
+                  }
+                }
+              : msg
+          ));
+          
+          setStreamingMessageId(null);
+          return;
+        } catch (error) {
+          console.error('❌ Railway API failed, falling back to default service:', error);
+          // Continue with default flow below
+        }
+      }
+      
       // First, check if this is a generic investment query that should trigger questionnaire
       const { detectGenericInvestmentQuery } = await import('../../utils/investmentQuestionDetector');
       const genericCheck = detectGenericInvestmentQuery(query);
