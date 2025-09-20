@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "node-cron": "^3.0.3",
-    "mongodb": "^6.0.0",
     "cheerio": "^1.1.2"
   },
   "engines": {

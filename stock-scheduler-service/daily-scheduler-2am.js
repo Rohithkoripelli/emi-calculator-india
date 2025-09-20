@@ -5,11 +5,7 @@
  */
 
 const cron = require('node-cron');
-const { MongoClient } = require('mongodb');
 const http = require('http');
-
-const ATLAS_URI = 'mongodb+srv://reddyrohith705:jehu5yDOINJIMNoI@cluster0.hgipoar.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const DB_NAME = 'intelligent_portfolio';
 
 class DailyStockScheduler {
   constructor() {
@@ -28,11 +24,11 @@ class DailyStockScheduler {
     console.log('🚀 Starting scheduled incremental update at', new Date().toISOString());
 
     try {
-      // Run incremental updates that preserve existing documents
+      // Run Railway-compatible data fetcher (no MongoDB dependency issues)
       const { exec } = require('child_process');
       
       await new Promise((resolve, reject) => {
-        exec('node real-data-fetcher-2600.js', (error, stdout, stderr) => {
+        exec('node railway-data-fetcher.js', (error, stdout, stderr) => {
           if (error) {
             console.error('❌ Scheduled real data update failed:', error);
             reject(error);
@@ -44,41 +40,16 @@ class DailyStockScheduler {
         });
       });
 
-      // Log successful update
-      const client = new MongoClient(ATLAS_URI);
-      await client.connect();
-      const db = client.db(DB_NAME);
-      
-      await db.collection('update_logs').insertOne({
-        type: 'SCHEDULED_DAILY_UPDATE',
-        timestamp: new Date(),
-        status: 'SUCCESS',
-        nextScheduled: this.getNextScheduledTime()
-      });
-
-      await client.close();
+      // Log successful update (simplified for Railway compatibility)
+      console.log('✅ Data fetch completed successfully');
+      console.log(`📅 Next scheduled update: ${this.getNextScheduledTime().toISOString()}`);
       
     } catch (error) {
       console.error('💥 Scheduled update failed:', error);
       
-      // Log failed update
-      try {
-        const client = new MongoClient(ATLAS_URI);
-        await client.connect();
-        const db = client.db(DB_NAME);
-        
-        await db.collection('update_logs').insertOne({
-          type: 'SCHEDULED_DAILY_UPDATE',
-          timestamp: new Date(),
-          status: 'FAILED',
-          error: error.message,
-          nextScheduled: this.getNextScheduledTime()
-        });
-
-        await client.close();
-      } catch (logError) {
-        console.error('Failed to log error:', logError);
-      }
+      // Log failed update (simplified for Railway compatibility)
+      console.error(`💥 Update failed at ${new Date().toISOString()}`);
+      console.error(`📅 Next retry scheduled: ${this.getNextScheduledTime().toISOString()}`);
     } finally {
       this.isRunning = false;
     }
