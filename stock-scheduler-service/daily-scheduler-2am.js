@@ -24,21 +24,17 @@ class DailyStockScheduler {
     console.log('🚀 Starting scheduled incremental update at', new Date().toISOString());
 
     try {
-      // Run Railway-compatible data fetcher (no MongoDB dependency issues)
-      const { exec } = require('child_process');
+      // Run robust resumable data collector
+      const RobustDataCollector = require('./robust-data-collector');
+      const collector = new RobustDataCollector();
       
-      await new Promise((resolve, reject) => {
-        exec('node railway-data-fetcher.js', (error, stdout, stderr) => {
-          if (error) {
-            console.error('❌ Scheduled real data update failed:', error);
-            reject(error);
-          } else {
-            console.log('✅ Scheduled real data update completed successfully');
-            console.log(stdout);
-            resolve();
-          }
-        });
-      });
+      console.log('🚀 Starting robust data collection...');
+      const results = await collector.processAllStocks();
+      console.log(`✅ Data collection completed: ${results.length} stocks processed`);
+      
+      // Also update the old format for compatibility
+      const fs = require('fs');
+      fs.writeFileSync('/tmp/stock_data.json', JSON.stringify(results, null, 2));
 
       // Log successful update (simplified for Railway compatibility)
       console.log('✅ Data fetch completed successfully');
@@ -88,16 +84,34 @@ class DailyStockScheduler {
         res.end('OK');
       } else if (url === '/trigger') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Triggering immediate update...' }));
+        res.end(JSON.stringify({ message: 'Triggering robust data collection...' }));
         this.runImmediateUpdate();
+      } else if (url === '/collect') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Starting robust data collection in background...' }));
+        
+        // Run robust collector in background
+        const RobustDataCollector = require('./robust-data-collector');
+        const collector = new RobustDataCollector();
+        
+        // Don't wait for completion, run in background
+        collector.processAllStocks().catch(error => {
+          console.error('❌ Background collection failed:', error);
+        });
       } else if (url === '/status') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const fs = require('fs');
         try {
-          const dataExists = fs.existsSync('/tmp/stock_data.json');
-          let dataInfo = { exists: dataExists };
-          
-          if (dataExists) {
+          // Check robust collector progress
+          let progressInfo = { exists: false };
+          if (fs.existsSync('/tmp/collection_progress.json')) {
+            progressInfo = JSON.parse(fs.readFileSync('/tmp/collection_progress.json', 'utf8'));
+            progressInfo.exists = true;
+          }
+
+          // Check data file
+          let dataInfo = { exists: false };
+          if (fs.existsSync('/tmp/stock_data.json')) {
             const stats = fs.statSync('/tmp/stock_data.json');
             const data = fs.readFileSync('/tmp/stock_data.json', 'utf8');
             const jsonData = JSON.parse(data);
@@ -108,14 +122,17 @@ class DailyStockScheduler {
               lastModified: stats.mtime,
               stockCount: jsonData.length,
               sampleStock: jsonData[0] || null,
-              fieldsPerStock: jsonData[0] ? Object.keys(jsonData[0]).length : 0
+              fieldsPerStock: jsonData[0] ? Object.keys(jsonData[0]).length : 0,
+              recentStocks: jsonData.slice(-3).map(s => ({ symbol: s.symbol, timestamp: s.timestamp }))
             };
           }
           
           res.end(JSON.stringify({
             isRunning: this.isRunning,
+            progress: progressInfo,
             dataCollection: dataInfo,
-            lastUpdate: new Date().toISOString()
+            lastUpdate: new Date().toISOString(),
+            nextScheduledUpdate: this.getNextScheduledTime().toISOString()
           }, null, 2));
         } catch (error) {
           res.end(JSON.stringify({ 
