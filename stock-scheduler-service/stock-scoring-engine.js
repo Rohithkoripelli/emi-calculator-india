@@ -8,8 +8,9 @@ const fs = require('fs');
 
 class StockScoringEngine {
   constructor() {
-    this.dataFile = '/tmp/stock_data.json';
+    this.dataFile = '/tmp/stock_data.json'; // Fallback for compatibility
     this.stocks = [];
+    this.mongoService = require('./mongodb-service') ? new (require('./mongodb-service'))() : null;
     this.marketCapCategories = {
       LARGE_CAP: 20000, // > 20,000 crores
       MID_CAP: 5000     // 5,000 - 20,000 crores
@@ -29,21 +30,51 @@ class StockScoringEngine {
     console.log('🎯 Stock Scoring Engine initialized');
     console.log('📊 Scoring weights configured');
     console.log('🏷️ Market cap categories: Large (>20k Cr), Mid (5k-20k Cr), Small (<5k Cr)');
+    console.log('💾 MongoDB integration:', this.mongoService ? 'enabled' : 'disabled (fallback to files)');
   }
 
-  // Load stock data from Yahoo Finance collection
-  loadStockData() {
+  // Load stock data from MongoDB or fallback to file
+  async loadStockData() {
     try {
+      // Try MongoDB first
+      if (this.mongoService) {
+        console.log('📊 Loading stock data from MongoDB...');
+        const mongoResult = await this.mongoService.getStockData();
+        if (mongoResult.success && mongoResult.data.length > 0) {
+          this.stocks = mongoResult.data;
+          console.log(`✅ Loaded ${this.stocks.length} stocks from MongoDB`);
+          return this.stocks;
+        } else {
+          console.log('⚠️ MongoDB data unavailable, falling back to file...');
+        }
+      }
+      
+      // Fallback to file-based data
       if (!fs.existsSync(this.dataFile)) {
-        throw new Error('Stock data file not found. Run data collection first.');
+        throw new Error('Stock data not found in MongoDB or file. Run data collection first.');
       }
       
       this.stocks = JSON.parse(fs.readFileSync(this.dataFile, 'utf8'));
-      console.log(`📊 Loaded ${this.stocks.length} stocks for analysis`);
+      console.log(`📊 Loaded ${this.stocks.length} stocks from file (fallback)`);
       return this.stocks;
     } catch (error) {
       console.error('❌ Error loading stock data:', error.message);
       throw error;
+    }
+  }
+
+  // Get market cap category for a single stock
+  getMarketCapCategory(marketCapCrores) {
+    if (!marketCapCrores || marketCapCrores <= 0) {
+      return 'other';
+    }
+
+    if (marketCapCrores > this.marketCapCategories.LARGE_CAP) {
+      return 'large-cap';
+    } else if (marketCapCrores > this.marketCapCategories.MID_CAP) {
+      return 'mid-cap';
+    } else {
+      return 'small-cap';
     }
   }
 
@@ -123,8 +154,112 @@ class StockScoringEngine {
     return Math.max(0, Math.min(1, score));
   }
 
-  // Calculate comprehensive stock score
-  calculateStockScore(stock, normalization) {
+  // Calculate simplified individual stock score (without normalization)
+  calculateStockScore(stock) {
+    let totalScore = 0;
+    let totalWeight = 0;
+    let metricCount = 0;
+
+    // PE Ratio scoring (lower is better) - use heuristic ranges
+    if (stock.peRatio && stock.peRatio > 0) {
+      let peScore = 0;
+      if (stock.peRatio <= 15) peScore = 1.0;          // Excellent
+      else if (stock.peRatio <= 20) peScore = 0.8;     // Very Good
+      else if (stock.peRatio <= 25) peScore = 0.6;     // Good
+      else if (stock.peRatio <= 35) peScore = 0.4;     // Fair
+      else if (stock.peRatio <= 50) peScore = 0.2;     // Poor
+      else peScore = 0.1;                              // Very Poor
+      
+      totalScore += peScore * this.scoringWeights.peRatio;
+      totalWeight += this.scoringWeights.peRatio;
+      metricCount++;
+    }
+
+    // ROE scoring (higher is better) - use alternative if not available
+    let roeValue = stock.roe || stock.returnOnEquity;
+    if (roeValue && roeValue > 0) {
+      let roeScore = 0;
+      if (roeValue >= 25) roeScore = 1.0;              // Excellent
+      else if (roeValue >= 20) roeScore = 0.8;         // Very Good
+      else if (roeValue >= 15) roeScore = 0.6;         // Good
+      else if (roeValue >= 10) roeScore = 0.4;         // Fair
+      else if (roeValue >= 5) roeScore = 0.2;          // Poor
+      else roeScore = 0.1;                             // Very Poor
+      
+      totalScore += roeScore * this.scoringWeights.roe;
+      totalWeight += this.scoringWeights.roe;
+      metricCount++;
+    }
+
+    // ROCE scoring (higher is better) - use alternative if not available
+    let roceValue = stock.roce || stock.returnOnCapitalEmployed;
+    if (roceValue && roceValue > 0) {
+      let roceScore = 0;
+      if (roceValue >= 25) roceScore = 1.0;            // Excellent
+      else if (roceValue >= 20) roceScore = 0.8;       // Very Good
+      else if (roceValue >= 15) roceScore = 0.6;       // Good
+      else if (roceValue >= 10) roceScore = 0.4;       // Fair
+      else if (roceValue >= 5) roceScore = 0.2;        // Poor
+      else roceScore = 0.1;                            // Very Poor
+      
+      totalScore += roceScore * this.scoringWeights.roce;
+      totalWeight += this.scoringWeights.roce;
+      metricCount++;
+    }
+
+    // Debt to Equity scoring (lower is better)
+    if (stock.debtToEquity && stock.debtToEquity >= 0) {
+      let deScore = 0;
+      if (stock.debtToEquity <= 0.3) deScore = 1.0;    // Excellent
+      else if (stock.debtToEquity <= 0.5) deScore = 0.8; // Very Good
+      else if (stock.debtToEquity <= 1.0) deScore = 0.6; // Good
+      else if (stock.debtToEquity <= 2.0) deScore = 0.4; // Fair
+      else if (stock.debtToEquity <= 3.0) deScore = 0.2; // Poor
+      else deScore = 0.1;                               // Very Poor
+      
+      totalScore += deScore * this.scoringWeights.debtToEquity;
+      totalWeight += this.scoringWeights.debtToEquity;
+      metricCount++;
+    }
+
+    // Revenue Growth scoring (higher is better)
+    if (stock.revenueGrowth && !isNaN(stock.revenueGrowth)) {
+      let rgScore = 0;
+      if (stock.revenueGrowth >= 0.3) rgScore = 1.0;    // Excellent (>30%)
+      else if (stock.revenueGrowth >= 0.2) rgScore = 0.8; // Very Good (20-30%)
+      else if (stock.revenueGrowth >= 0.1) rgScore = 0.6; // Good (10-20%)
+      else if (stock.revenueGrowth >= 0.05) rgScore = 0.4; // Fair (5-10%)
+      else if (stock.revenueGrowth >= 0) rgScore = 0.2;   // Poor (0-5%)
+      else rgScore = 0.1;                                 // Very Poor (negative)
+      
+      totalScore += rgScore * this.scoringWeights.revenueGrowth;
+      totalWeight += this.scoringWeights.revenueGrowth;
+      metricCount++;
+    }
+
+    // Profit Margins scoring (higher is better)
+    if (stock.profitMargins && !isNaN(stock.profitMargins)) {
+      let pmScore = 0;
+      if (stock.profitMargins >= 0.25) pmScore = 1.0;   // Excellent (>25%)
+      else if (stock.profitMargins >= 0.2) pmScore = 0.8; // Very Good (20-25%)
+      else if (stock.profitMargins >= 0.15) pmScore = 0.6; // Good (15-20%)
+      else if (stock.profitMargins >= 0.1) pmScore = 0.4; // Fair (10-15%)
+      else if (stock.profitMargins >= 0.05) pmScore = 0.2; // Poor (5-10%)
+      else pmScore = 0.1;                                 // Very Poor (<5%)
+      
+      totalScore += pmScore * this.scoringWeights.profitMargins;
+      totalWeight += this.scoringWeights.profitMargins;
+      metricCount++;
+    }
+
+    // Calculate final score (0-100 scale)
+    const finalScore = totalWeight > 0 ? (totalScore / totalWeight) * 100 : 0;
+    
+    return Math.round(finalScore * 100) / 100; // Round to 2 decimal places
+  }
+
+  // Calculate comprehensive stock score with normalization (for bulk analysis)
+  calculateStockScoreWithNormalization(stock, normalization) {
     let totalScore = 0;
     let totalWeight = 0;
 
@@ -190,8 +325,8 @@ class StockScoringEngine {
   }
 
   // Score all stocks and categorize them
-  scoreAllStocks() {
-    const stocks = this.loadStockData();
+  async scoreAllStocks() {
+    const stocks = await this.loadStockData();
     
     // Filter stocks with valid data
     const validStocks = stocks.filter(stock => 
@@ -209,7 +344,7 @@ class StockScoringEngine {
 
     // Calculate scores for all stocks
     const scoredStocks = validStocks.map(stock => {
-      const scoring = this.calculateStockScore(stock, normalization);
+      const scoring = this.calculateStockScoreWithNormalization(stock, normalization);
       return {
         ...stock,
         stockScore: scoring.score,
@@ -235,8 +370,8 @@ class StockScoringEngine {
   }
 
   // Generate portfolio recommendations
-  generateRecommendations(amount, allocation, topN = 3) {
-    const categories = this.scoreAllStocks();
+  async generateRecommendations(amount, allocation, topN = 3) {
+    const categories = await this.scoreAllStocks();
     
     const recommendations = {
       totalAmount: amount,
@@ -303,8 +438,8 @@ class StockScoringEngine {
   }
 
   // Get top performing stocks by category
-  getTopStocks(category = 'all', limit = 10) {
-    const categories = this.scoreAllStocks();
+  async getTopStocks(category = 'all', limit = 10) {
+    const categories = await this.scoreAllStocks();
     
     let stocks = [];
     if (category === 'large' || category === 'largeCap') {
@@ -338,47 +473,51 @@ module.exports = StockScoringEngine;
 if (require.main === module) {
   const engine = new StockScoringEngine();
   
-  try {
-    // Example usage
-    console.log('\n🎯 STOCK SCORING ENGINE TEST\n');
-    
-    // Get top stocks by category
-    console.log('📈 Top 5 Large Cap Stocks:');
-    const topLarge = engine.getTopStocks('large', 5);
-    topLarge.forEach((stock, i) => {
-      console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
-    });
-    
-    console.log('\n📊 Top 5 Mid Cap Stocks:');
-    const topMid = engine.getTopStocks('mid', 5);
-    topMid.forEach((stock, i) => {
-      console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
-    });
-    
-    console.log('\n📉 Top 5 Small Cap Stocks:');
-    const topSmall = engine.getTopStocks('small', 5);
-    topSmall.forEach((stock, i) => {
-      console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
-    });
-    
-    // Example portfolio recommendation
-    console.log('\n💼 PORTFOLIO RECOMMENDATION EXAMPLE\n');
-    const recommendations = engine.generateRecommendations(10000, {
-      largeCap: 30,
-      midCap: 40, 
-      smallCap: 30
-    });
-    
-    console.log('Portfolio Allocation for ₹10,000:');
-    console.log(`Large Cap (30%): ₹${recommendations.summary.largeCapAmount}`);
-    console.log(`Mid Cap (40%): ₹${recommendations.summary.midCapAmount}`);
-    console.log(`Small Cap (30%): ₹${recommendations.summary.smallCapAmount}`);
-    
-    console.log('\nRecommended Stocks:');
-    console.log(JSON.stringify(recommendations, null, 2));
-    
-  } catch (error) {
-    console.error('❌ Error running scoring engine:', error.message);
-    process.exit(1);
+  async function runTest() {
+    try {
+      // Example usage
+      console.log('\n🎯 STOCK SCORING ENGINE TEST (MongoDB Integration)\n');
+      
+      // Get top stocks by category
+      console.log('📈 Top 5 Large Cap Stocks:');
+      const topLarge = await engine.getTopStocks('large', 5);
+      topLarge.forEach((stock, i) => {
+        console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
+      });
+      
+      console.log('\n📊 Top 5 Mid Cap Stocks:');
+      const topMid = await engine.getTopStocks('mid', 5);
+      topMid.forEach((stock, i) => {
+        console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
+      });
+      
+      console.log('\n📉 Top 5 Small Cap Stocks:');
+      const topSmall = await engine.getTopStocks('small', 5);
+      topSmall.forEach((stock, i) => {
+        console.log(`${i+1}. ${stock.symbol} - Score: ${stock.stockScore} - Price: ₹${stock.currentPrice}`);
+      });
+      
+      // Example portfolio recommendation
+      console.log('\n💼 PORTFOLIO RECOMMENDATION EXAMPLE (MongoDB Data)\n');
+      const recommendations = await engine.generateRecommendations(10000, {
+        largeCap: 30,
+        midCap: 40, 
+        smallCap: 30
+      });
+      
+      console.log('Portfolio Allocation for ₹10,000:');
+      console.log(`Large Cap (30%): ₹${recommendations.summary.largeCapAmount}`);
+      console.log(`Mid Cap (40%): ₹${recommendations.summary.midCapAmount}`);
+      console.log(`Small Cap (30%): ₹${recommendations.summary.smallCapAmount}`);
+      
+      console.log('\nRecommended Stocks:');
+      console.log(JSON.stringify(recommendations, null, 2));
+      
+    } catch (error) {
+      console.error('❌ Error running scoring engine:', error.message);
+      process.exit(1);
+    }
   }
+  
+  runTest();
 }

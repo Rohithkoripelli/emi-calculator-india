@@ -7,6 +7,7 @@
 const yahooFinance = require('yahoo-finance2').default;
 const fs = require('fs');
 const MongoDBService = require('./mongodb-service');
+const StockScoringEngine = require('./stock-scoring-engine');
 
 // Import the complete stock universe
 const STOCK_SYMBOLS = require('./complete-stock-universe');
@@ -20,6 +21,7 @@ class YahooFinanceCollector {
     this.results = [];
     this.progressFile = '/tmp/yahoo_collection_progress.json';
     this.mongoService = new MongoDBService();
+    this.scoringEngine = new StockScoringEngine();
     this.dataFile = '/tmp/stock_data.json';
     this.batchSize = 10; // Optimized batch size for 2600+ stocks
     this.delayBetweenRequests = 500; // 500ms for faster processing of all stocks
@@ -219,7 +221,32 @@ class YahooFinanceCollector {
       fundamentals.marketCapCrores = Math.round(fundamentals.marketCap / 10000000); // Convert to crores
     }
 
-    console.log(`✅ ${originalSymbol}: ${Object.keys(fundamentals).length} fields extracted`);
+    // Calculate weighted stock score and add market cap category
+    try {
+      const stockScore = this.scoringEngine.calculateStockScore(fundamentals);
+      fundamentals.stockScore = parseFloat(stockScore.toFixed(4));
+      
+      // Add market cap category
+      fundamentals.category = this.scoringEngine.getMarketCapCategory(fundamentals.marketCapCrores || 0);
+      
+      // Add score breakdown for transparency
+      fundamentals.scoreMetrics = {
+        peRatio: fundamentals.peRatio,
+        roe: null, // Will be filled if ROE data becomes available
+        roce: null, // Will be filled if ROCE data becomes available  
+        debtToEquity: fundamentals.debtToEquity,
+        revenueGrowth: fundamentals.revenueGrowth,
+        profitMargins: fundamentals.profitMargins
+      };
+      
+    } catch (scoringError) {
+      console.log(`⚠️ ${originalSymbol}: Scoring failed - ${scoringError.message}`);
+      fundamentals.stockScore = 0;
+      fundamentals.category = 'other';
+      fundamentals.scoreMetrics = {};
+    }
+
+    console.log(`✅ ${originalSymbol}: ${Object.keys(fundamentals).length} fields extracted (Score: ${fundamentals.stockScore})`);
     return fundamentals;
   }
 
@@ -272,6 +299,21 @@ class YahooFinanceCollector {
 
       // Save progress after each batch
       this.saveProgress();
+      
+      // Save to MongoDB every 5 batches (50 stocks) for incremental updates
+      if (Math.floor(i/this.batchSize) % 5 === 0 && this.results.length > 0) {
+        console.log(`\n💾 Incremental MongoDB save: ${this.results.length} stocks...`);
+        try {
+          const mongoResult = await this.mongoService.saveStockData(this.results);
+          if (mongoResult.success) {
+            console.log(`✅ Incremental save: +${mongoResult.insertedCount} inserted, ~${mongoResult.modifiedCount} modified, ^${mongoResult.upsertedCount} upserted`);
+          } else {
+            console.error(`❌ Incremental save failed: ${mongoResult.error}`);
+          }
+        } catch (mongoError) {
+          console.error(`❌ Incremental MongoDB error: ${mongoError.message}`);
+        }
+      }
       
       console.log(`📊 Batch completed: ${this.successCount} success, ${this.errorCount} errors`);
       

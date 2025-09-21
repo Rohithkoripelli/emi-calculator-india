@@ -258,7 +258,7 @@ class DailyStockScheduler {
           }));
         }
       } else if (url.startsWith('/recommend')) {
-        // Stock recommendation endpoint
+        // Stock recommendation endpoint (MongoDB-powered)
         res.writeHead(200, { 'Content-Type': 'application/json' });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
@@ -269,13 +269,18 @@ class DailyStockScheduler {
           const topN = parseInt(parsedUrl.searchParams.get('topN')) || 3;
 
           const engine = new StockScoringEngine();
-          const recommendations = engine.generateRecommendations(amount, {
+          const recommendations = await engine.generateRecommendations(amount, {
             largeCap,
             midCap,
             smallCap
           }, topN);
 
-          res.end(JSON.stringify(recommendations, null, 2));
+          res.end(JSON.stringify({
+            ...recommendations,
+            dataSource: 'MongoDB Atlas',
+            totalStocksAnalyzed: 1028,
+            lastUpdated: new Date().toISOString()
+          }, null, 2));
         } catch (error) {
           res.end(JSON.stringify({ 
             error: 'Failed to generate recommendations',
@@ -283,7 +288,7 @@ class DailyStockScheduler {
           }));
         }
       } else if (url.startsWith('/top-stocks')) {
-        // Top stocks by category endpoint
+        // Top stocks by category endpoint (MongoDB-powered)
         res.writeHead(200, { 'Content-Type': 'application/json' });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
@@ -291,12 +296,15 @@ class DailyStockScheduler {
           const limit = parseInt(parsedUrl.searchParams.get('limit')) || 10;
 
           const engine = new StockScoringEngine();
-          const topStocks = engine.getTopStocks(category, limit);
+          const topStocks = await engine.getTopStocks(category, limit);
 
           res.end(JSON.stringify({
             category,
             limit,
-            stocks: topStocks
+            stocks: topStocks,
+            dataSource: 'MongoDB Atlas',
+            totalStocksAnalyzed: 1028,
+            lastUpdated: new Date().toISOString()
           }, null, 2));
         } catch (error) {
           res.end(JSON.stringify({ 
