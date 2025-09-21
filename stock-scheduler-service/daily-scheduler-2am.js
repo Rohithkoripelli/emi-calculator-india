@@ -12,8 +12,14 @@ const StockScoringEngine = require('./stock-scoring-engine');
 class DailyStockScheduler {
   constructor() {
     this.isRunning = false;
+    this.lastSuccessfulUpdate = null;
+    this.lastUpdateAttempt = null;
+    this.updateCount = 0;
+    this.errorCount = 0;
+    this.startupTime = new Date();
     console.log('🕐 Daily Stock Scheduler initialized');
     console.log('⏰ Scheduled for 2:00 AM IST daily');
+    console.log(`🚀 Scheduler startup time: ${this.startupTime.toISOString()}`);
   }
 
   async runStockUpdate() {
@@ -23,33 +29,62 @@ class DailyStockScheduler {
     }
 
     this.isRunning = true;
+    this.lastUpdateAttempt = new Date();
+    this.updateCount++;
     console.log('🚀 Starting scheduled incremental update at', new Date().toISOString());
+    console.log(`📊 Update attempt #${this.updateCount}`);
 
     try {
       // Run Yahoo Finance data collector - MUCH more reliable!
       const YahooFinanceCollector = require('./yahoo-finance-collector');
       const collector = new YahooFinanceCollector();
       
-      console.log('🚀 Starting Yahoo Finance data collection...');
+      console.log('🚀 Starting scheduled Yahoo Finance data collection...');
+      console.log(`⏰ Scheduled update triggered at: ${new Date().toISOString()}`);
+      
       const results = await collector.processAllStocks();
       console.log(`✅ Yahoo Finance collection completed: ${results.length} stocks processed`);
       
       // Also update the old format for compatibility
       const fs = require('fs');
       fs.writeFileSync('/tmp/stock_data.json', JSON.stringify(results, null, 2));
+      
+      // Verify the file was written
+      if (fs.existsSync('/tmp/stock_data.json')) {
+        const stats = fs.statSync('/tmp/stock_data.json');
+        console.log(`✅ Stock data file written: ${stats.size} bytes, ${results.length} stocks`);
+        
+        // Mark successful update
+        this.lastSuccessfulUpdate = new Date();
+        console.log(`🎯 Update marked as successful at: ${this.lastSuccessfulUpdate.toISOString()}`);
+      } else {
+        console.error('❌ Failed to write stock data file to /tmp/stock_data.json');
+        this.errorCount++;
+        throw new Error('Stock data file write operation failed');
+      }
 
-      // Log successful update (simplified for Railway compatibility)
-      console.log('✅ Data fetch completed successfully');
+      // Log successful update with more details
+      console.log('✅ Scheduled data fetch completed successfully');
+      console.log(`📊 Total stocks processed: ${results.length}`);
+      console.log(`📈 Successful updates: ${this.updateCount - this.errorCount}/${this.updateCount}`);
       console.log(`📅 Next scheduled update: ${this.getNextScheduledTime().toISOString()}`);
+      console.log(`🕐 Update completed at: ${new Date().toISOString()}`);
       
     } catch (error) {
+      this.errorCount++;
       console.error('💥 Scheduled update failed:', error);
+      console.error('💥 Error details:', error.stack);
       
-      // Log failed update (simplified for Railway compatibility)
+      // Log failed update with more context
       console.error(`💥 Update failed at ${new Date().toISOString()}`);
+      console.error(`💥 Error type: ${error.name}`);
+      console.error(`💥 Error message: ${error.message}`);
+      console.error(`💥 Update attempt #${this.updateCount}, Error #${this.errorCount}`);
+      console.error(`📈 Success rate: ${((this.updateCount - this.errorCount) / this.updateCount * 100).toFixed(1)}%`);
       console.error(`📅 Next retry scheduled: ${this.getNextScheduledTime().toISOString()}`);
     } finally {
       this.isRunning = false;
+      console.log(`🔄 Scheduler state reset, isRunning: ${this.isRunning}`);
     }
   }
 
@@ -65,8 +100,41 @@ class DailyStockScheduler {
     return next;
   }
 
-  start() {
+  async checkAndUpdateDataOnStartup() {
+    const fs = require('fs');
+    
+    console.log('🔍 Checking for existing stock data on startup...');
+    
+    try {
+      if (fs.existsSync('/tmp/stock_data.json')) {
+        const stats = fs.statSync('/tmp/stock_data.json');
+        const ageHours = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
+        
+        console.log(`📊 Found existing data file: ${stats.size} bytes, ${ageHours.toFixed(1)} hours old`);
+        
+        // If data is older than 12 hours, refresh it
+        if (ageHours > 12) {
+          console.log('⚠️ Data is stale (>12 hours old), triggering immediate update...');
+          await this.runStockUpdate();
+        } else {
+          console.log('✅ Data is fresh, using existing data');
+        }
+      } else {
+        console.log('❌ No stock data found, triggering immediate update...');
+        await this.runStockUpdate();
+      }
+    } catch (error) {
+      console.error('⚠️ Error checking startup data:', error.message);
+      console.log('🔄 Triggering immediate update as fallback...');
+      await this.runStockUpdate();
+    }
+  }
+
+  async start() {
     console.log('🎯 Starting Daily Stock Scheduler...');
+    
+    // Check if we have recent data, if not, trigger immediate update
+    await this.checkAndUpdateDataOnStartup();
     
     // Create HTTP server to prevent Railway from sleeping
     const server = http.createServer((req, res) => {
@@ -82,8 +150,39 @@ class DailyStockScheduler {
           currentTime: new Date().toISOString()
         }));
       } else if (url === '/health') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('OK');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const fs = require('fs');
+        
+        let healthStatus = {
+          status: 'OK',
+          timestamp: new Date().toISOString(),
+          scheduler: {
+            running: !this.isRunning,
+            startupTime: this.startupTime,
+            nextUpdate: this.getNextScheduledTime().toISOString()
+          }
+        };
+        
+        // Check data freshness
+        if (fs.existsSync('/tmp/stock_data.json')) {
+          const stats = fs.statSync('/tmp/stock_data.json');
+          const ageHours = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
+          healthStatus.dataHealth = {
+            exists: true,
+            lastModified: stats.mtime,
+            ageHours: ageHours.toFixed(1),
+            isStale: ageHours > 24,
+            size: stats.size
+          };
+        } else {
+          healthStatus.dataHealth = {
+            exists: false,
+            isStale: true
+          };
+          healthStatus.status = 'WARNING';
+        }
+        
+        res.end(JSON.stringify(healthStatus, null, 2));
       } else if (url === '/trigger') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: 'Triggering robust data collection...' }));
@@ -139,7 +238,15 @@ class DailyStockScheduler {
             progress: progressInfo,
             dataCollection: dataInfo,
             lastUpdate: new Date().toISOString(),
-            nextScheduledUpdate: this.getNextScheduledTime().toISOString()
+            nextScheduledUpdate: this.getNextScheduledTime().toISOString(),
+            schedulerStats: {
+              startupTime: this.startupTime,
+              lastSuccessfulUpdate: this.lastSuccessfulUpdate,
+              lastUpdateAttempt: this.lastUpdateAttempt,
+              updateCount: this.updateCount,
+              errorCount: this.errorCount,
+              successRate: this.updateCount > 0 ? ((this.updateCount - this.errorCount) / this.updateCount * 100).toFixed(1) + '%' : 'N/A'
+            }
           }, null, 2));
         } catch (error) {
           res.end(JSON.stringify({ 
@@ -234,8 +341,15 @@ class DailyStockScheduler {
     // Cron format: minute hour day month weekday
     const cronExpression = '0 2 * * *'; // Every day at 2:00 AM
     
+    console.log(`🕐 Setting up cron job with expression: ${cronExpression}`);
+    console.log(`🌏 Using timezone: Asia/Kolkata (IST)`);
+    console.log(`⏰ Current IST time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    
     cron.schedule(cronExpression, async () => {
-      console.log('⏰ 2 AM IST - Triggering scheduled stock update...');
+      const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      console.log('⏰ CRON TRIGGERED - 2 AM IST - Starting scheduled stock update...');
+      console.log(`🕐 Trigger time (IST): ${istTime}`);
+      console.log(`🕐 Trigger time (UTC): ${new Date().toISOString()}`);
       await this.runStockUpdate();
     }, {
       scheduled: true,
