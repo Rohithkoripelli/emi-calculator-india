@@ -500,7 +500,8 @@ export class IntelligentInvestmentDetector {
     }
     
     // High confidence investment queries should use Railway API
-    if (confidence >= 80 && (intentType === 'PORTFOLIO_RECOMMENDATION' || intentType === 'MARKET_RESEARCH')) {
+    if (confidence >= 80 && (intentType === 'PORTFOLIO_RECOMMENDATION' || intentType === 'MARKET_RESEARCH' || 
+                             intentType === 'STOCK_ANALYSIS' || intentType === 'GENERAL_ADVICE')) {
       return 'RAILWAY_API';
     }
     
