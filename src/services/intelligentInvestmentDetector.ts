@@ -40,10 +40,11 @@ const INVESTMENT_INTENT_PATTERNS = {
     /(?:what|which|where)\s+(?:stocks?|shares?|companies?)\s+(?:should|to|can)\s+(?:i|we)\s+(?:buy|invest|purchase)/i,
     /(?:best|good|top)\s+(?:stocks?|shares?|investment|companies?)\s+(?:to|for)\s+(?:buy|invest)/i,
     
-    // Market cap allocation
+    // Market cap allocation (highest priority)
     /(?:large\s*cap|mid\s*cap|small\s*cap|largecap|midcap|smallcap)/i,
     /(?:allocation|allocate|distribute|split|diversif)/i,
     /(\d+)[\/\-\s]+(\d+)[\/\-\s]+(\d+)/,
+    /30\/40\/30|30.*40.*30|large.*mid.*small.*cap/i,
     
     // Portfolio construction
     /(?:build|create|construct)\s+(?:portfolio|investment)/i,
@@ -151,6 +152,16 @@ export class IntelligentInvestmentDetector {
     // Step 8: Determine if it's an investment query
     const isInvestmentQuery = confidence >= 60 && intentType !== 'OTHER';
     
+    // Debug logging
+    console.log(`🔍 Intent Detection Debug:`, {
+      query: query.substring(0, 100),
+      intentType,
+      confidence,
+      recommendationStrategy,
+      extractedParams,
+      isInvestmentQuery
+    });
+    
     if (isInvestmentQuery) {
       reasoning.push(`High confidence investment query (${confidence}%) - using ${recommendationStrategy} strategy`);
     }
@@ -171,13 +182,13 @@ export class IntelligentInvestmentDetector {
   private static checkPatternMatches(query: string, reasoning: string[]): { confidence: number; intentType: InvestmentIntent['intentType'] } {
     let confidence = 0;
     let intentType: InvestmentIntent['intentType'] = 'OTHER';
+    let matchedPatterns: { type: string; confidence: number }[] = [];
     
-    // Check Portfolio Recommendation patterns
+    // Check Portfolio Recommendation patterns (highest priority for allocation requests)
     for (const pattern of INVESTMENT_INTENT_PATTERNS.PORTFOLIO_RECOMMENDATION) {
       if (pattern.test(query)) {
-        confidence += 25;
-        intentType = 'PORTFOLIO_RECOMMENDATION';
-        reasoning.push(`Matched portfolio recommendation pattern: ${pattern.toString().substring(0, 50)}...`);
+        matchedPatterns.push({ type: 'PORTFOLIO_RECOMMENDATION', confidence: 25 });
+        reasoning.push(`Matched portfolio recommendation pattern`);
         break; // Only count one pattern match per category
       }
     }
@@ -185,8 +196,7 @@ export class IntelligentInvestmentDetector {
     // Check Stock Analysis patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.STOCK_ANALYSIS) {
       if (pattern.test(query)) {
-        confidence += 30;
-        intentType = 'STOCK_ANALYSIS';
+        matchedPatterns.push({ type: 'STOCK_ANALYSIS', confidence: 20 });
         reasoning.push(`Matched specific stock analysis pattern`);
         break;
       }
@@ -195,8 +205,7 @@ export class IntelligentInvestmentDetector {
     // Check Market Research patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.MARKET_RESEARCH) {
       if (pattern.test(query)) {
-        confidence += 20;
-        intentType = 'MARKET_RESEARCH';
+        matchedPatterns.push({ type: 'MARKET_RESEARCH', confidence: 15 });
         reasoning.push(`Matched market research pattern`);
         break;
       }
@@ -205,11 +214,33 @@ export class IntelligentInvestmentDetector {
     // Check General Advice patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.GENERAL_ADVICE) {
       if (pattern.test(query)) {
-        confidence += 15;
-        intentType = 'GENERAL_ADVICE';
+        matchedPatterns.push({ type: 'GENERAL_ADVICE', confidence: 10 });
         reasoning.push(`Matched general investment advice pattern`);
         break;
       }
+    }
+    
+    // Prioritize portfolio recommendation if allocation keywords are present
+    const hasAllocationKeywords = /(?:allocation|allocate|split|diversif|portfolio|30\/40\/30|large.*cap.*mid.*cap.*small.*cap)/i.test(query);
+    if (hasAllocationKeywords) {
+      // Boost portfolio recommendation confidence
+      const portfolioMatch = matchedPatterns.find(m => m.type === 'PORTFOLIO_RECOMMENDATION');
+      if (portfolioMatch) {
+        portfolioMatch.confidence += 20;
+        reasoning.push('Strong allocation keywords detected - prioritizing portfolio recommendation');
+      } else {
+        matchedPatterns.push({ type: 'PORTFOLIO_RECOMMENDATION', confidence: 30 });
+        reasoning.push('Allocation keywords detected - inferring portfolio recommendation intent');
+      }
+    }
+    
+    // Select the highest confidence intent type
+    if (matchedPatterns.length > 0) {
+      const bestMatch = matchedPatterns.reduce((prev, current) => 
+        current.confidence > prev.confidence ? current : prev
+      );
+      intentType = bestMatch.type as InvestmentIntent['intentType'];
+      confidence = bestMatch.confidence;
     }
     
     return { confidence, intentType };
@@ -444,24 +475,42 @@ export class IntelligentInvestmentDetector {
   ): InvestmentIntent['recommendationStrategy'] {
     
     // If specific stocks mentioned, use specific analysis
-    if (intentType === 'STOCK_ANALYSIS' || (params.specificStocks && params.specificStocks.length > 0)) {
+    if (intentType === 'STOCK_ANALYSIS' && params.specificStocks && params.specificStocks.length > 0) {
       return 'SPECIFIC_ANALYSIS';
     }
     
-    // If portfolio recommendation with amount or market cap allocation, use Railway API
-    if (intentType === 'PORTFOLIO_RECOMMENDATION' || intentType === 'MARKET_RESEARCH') {
-      if (params.amount || params.marketCapPreference) {
-        return 'RAILWAY_API';
-      }
+    // PRIORITY: Portfolio recommendation with investment intent -> Railway API
+    if (intentType === 'PORTFOLIO_RECOMMENDATION') {
+      return 'RAILWAY_API';
+    }
+    
+    // Market research queries -> Railway API  
+    if (intentType === 'MARKET_RESEARCH') {
+      return 'RAILWAY_API';
+    }
+    
+    // Investment queries with amount should use Railway API
+    if (params.amount && params.amount > 0) {
+      return 'RAILWAY_API';
+    }
+    
+    // Investment queries with market cap allocation should use Railway API
+    if (params.marketCapPreference) {
+      return 'RAILWAY_API';
+    }
+    
+    // High confidence investment queries should use Railway API
+    if (confidence >= 80 && (intentType === 'PORTFOLIO_RECOMMENDATION' || intentType === 'MARKET_RESEARCH')) {
+      return 'RAILWAY_API';
     }
     
     // If general advice or low confidence, use questionnaire
-    if (intentType === 'GENERAL_ADVICE' || confidence < 75) {
+    if (intentType === 'GENERAL_ADVICE' || confidence < 70) {
       return 'QUESTIONNAIRE';
     }
     
-    // Default to Railway API for investment queries
-    if (confidence >= 75) {
+    // Medium confidence investment queries -> Railway API
+    if (confidence >= 70) {
       return 'RAILWAY_API';
     }
     
