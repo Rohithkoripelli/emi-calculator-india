@@ -157,7 +157,7 @@ class DailyStockScheduler {
           status: 'OK',
           timestamp: new Date().toISOString(),
           scheduler: {
-            running: !this.isRunning,
+            running: this.isRunning,
             startupTime: this.startupTime,
             nextUpdate: this.getNextScheduledTime().toISOString()
           }
