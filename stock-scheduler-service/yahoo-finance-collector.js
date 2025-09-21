@@ -6,6 +6,7 @@
 
 const yahooFinance = require('yahoo-finance2').default;
 const fs = require('fs');
+const MongoDBService = require('./mongodb-service');
 
 // Import the complete stock universe
 const STOCK_SYMBOLS = require('./complete-stock-universe');
@@ -18,6 +19,7 @@ class YahooFinanceCollector {
     this.skippedCount = 0;
     this.results = [];
     this.progressFile = '/tmp/yahoo_collection_progress.json';
+    this.mongoService = new MongoDBService();
     this.dataFile = '/tmp/stock_data.json';
     this.batchSize = 10; // Optimized batch size for 2600+ stocks
     this.delayBetweenRequests = 500; // 500ms for faster processing of all stocks
@@ -287,6 +289,22 @@ class YahooFinanceCollector {
     console.log(`❌ Failed: ${this.errorCount} stocks`);
     console.log(`📁 Total in dataset: ${this.results.length} stocks`);
     console.log(`💾 Data saved to: ${this.dataFile}`);
+    
+    // Save to MongoDB Atlas
+    if (this.results.length > 0) {
+      console.log(`\n📊 Saving ${this.results.length} stocks to MongoDB Atlas...`);
+      try {
+        const mongoResult = await this.mongoService.saveStockData(this.results);
+        if (mongoResult.success) {
+          console.log(`✅ MongoDB save successful: ${mongoResult.totalProcessed} stocks saved`);
+          console.log(`📊 Inserted: ${mongoResult.insertedCount}, Modified: ${mongoResult.modifiedCount}, Upserted: ${mongoResult.upsertedCount}`);
+        } else {
+          console.error(`❌ MongoDB save failed: ${mongoResult.error}`);
+        }
+      } catch (mongoError) {
+        console.error(`❌ MongoDB save error: ${mongoError.message}`);
+      }
+    }
     
     return this.results;
   }

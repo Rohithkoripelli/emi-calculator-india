@@ -9,6 +9,7 @@
     "populate-real-data": "node real-data-fetcher-2600.js"
   },
   "dependencies": {
+    "mongodb": "^6.20.0",
     "node-cron": "^3.0.3",
     "yahoo-finance2": "^2.13.3"
   },

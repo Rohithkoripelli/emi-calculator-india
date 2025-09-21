@@ -8,6 +8,7 @@ const cron = require('node-cron');
 const http = require('http');
 const url = require('url');
 const StockScoringEngine = require('./stock-scoring-engine');
+const MongoDBService = require('./mongodb-service');
 
 class DailyStockScheduler {
   constructor() {
@@ -17,6 +18,7 @@ class DailyStockScheduler {
     this.updateCount = 0;
     this.errorCount = 0;
     this.startupTime = new Date();
+    this.mongoService = new MongoDBService();
     console.log('🕐 Daily Stock Scheduler initialized');
     console.log('⏰ Scheduled for 2:00 AM IST daily');
     console.log(`🚀 Scheduler startup time: ${this.startupTime.toISOString()}`);
@@ -323,9 +325,52 @@ class DailyStockScheduler {
           endpoints: {
             '/recommend': 'Get portfolio recommendations',
             '/top-stocks': 'Get top performing stocks by category',
-            '/scoring-info': 'Get scoring methodology information'
+            '/scoring-info': 'Get scoring methodology information',
+            '/mongodb-stats': 'Get MongoDB collection statistics',
+            '/mongodb-health': 'Check MongoDB connection health'
           }
         }, null, 2));
+      } else if (url === '/mongodb-stats') {
+        // MongoDB collection statistics
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        try {
+          const stats = await this.mongoService.getStats();
+          res.end(JSON.stringify(stats, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            error: 'Failed to get MongoDB stats',
+            message: error.message 
+          }));
+        }
+      } else if (url === '/mongodb-health') {
+        // MongoDB health check
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        try {
+          const health = await this.mongoService.healthCheck();
+          res.end(JSON.stringify(health, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            status: 'error',
+            message: error.message,
+            timestamp: new Date().toISOString()
+          }));
+        }
+      } else if (url.startsWith('/mongodb-stocks')) {
+        // Get stocks from MongoDB with optional symbol filter
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        try {
+          const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+          const symbol = parsedUrl.searchParams.get('symbol');
+          const limit = parseInt(parsedUrl.searchParams.get('limit')) || null;
+          
+          const result = await this.mongoService.getStockData(symbol, limit);
+          res.end(JSON.stringify(result, null, 2));
+        } catch (error) {
+          res.end(JSON.stringify({ 
+            error: 'Failed to get MongoDB stocks',
+            message: error.message 
+          }));
+        }
       } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
