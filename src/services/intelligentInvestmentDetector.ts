@@ -239,7 +239,16 @@ export class IntelligentInvestmentDetector {
       const bestMatch = matchedPatterns.reduce((prev, current) => 
         current.confidence > prev.confidence ? current : prev
       );
-      intentType = bestMatch.type as InvestmentIntent['intentType'];
+      
+      // Type-safe assignment
+      const validIntentTypes: InvestmentIntent['intentType'][] = [
+        'PORTFOLIO_RECOMMENDATION', 'STOCK_ANALYSIS', 'MARKET_RESEARCH', 'GENERAL_ADVICE', 'OTHER'
+      ];
+      
+      if (validIntentTypes.includes(bestMatch.type as InvestmentIntent['intentType'])) {
+        intentType = bestMatch.type as InvestmentIntent['intentType'];
+      }
+      
       confidence = bestMatch.confidence;
     }
     
@@ -500,8 +509,7 @@ export class IntelligentInvestmentDetector {
     }
     
     // High confidence investment queries should use Railway API
-    if (confidence >= 80 && (intentType === 'PORTFOLIO_RECOMMENDATION' || intentType === 'MARKET_RESEARCH' || 
-                             intentType === 'STOCK_ANALYSIS' || intentType === 'GENERAL_ADVICE')) {
+    if (confidence >= 80 && (intentType === 'STOCK_ANALYSIS' || intentType === 'GENERAL_ADVICE' || intentType === 'OTHER')) {
       return 'RAILWAY_API';
     }
     
