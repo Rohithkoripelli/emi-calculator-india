@@ -135,8 +135,10 @@ class DailyStockScheduler {
   async start() {
     console.log('🎯 Starting Daily Stock Scheduler...');
     
-    // Check if we have recent data, if not, trigger immediate update
-    await this.checkAndUpdateDataOnStartup();
+    // Check and update data in background (non-blocking)
+    this.checkAndUpdateDataOnStartup().catch(error => {
+      console.error('⚠️ Background startup data check failed:', error.message);
+    });
     
     // Create HTTP server to prevent Railway from sleeping
     const server = http.createServer(async (req, res) => {
