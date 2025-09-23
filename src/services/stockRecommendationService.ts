@@ -15,9 +15,13 @@ interface StockRecommendation {
   currentPrice: number;
   marketCapCrores: number;
   stockScore: number;
-  allocation: number;
-  quantity: number;
-  scoreMetrics: {
+  // Support both legacy and new API formats
+  allocation?: number;
+  quantity?: number;
+  // New Railway API format
+  amount?: number;
+  shares?: number;
+  scoreMetrics?: {
     peRatio?: number;
     roe?: number;
     roce?: number;
@@ -30,11 +34,16 @@ interface StockRecommendation {
 interface RecommendationResponse {
   totalAmount: number;
   allocation: MarketCapAllocation;
-  recommendations: {
+  // Support both legacy nested format and new flat format
+  recommendations?: {
     largeCap: StockRecommendation[];
     midCap: StockRecommendation[];
     smallCap: StockRecommendation[];
   };
+  // New flat format (Railway API)
+  largeCap?: StockRecommendation[];
+  midCap?: StockRecommendation[];
+  smallCap?: StockRecommendation[];
   summary: {
     totalStocks: number;
     largeCapAmount: number;
@@ -326,7 +335,13 @@ export class StockRecommendationService {
     recommendations: RecommendationResponse,
     originalQuery: string
   ): string {
-    const { totalAmount, allocation, recommendations: recs, summary } = recommendations;
+    // Handle both legacy and new API response formats
+    const recs = recommendations.recommendations || {
+      largeCap: recommendations.largeCap || [],
+      midCap: recommendations.midCap || [],
+      smallCap: recommendations.smallCap || []
+    };
+    const { totalAmount, allocation, summary } = recommendations;
 
     let response = `# 💼 Smart Portfolio Recommendation\n\n`;
     response += `**Investment Amount:** ₹${totalAmount.toLocaleString()}\n`;
@@ -340,13 +355,13 @@ export class StockRecommendationService {
       recs.largeCap.forEach((stock, index) => {
         response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
         response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.quantity} shares\n`;
-        response += `- **Allocation:** ₹${stock.allocation.toLocaleString()}\n`;
+        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
+        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
         response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics.peRatio) {
+        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
           response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
         }
-        if (stock.scoreMetrics.roe) {
+        if (stock.scoreMetrics && stock.scoreMetrics.roe) {
           response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
         }
         response += `\n`;
@@ -359,13 +374,13 @@ export class StockRecommendationService {
       recs.midCap.forEach((stock, index) => {
         response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
         response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.quantity} shares\n`;
-        response += `- **Allocation:** ₹${stock.allocation.toLocaleString()}\n`;
+        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
+        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
         response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics.peRatio) {
+        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
           response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
         }
-        if (stock.scoreMetrics.roe) {
+        if (stock.scoreMetrics && stock.scoreMetrics.roe) {
           response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
         }
         response += `\n`;
@@ -378,13 +393,13 @@ export class StockRecommendationService {
       recs.smallCap.forEach((stock, index) => {
         response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
         response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.quantity} shares\n`;
-        response += `- **Allocation:** ₹${stock.allocation.toLocaleString()}\n`;
+        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
+        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
         response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics.peRatio) {
+        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
           response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
         }
-        if (stock.scoreMetrics.roe) {
+        if (stock.scoreMetrics && stock.scoreMetrics.roe) {
           response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
         }
         response += `\n`;
