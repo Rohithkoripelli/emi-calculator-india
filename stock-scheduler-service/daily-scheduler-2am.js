@@ -142,8 +142,25 @@ class DailyStockScheduler {
     const server = http.createServer(async (req, res) => {
       const url = req.url;
       
+      // Handle CORS preflight requests
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Max-Age': '86400' // 24 hours
+        });
+        res.end();
+        return;
+      }
+      
       if (url === '/') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         res.end(JSON.stringify({
           status: 'running',
           scheduler: 'active',
@@ -152,7 +169,12 @@ class DailyStockScheduler {
           currentTime: new Date().toISOString()
         }));
       } else if (url === '/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         const fs = require('fs');
         
         let healthStatus = {
@@ -186,11 +208,21 @@ class DailyStockScheduler {
         
         res.end(JSON.stringify(healthStatus, null, 2));
       } else if (url === '/trigger') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         res.end(JSON.stringify({ message: 'Triggering robust data collection...' }));
         this.runImmediateUpdate();
       } else if (url === '/collect') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         res.end(JSON.stringify({ message: 'Starting Yahoo Finance collection in background...' }));
         
         // Run Yahoo Finance collector in background
@@ -202,7 +234,12 @@ class DailyStockScheduler {
           console.error('❌ Yahoo Finance collection failed:', error);
         });
       } else if (url === '/status') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         const fs = require('fs');
         try {
           // Check Yahoo Finance collector progress
@@ -259,7 +296,12 @@ class DailyStockScheduler {
         }
       } else if (url.startsWith('/recommend')) {
         // Stock recommendation endpoint (Fast fallback for Railway)
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
           const amount = parseInt(parsedUrl.searchParams.get('amount')) || 10000;
@@ -307,7 +349,12 @@ class DailyStockScheduler {
         }
       } else if (url.startsWith('/top-stocks')) {
         // Top stocks by category endpoint (Fast Railway response)
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
           const category = parsedUrl.searchParams.get('category') || 'all';
@@ -368,7 +415,12 @@ class DailyStockScheduler {
         }
       } else if (url === '/scoring-info') {
         // Scoring methodology information
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         res.end(JSON.stringify({
           methodology: 'Weighted scoring model based on financial metrics',
           weights: {
@@ -394,7 +446,12 @@ class DailyStockScheduler {
         }, null, 2));
       } else if (url === '/mongodb-stats') {
         // MongoDB collection statistics
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         try {
           const stats = await this.mongoService.getStats();
           res.end(JSON.stringify(stats, null, 2));
@@ -406,7 +463,12 @@ class DailyStockScheduler {
         }
       } else if (url === '/mongodb-health') {
         // MongoDB health check
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         try {
           const health = await this.mongoService.healthCheck();
           res.end(JSON.stringify(health, null, 2));
@@ -419,7 +481,12 @@ class DailyStockScheduler {
         }
       } else if (url.startsWith('/mongodb-stocks')) {
         // Get stocks from MongoDB with optional symbol filter
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
           const symbol = parsedUrl.searchParams.get('symbol');
