@@ -187,13 +187,20 @@ export class StockRecommendationService {
       
       console.log(`🎯 Calling Railway stock recommendation API: ${url}`);
       
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'EMI-Calculator-App/1.0'
-        }
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Railway API error: ${response.status} ${response.statusText}`);
@@ -205,7 +212,15 @@ export class StockRecommendationService {
       return data;
     } catch (error) {
       console.error('❌ Error calling Railway recommendation API:', error);
-      throw new Error(`Failed to get stock recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out - Railway API is taking too long to respond');
+        }
+        throw new Error(`Failed to get stock recommendations: ${error.message}`);
+      }
+      
+      throw new Error('Failed to get stock recommendations: Unknown error');
     }
   }
 
