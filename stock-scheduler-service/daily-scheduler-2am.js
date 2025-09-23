@@ -139,7 +139,7 @@ class DailyStockScheduler {
     await this.checkAndUpdateDataOnStartup();
     
     // Create HTTP server to prevent Railway from sleeping
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
       const url = req.url;
       
       if (url === '/') {
