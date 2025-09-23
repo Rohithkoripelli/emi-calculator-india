@@ -390,9 +390,9 @@ class DailyStockScheduler {
       console.log(`🌐 HTTP server running on port ${PORT} (prevents Railway sleep)`);
     });
     
-    // Schedule for 2:00 AM IST daily
+    // Schedule for 7:40 PM IST daily (testing)
     // Cron format: minute hour day month weekday
-    const cronExpression = '0 2 * * *'; // Every day at 2:00 AM
+    const cronExpression = '40 19 * * *'; // Every day at 7:40 PM (for immediate testing)
     
     console.log(`🕐 Setting up cron job with expression: ${cronExpression}`);
     console.log(`🌏 Using timezone: Asia/Kolkata (IST)`);
