@@ -444,20 +444,25 @@ class DailyStockScheduler {
       console.log(`🌐 HTTP server running on port ${PORT} (prevents Railway sleep)`);
     });
     
-    // Schedule for 7:40 PM IST daily (testing)
+    // Schedule for 2:00 AM IST daily
     // Cron format: minute hour day month weekday
-    const cronExpression = '40 19 * * *'; // Every day at 7:40 PM (for immediate testing)
+    const cronExpression = '0 2 * * *'; // Every day at 2:00 AM
     
     console.log(`🕐 Setting up cron job with expression: ${cronExpression}`);
     console.log(`🌏 Using timezone: Asia/Kolkata (IST)`);
     console.log(`⏰ Current IST time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
     
-    cron.schedule(cronExpression, async () => {
+    cron.schedule(cronExpression, () => {
       const istTime = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-      console.log('⏰ CRON TRIGGERED - 2 AM IST - Starting scheduled stock update...');
+      console.log('⏰ CRON TRIGGERED - 2:00 AM IST - Starting NON-BLOCKING scheduled stock update...');
       console.log(`🕐 Trigger time (IST): ${istTime}`);
       console.log(`🕐 Trigger time (UTC): ${new Date().toISOString()}`);
-      await this.runStockUpdate();
+      
+      // Run update in background without blocking HTTP server
+      this.runStockUpdate().catch(error => {
+        console.error('💥 Background stock update failed:', error.message);
+        this.errorCount++;
+      });
     }, {
       scheduled: true,
       timezone: "Asia/Kolkata" // IST timezone
