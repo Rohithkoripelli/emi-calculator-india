@@ -1,6 +1,6 @@
 /**
  * Web Search Utility for finding stock symbols
- * Uses existing Google Custom Search API implementation
+ * Uses existing Google Custom Search API implementation with intelligent rate limiting
  */
 
 interface SearchResult {
@@ -9,13 +9,134 @@ interface SearchResult {
   url: string;
 }
 
+// Global request queue and rate limiting system
+class GoogleApiRateLimiter {
+  private static lastApiCall = 0;
+  private static readonly API_DELAY = 2000; // 2 seconds between calls - very conservative
+  private static readonly requestCache = new Map<string, { data: SearchResult[], timestamp: number }>();
+  private static readonly CACHE_DURATION = 15 * 60 * 1000; // 15 minutes cache - longer to reduce API calls
+  private static requestCount = 0;
+  private static readonly MAX_REQUESTS_PER_MINUTE = 20; // Much more conservative limit
+  private static requestTimestamps: number[] = [];
+  private static readonly requestQueue: Array<() => Promise<any>> = [];
+  private static isProcessingQueue = false;
+
+  static async throttleRequest(cacheKey: string): Promise<{ shouldProceed: boolean, cachedData?: SearchResult[] }> {
+    // Check cache first - extend cache check to be more aggressive
+    const cached = this.requestCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      console.log(`📦 Using cached result for: ${cacheKey} (${Math.round((Date.now() - cached.timestamp) / 1000)}s old)`);
+      return { shouldProceed: false, cachedData: cached.data };
+    }
+
+    // Clean old request timestamps
+    const now = Date.now();
+    this.requestTimestamps = this.requestTimestamps.filter(timestamp => now - timestamp < 60000);
+
+    // Much stricter rate limit checking
+    if (this.requestTimestamps.length >= this.MAX_REQUESTS_PER_MINUTE) {
+      console.warn(`🚫 HARD LIMIT: Google API rate limits exceeded. Requests in last minute: ${this.requestTimestamps.length}/${this.MAX_REQUESTS_PER_MINUTE}`);
+      return { shouldProceed: false, cachedData: [] };
+    }
+
+    // Even stricter spacing - ensure longer delays
+    const timeSinceLastCall = now - this.lastApiCall;
+    if (timeSinceLastCall < this.API_DELAY) {
+      const delayNeeded = this.API_DELAY - timeSinceLastCall;
+      console.log(`⏳ STRICT rate limiting: waiting ${delayNeeded}ms before Google API call`);
+      await new Promise(resolve => setTimeout(resolve, delayNeeded));
+    }
+
+    // Add extra buffer time to be super conservative
+    await new Promise(resolve => setTimeout(resolve, 200)); // Extra 200ms buffer
+
+    this.lastApiCall = Date.now();
+    this.requestTimestamps.push(this.lastApiCall);
+    this.requestCount++;
+    
+    console.log(`📊 Google API usage: ${this.requestCount} total requests, ${this.requestTimestamps.length}/${this.MAX_REQUESTS_PER_MINUTE} last minute`);
+    return { shouldProceed: true };
+  }
+
+  static async queueRequest<T>(requestFunction: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push(async () => {
+        try {
+          const result = await requestFunction();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      this.processQueue();
+    });
+  }
+
+  private static async processQueue() {
+    if (this.isProcessingQueue || this.requestQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    console.log(`🔄 Processing Google API queue: ${this.requestQueue.length} requests pending`);
+
+    while (this.requestQueue.length > 0) {
+      const request = this.requestQueue.shift();
+      if (request) {
+        try {
+          await request();
+        } catch (error) {
+          console.error('Queue request failed:', error);
+        }
+        
+        // Add delay between queue processing
+        if (this.requestQueue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, this.API_DELAY));
+        }
+      }
+    }
+
+    this.isProcessingQueue = false;
+    console.log(`✅ Google API queue processing completed`);
+  }
+
+  static cacheResult(cacheKey: string, data: SearchResult[]) {
+    this.requestCache.set(cacheKey, { data, timestamp: Date.now() });
+    console.log(`💾 Cached result for: ${cacheKey}`);
+  }
+
+  static getStats() {
+    const now = Date.now();
+    const recentRequests = this.requestTimestamps.filter(timestamp => now - timestamp < 60000);
+    return {
+      totalRequests: this.requestCount,
+      requestsLastMinute: recentRequests.length,
+      cacheSize: this.requestCache.size
+    };
+  }
+}
+
 /**
  * Search for stock symbol using Google Custom Search API
  * This function should ONLY be called when stock is not found in Excel database
  */
 export async function WebSearch(query: string, maxResults: number = 3, isMobile: boolean = false): Promise<SearchResult[]> {
   try {
-    console.log(`🔍 Google Search for stock symbol: "${query}"`);
+    console.log(`🔍 Rate-limited Google Search for: "${query}"`);
+    
+    // Apply rate limiting and check cache first
+    const cacheKey = `${query}-${maxResults}`;
+    const rateLimitResult = await GoogleApiRateLimiter.throttleRequest(cacheKey);
+    
+    if (!rateLimitResult.shouldProceed) {
+      if (rateLimitResult.cachedData && rateLimitResult.cachedData.length > 0) {
+        return rateLimitResult.cachedData;
+      } else {
+        console.log(`⚠️ Rate limited or no cached data, using intelligent fallback for: ${query}`);
+        return getIntelligentFallback(query, maxResults);
+      }
+    }
     
     // Get API credentials
     const apiKey = process.env.REACT_APP_GOOGLE_SEARCH_API_KEY;
@@ -71,7 +192,13 @@ export async function WebSearch(query: string, maxResults: number = 3, isMobile:
         url: item.link || '#'
       }));
       
-      console.log(`✅ Found ${results.length} Google search results`);
+      // Cache the successful result
+      GoogleApiRateLimiter.cacheResult(cacheKey, results);
+      
+      console.log(`✅ Found ${results.length} Google search results and cached them`);
+      const stats = GoogleApiRateLimiter.getStats();
+      console.log(`📊 API Stats: ${stats.totalRequests} total, ${stats.requestsLastMinute}/40 last minute, ${stats.cacheSize} cached`);
+      
       return results;
     }
 

@@ -8,6 +8,7 @@ import { NewsSearchService, TrendingStock, StockNews, MarketTrends } from './new
 import { ExcelBasedStockAnalysisService } from './excelBasedStockAnalysis';
 import { EnhancedTechnicalAnalysisService } from './enhancedTechnicalAnalysis';
 import { ScreenerDataService } from './screenerDataService';
+import { StockAnalysisPreferences } from '../components/ai/StockAnalysisQuestionnaire';
 
 interface StockAnalysisReport {
   stock_info: {
@@ -179,11 +180,7 @@ export class InvestmentAnalysisService {
         return null;
       }
       
-      // Step 3: Get enhanced technical analysis using real historical data and GPT-4o
-      console.log(`🔍 Getting enhanced technical analysis for ${symbol}...`);
-      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStock(symbol, quote.currentPrice);
-      
-      // Get real 30-day performance from historical data
+      // Step 3: Get basic technical analysis for 30-day performance calculation
       console.log(`📊 Calculating actual 30-day performance for ${symbol}...`);
       const historicalData = await GrowwApiService.getHistoricalData(symbol, 30);
       let actual30DayPerformance = 0;
@@ -202,21 +199,6 @@ export class InvestmentAnalysisService {
           console.log(`🔄 Using fallback 30-day performance: ${actual30DayPerformance > 0 ? '+' : ''}${actual30DayPerformance.toFixed(2)}%`);
         }
       }
-
-      // Convert to legacy format for compatibility
-      const technicalAnalysis: TechnicalAnalysis = {
-        trend: enhancedTechnicalAnalysis.trend,
-        support: enhancedTechnicalAnalysis.support,
-        resistance: enhancedTechnicalAnalysis.resistance,
-        sma20: enhancedTechnicalAnalysis.sma20,
-        sma50: enhancedTechnicalAnalysis.sma50,
-        rsi: enhancedTechnicalAnalysis.rsi,
-        volatility: enhancedTechnicalAnalysis.volatility,
-        priceChange30Days: Math.round(actual30DayPerformance * 100) / 100, // Use actual calculated value
-        volumeAverage: quote.volume || 0,
-        recommendation: enhancedTechnicalAnalysis.recommendation,
-        confidence: enhancedTechnicalAnalysis.confidence
-      };
       
       // Step 4: Get comprehensive financial metrics from Screener.in
       console.log(`📊 Fetching comprehensive financial metrics from Screener.in for ${symbol}...`);
@@ -235,7 +217,33 @@ export class InvestmentAnalysisService {
       const stockNews = await NewsSearchService.getStockNews(symbol, companyInfo.name);
       const newsSentiment = this.analyzeNewsSentiment(stockNews);
       
-      // Step 7: Generate comprehensive recommendation using all data
+      // Step 7: Get technical indicators without OpenAI call (to avoid duplicate AI analysis)
+      console.log(`🔍 Getting technical indicators for ${symbol}...`);
+      console.log(`👤 User context: ${userPreferences?.currentHolding === 'yes' ? 'EXISTING HOLDER' : 'NEW INVESTOR'}, Risk: ${userPreferences?.riskTolerance || 'UNKNOWN'}, Period: ${userPreferences?.investmentPeriod || 'UNKNOWN'}`);
+      const enhancedTechnicalAnalysis = await EnhancedTechnicalAnalysisService.analyzeStockWithoutAI(symbol, quote.currentPrice, {
+        screenerData,
+        quote,
+        newsSentiment,
+        webResearch,
+        userPreferences
+      });
+      
+      // Create legacy technical analysis format for compatibility
+      const technicalAnalysis: TechnicalAnalysis = {
+        trend: enhancedTechnicalAnalysis.trend,
+        support: enhancedTechnicalAnalysis.support,
+        resistance: enhancedTechnicalAnalysis.resistance,
+        sma20: enhancedTechnicalAnalysis.sma20,
+        sma50: enhancedTechnicalAnalysis.sma50,
+        rsi: enhancedTechnicalAnalysis.rsi,
+        volatility: enhancedTechnicalAnalysis.volatility,
+        priceChange30Days: Math.round(actual30DayPerformance * 100) / 100, // Use actual calculated value
+        volumeAverage: quote.volume || 0,
+        recommendation: enhancedTechnicalAnalysis.recommendation,
+        confidence: enhancedTechnicalAnalysis.confidence
+      };
+      
+      // Step 8: Generate comprehensive recommendation using all data
       const recommendation = await this.generateStockRecommendation({
         quote,
         technicalAnalysis,
@@ -978,9 +986,31 @@ export class InvestmentAnalysisService {
         ` : ''}
         Technical Score: ${data.technicalAnalysis?.priceChange30Days && data.technicalAnalysis.priceChange30Days > 0 ? '✅' : '⚠️'} Momentum, ${data.technicalAnalysis?.rsi && data.technicalAnalysis.rsi >= 40 && data.technicalAnalysis.rsi <= 70 ? '✅' : '⚠️'} RSI
 
-        Provide your analysis in this exact JSON format (prefer STRONG_BUY/STRONG_SELL for clear signals):
+        🧠 HUMAN-LIKE DECISION MAKING APPROACH:
+        Think like a cautious professional investor. HOLD should be your default when:
+        - High volatility (>12%) suggests uncertain times - wait for stability
+        - Mixed signals from technical vs fundamental analysis - patience is key
+        - Market conditions are uncertain or transitional - preserve capital
+        - P/E ratios are neither clearly cheap nor expensive - await clarity
+        - RSI in 40-60 range suggests sideways movement - watch and wait
+        - Recent sharp price movements up/down - let dust settle before deciding
+        - Economic uncertainty or sector headwinds - exercise caution
+        
+        Remember: A good investor says "I don't know, let's wait" more often than "BUY/SELL"
+        
+        🌍 MARKET CONTEXT THINKING:
+        Before making any recommendation, consider:
+        - Is this stock moving with or against broader market trends?
+        - Are we in a bull market (be more optimistic) or bear market (be more cautious)?
+        - Is the sector experiencing headwinds or tailwinds?
+        - Are there upcoming earnings, events, or market catalysts that create uncertainty?
+        - Would a patient investor benefit from waiting for a better entry/exit point?
+        
+        When market conditions are uncertain, sectors are volatile, or you see conflicting signals - HOLD is often the wisest choice.
+        
+        Provide your analysis in this exact JSON format:
         {
-          "action": "STRONG_BUY|BUY|SELL|STRONG_SELL",
+          "action": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
           "confidence": number (0-100),
           "target_price": number or null,
           "stop_loss": number or null,
@@ -1060,11 +1090,14 @@ export class InvestmentAnalysisService {
         
         ${data.userPreferences.currentHolding === 'yes' ? `
         **CURRENT HOLDER CONSIDERATIONS:**
-        - Provide specific guidance on whether to HOLD, ADD more shares, or SELL position
-        - Consider portfolio concentration and position sizing
-        - Evaluate cost averaging opportunities if stock has declined
+        - HOLD is often the best advice: "When in doubt, don't act" - patience beats panic
+        - Only recommend SELL if fundamentals have clearly deteriorated or stock is severely overvalued
+        - Consider partial profit-taking instead of full SELL when stock has run up significantly
+        - If stock is down but fundamentals remain strong, often HOLD is better than panic selling
+        - Evaluate cost averaging opportunities if stock has declined (ADD more vs HOLD existing)
         - Address position management and profit-taking strategies
         - Compare current levels to user's likely average purchase price
+        - Remember: Good companies can have temporarily bad stock prices - HOLD through volatility
         ` : `
         **NEW INVESTOR CONSIDERATIONS:**
         - Focus on optimal entry points and timing
@@ -1072,14 +1105,17 @@ export class InvestmentAnalysisService {
         - Consider position sizing relative to overall portfolio
         - Address dollar-cost averaging vs lump sum investment
         - Highlight key levels to watch for better entry opportunities
+        - 🚨 IMPORTANT: Since user DOES NOT OWN this stock, NEVER recommend "SELL" - only "BUY" or "HOLD" (don't buy)
         `}
         
         ${data.userPreferences.riskTolerance === 'low' ? `
         **LOW RISK TOLERANCE ADJUSTMENTS:**
-        - Recommend only if stock shows strong fundamentals with limited downside
+        - FREQUENTLY recommend HOLD when any uncertainty exists - better safe than sorry
+        - Only recommend BUY for blue-chip stocks with strong fundamentals and stable earnings
+        - If volatility >8% or P/E >25 or mixed signals, DEFAULT to HOLD
         - Emphasize dividend yield, stable earnings, and blue-chip qualities
         - Set conservative target prices and tighter stop losses
-        - Focus on capital preservation over aggressive growth
+        - Focus on capital preservation over aggressive growth - when in doubt, HOLD
         - Highlight quality metrics: ROE >15%, low debt/equity, stable margins
         ` : data.userPreferences.riskTolerance === 'high' ? `
         **HIGH RISK TOLERANCE ADJUSTMENTS:**
@@ -1090,11 +1126,13 @@ export class InvestmentAnalysisService {
         - Emphasize growth potential over dividend income
         ` : `
         **MODERATE RISK TOLERANCE ADJUSTMENTS:**
+        - Use HOLD frequently when signals are mixed or unclear - patience pays off
         - Balance growth potential with stability and risk management
+        - If volatility >12% or conflicting technical/fundamental signals, prefer HOLD
         - Focus on quality growth stocks with reasonable valuations
         - Set moderate target prices with balanced stop loss levels
-        - Consider both technical momentum and fundamental strength
-        - Look for stocks with good risk-reward ratio
+        - Consider both technical momentum and fundamental strength - if they disagree, HOLD
+        - Look for stocks with good risk-reward ratio - unclear ratio = HOLD
         `}
         
         **⚠️ MANDATORY: Your recommendation MUST reflect this user profile. A short-term, high-risk investor needs different advice than a long-term, conservative investor for the SAME stock.**
@@ -1102,7 +1140,7 @@ export class InvestmentAnalysisService {
       `;
       
       const response = await this.callOpenAI(prompt);
-      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol);
+      return await this.parseRecommendationResponse(response, data.quote.currentPrice, data.quote?.symbol, data.userPreferences);
       
     } catch (error) {
       console.error('❌ Error generating professional recommendation:', error);
@@ -2573,7 +2611,7 @@ export class InvestmentAnalysisService {
     };
   }
 
-  private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string): Promise<any> {
+  private static async parseRecommendationResponse(response: string, currentPrice: number, symbol?: string, userPreferences?: StockAnalysisPreferences): Promise<any> {
     try {
       console.log(`📊 Parsing OpenAI recommendation response...`);
       console.log(`📊 Raw response preview: ${response.substring(0, 300)}...`);
@@ -2643,6 +2681,17 @@ export class InvestmentAnalysisService {
       
       // Validate that the parsed response has required fields
       if (parsed.action && parsed.confidence && typeof parsed.confidence === 'number') {
+        
+        // 🚨 CRITICAL: Enforce logical constraint for non-stockholders
+        if (userPreferences?.currentHolding === 'no' && parsed.action === 'SELL') {
+          console.warn(`⚠️ LOGICAL ERROR: Converting SELL to HOLD for non-stockholder`);
+          parsed.action = 'HOLD';
+          // Add explanation to reasoning
+          if (parsed.reasoning && Array.isArray(parsed.reasoning)) {
+            parsed.reasoning.push('Recommendation adjusted from SELL to HOLD since user does not currently own this stock');
+          }
+        }
+        
         console.log(`✅ OpenAI recommendation parsed successfully: ${parsed.action} (${parsed.confidence}% confidence)`);
         
         // Log technical analysis if present

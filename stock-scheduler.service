@@ -1,0 +1,21 @@
+[Unit]
+Description=Stock Data Scheduler - Daily 2 AM Updates
+After=network.target
+
+[Service]
+Type=simple
+User=node
+WorkingDirectory=/home/node/emi-calculator
+ExecStart=/usr/bin/node daily-scheduler-2am.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=TZ=Asia/Kolkata
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=stock-scheduler
+
+[Install]
+WantedBy=multi-user.target

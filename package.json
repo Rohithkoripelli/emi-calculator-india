@@ -17,12 +17,9 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
     "buffer": "^6.0.3",
-    "cheerio": "^1.1.2",
     "crypto-browserify": "^3.12.1",
     "date-fns": "^4.1.0",
     "jspdf": "^3.0.1",
-    "openai": "^5.10.2",
-    "puppeteer": "^24.17.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.0",
@@ -30,13 +27,28 @@
     "recharts": "^3.1.0",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "node-cron": "^3.0.3"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "CI=false react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test-atlas": "node test-atlas-connection.js",
+    "setup-atlas": "node setup-atlas-system.js",
+    "start-intelligent": "npx tsc && node dist/src/scripts/initializeIntelligentSystem.js",
+    "fetch-data-now": "node adhoc-fetch-data.js",
+    "trigger-daily-fetch": "npx tsc && node -e \"const init = require('./dist/src/scripts/initializeIntelligentSystem').default; const cron = require('./dist/src/services/cronScheduler').default; (async () => { await init.initialize({connectMongoDB: true, initializeData: false, startScheduler: false, enableDailyCron: false}); const scheduler = cron.getInstance(); await scheduler.triggerImmediateDailyFetch(); process.exit(0); })()\"",
+    "production-demo": "node production-system-demo.js",
+    "production-start": "npx tsc && node -e \"const ProductionScheduler = require('./dist/src/services/productionScheduler').default; (async () => { const scheduler = ProductionScheduler.getInstance(); await scheduler.startProductionScheduling(); })()\"",
+    "production-score": "npx tsc && node -e \"const StockScoringService = require('./dist/src/services/stockScoringService').default; (async () => { await StockScoringService.calculateAllStockScores(); process.exit(0); })()\"",
+    "production-recommend": "npx tsc && node -e \"const RecommendationEngine = require('./dist/src/services/recommendationEngine').default; (async () => { const result = await RecommendationEngine.generateStandardRecommendations(10000); console.log(JSON.stringify(result.allocations, null, 2)); process.exit(0); })()\"",
+    "production-fetch-prices": "npx tsc && node -e \"const ProductionDataFetcher = require('./dist/src/services/productionDataFetcher').default; (async () => { await ProductionDataFetcher.fetchAllStockPrices(); process.exit(0); })()\"",
+    "production-fetch-fundamentals": "npx tsc && node -e \"const ProductionDataFetcher = require('./dist/src/services/productionDataFetcher').default; (async () => { await ProductionDataFetcher.fetchAllStockFundamentals(); process.exit(0); })()\"",
+    "start-scheduler": "node daily-scheduler-2am.js",
+    "update-now": "node daily-scheduler-2am.js --immediate",
+    "populate-real-data": "node real-data-fetcher-2600.js"
   },
   "eslintConfig": {
     "extends": [
@@ -60,6 +72,10 @@
     "@vercel/node": "^5.3.7",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "cheerio": "^1.1.2",
+    "mongodb": "^6.0.0",
+    "openai": "^4.0.0",
+    "puppeteer": "^21.0.0"
   }
 }

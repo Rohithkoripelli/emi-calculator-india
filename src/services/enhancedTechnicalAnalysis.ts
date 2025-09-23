@@ -39,7 +39,23 @@ export class EnhancedTechnicalAnalysisService {
   /**
    * Perform comprehensive technical analysis using real historical data and AI
    */
-  static async analyzeStock(symbol: string, currentPrice: number): Promise<EnhancedTechnicalAnalysis> {
+  static async analyzeStock(
+    symbol: string, 
+    currentPrice: number, 
+    comprehensiveData?: {
+      screenerData?: any;
+      quote?: any;
+      newsSentiment?: any;
+      webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
+    }
+  ): Promise<EnhancedTechnicalAnalysis> {
     try {
       console.log(`🔍 Starting enhanced technical analysis for ${symbol} at ₹${currentPrice}`);
 
@@ -56,8 +72,8 @@ export class EnhancedTechnicalAnalysisService {
       // Calculate basic technical indicators from real data
       const basicMetrics = this.calculateBasicMetrics(historicalData, currentPrice);
       
-      // Use GPT-4o for intelligent technical analysis
-      const aiAnalysis = await this.getGPTAnalysis(symbol, historicalData, currentPrice, basicMetrics);
+      // Use GPT-4o for intelligent technical analysis with comprehensive data
+      const aiAnalysis = await this.getGPTAnalysis(symbol, historicalData, currentPrice, basicMetrics, comprehensiveData);
       
       return {
         support: aiAnalysis.support,
@@ -76,6 +92,78 @@ export class EnhancedTechnicalAnalysisService {
 
     } catch (error) {
       console.error(`❌ Error in enhanced technical analysis for ${symbol}:`, error);
+      return this.fallbackAnalysis(symbol, currentPrice);
+    }
+  }
+
+  /**
+   * Perform technical analysis WITHOUT AI to avoid duplicate OpenAI calls
+   */
+  static async analyzeStockWithoutAI(
+    symbol: string, 
+    currentPrice: number, 
+    comprehensiveData?: {
+      screenerData?: any;
+      quote?: any;
+      newsSentiment?: any;
+      webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
+    }
+  ): Promise<EnhancedTechnicalAnalysis> {
+    try {
+      console.log(`🔍 Starting technical analysis (no AI) for ${symbol} at ₹${currentPrice}`);
+
+      // Get 90 days of historical data for comprehensive analysis
+      const historicalData = await GrowwApiService.getHistoricalData(symbol, 90);
+      
+      if (!historicalData || historicalData.length < 20) {
+        console.warn(`⚠️ Insufficient data for ${symbol}, using fallback analysis`);
+        return this.fallbackAnalysis(symbol, currentPrice);
+      }
+
+      console.log(`📊 Retrieved ${historicalData.length} candles for technical analysis`);
+
+      // Calculate basic technical indicators from real data
+      const basicMetrics = this.calculateBasicMetrics(historicalData, currentPrice);
+      
+      // Calculate support and resistance levels
+      const closes = historicalData.map(c => c.close);
+      const highs = historicalData.map(c => c.high);
+      const lows = historicalData.map(c => c.low);
+      
+      const recentHigh = Math.max(...highs.slice(-20));
+      const recentLow = Math.min(...lows.slice(-20));
+      
+      // Calculate volatility
+      const returns = [];
+      for (let i = 1; i < closes.length; i++) {
+        returns.push((closes[i] - closes[i-1]) / closes[i-1]);
+      }
+      const volatility = Math.sqrt(returns.reduce((sum, ret) => sum + ret * ret, 0) / returns.length) * Math.sqrt(252) * 100;
+      
+      return {
+        support: Math.round(recentLow * 100) / 100,
+        resistance: Math.round(recentHigh * 100) / 100,
+        volatility: Math.min(Math.round(volatility * 10) / 10, 15), // Cap at 15%
+        targetPrice: Math.round(currentPrice * 1.15 * 100) / 100, // 15% upside
+        stopLoss: Math.round(currentPrice * 0.85 * 100) / 100, // 15% downside
+        trend: currentPrice > basicMetrics.sma20 ? 'BULLISH' : 'BEARISH',
+        rsi: basicMetrics.rsi,
+        sma20: basicMetrics.sma20,
+        sma50: basicMetrics.sma50,
+        confidence: 70, // Default confidence
+        recommendation: 'HOLD', // Default recommendation - will be overridden by comprehensive analysis
+        reasoning: ['Technical indicators calculated from historical data']
+      };
+
+    } catch (error) {
+      console.error(`❌ Error in technical analysis for ${symbol}:`, error);
       return this.fallbackAnalysis(symbol, currentPrice);
     }
   }
@@ -135,7 +223,20 @@ export class EnhancedTechnicalAnalysisService {
     symbol: string, 
     historicalData: HistoricalCandle[], 
     currentPrice: number,
-    basicMetrics: any
+    basicMetrics: any,
+    comprehensiveData?: {
+      screenerData?: any;
+      quote?: any;
+      newsSentiment?: any;
+      webResearch?: any;
+      userPreferences?: {
+        investmentPeriod: 'short-term' | 'long-term';
+        currentHolding: 'yes' | 'no';
+        riskTolerance: 'low' | 'medium' | 'high';
+        stockSymbol: string;
+        stockName: string;
+      };
+    }
   ): Promise<GPTAnalysisResult> {
     try {
       const apiKey = process.env.REACT_APP_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -155,78 +256,246 @@ export class EnhancedTechnicalAnalysisService {
         volume: c.volume
       }));
 
-      const systemPrompt = `You are a senior technical analyst with 15+ years of experience in Indian stock markets. Analyze the provided historical price data for ${symbol} with surgical precision.
+      // Build comprehensive prompt with all available data
+      let fundamentalData = '';
+      if (comprehensiveData?.screenerData) {
+        const sd = comprehensiveData.screenerData;
+        fundamentalData = `
+FUNDAMENTAL ANALYSIS DATA (from Screener.in):
+- Market Cap: ${sd.marketCap || 'N/A'}
+- P/E Ratio: ${sd.pe || 'N/A'} (Industry benchmark: 15-25)
+- EPS: ₹${sd.eps || 'N/A'}
+- ROE: ${sd.roe || 'N/A'}% (Good if >15%)
+- ROCE: ${sd.roce || 'N/A'}% (Good if >12%)
+- Book Value: ₹${sd.bookValue || 'N/A'}
+- Dividend Yield: ${sd.dividendYield || 'N/A'}%
+- Revenue Growth: ${sd.revenueGrowth || 'N/A'}%
+- Profit Growth: ${sd.profitGrowth || 'N/A'}%
+- Debt/Equity: ${sd.debtToEquity || 'N/A'} (Lower is better)
+- Current Ratio: ${sd.currentRatio || 'N/A'} (Should be >1.5)
+- Sector: ${sd.sector || 'N/A'}
+- Industry: ${sd.industry || 'N/A'}`;
+      }
 
-CURRENT CONTEXT:
-- Stock: ${symbol}
-- Current Price: ₹${currentPrice}
+      let newsData = '';
+      if (comprehensiveData?.newsSentiment) {
+        const ns = comprehensiveData.newsSentiment;
+        newsData = `
+NEWS SENTIMENT ANALYSIS:
+- Overall Sentiment: ${ns.overall_sentiment}
+- Sentiment Score: ${ns.sentiment_score}/100
+- Key News Articles: ${ns.key_news?.length || 0} articles analyzed
+- Recent News Summary: ${ns.key_news?.slice(0, 3).map((n: any) => `"${n.title}" (${n.sentiment})`).join(', ') || 'No recent news'}`;
+      }
+
+      let marketData = '';
+      if (comprehensiveData?.quote) {
+        const q = comprehensiveData.quote;
+        marketData = `
+REAL-TIME MARKET DATA:
+- Day High: ₹${q.dayHigh || 'N/A'}
+- Day Low: ₹${q.dayLow || 'N/A'}
+- Volume: ${q.volume?.toLocaleString() || 'N/A'}
+- 52W High: ₹${q.high52Week || 'N/A'}
+- 52W Low: ₹${q.low52Week || 'N/A'}`;
+      }
+
+      // Build conditional sections for the prompt
+      let fundamentalAnalysis = '';
+      if (comprehensiveData?.screenerData) {
+        const sd = comprehensiveData.screenerData;
+        const peStatus = sd.pe ? (sd.pe < 15 ? '✅ UNDERVALUED' : sd.pe > 30 ? '🚩 OVERVALUED' : '⚖️ FAIR VALUE') : 'No Data';
+        fundamentalAnalysis = `
+   📊 VALUATION ANALYSIS:
+   - P/E Ratio Check: ${peStatus}
+   - Growth Quality: Revenue growth (${sd.revenueGrowth || 'N/A'}%) + Profit growth (${sd.profitGrowth || 'N/A'}%)
+   - Management Efficiency: ROE ${sd.roe || 'N/A'}% (>15% is excellent)
+   - Capital Utilization: ROCE ${sd.roce || 'N/A'}% (>12% is good)
+   - Financial Health: Debt/Equity ${sd.debtToEquity || 'N/A'} + Current Ratio ${sd.currentRatio || 'N/A'}
+   - Income Component: Dividend Yield ${sd.dividendYield || 'N/A'}%
+   
+   🎯 FUNDAMENTAL VERDICT REQUIRED:
+   - Is the company fundamentally STRONG/AVERAGE/WEAK?
+   - Is the current valuation CHEAP/FAIR/EXPENSIVE?
+   - Are growth prospects PROMISING/MODERATE/CONCERNING?`;
+      } else {
+        fundamentalAnalysis = `
+   ⚠️ NO FUNDAMENTAL DATA AVAILABLE - RELY MORE HEAVILY ON TECHNICAL + SENTIMENT`;
+      }
+
+      let sentimentAnalysis = '';
+      if (comprehensiveData?.newsSentiment) {
+        const ns = comprehensiveData.newsSentiment;
+        sentimentAnalysis = `
+   📰 NEWS SENTIMENT: ${ns.overall_sentiment} (Score: ${ns.sentiment_score}/100)
+   📊 Recent Articles: ${ns.key_news?.length || 0} analyzed
+   
+   🎯 SENTIMENT IMPACT:
+   - POSITIVE sentiment (>60) = Supportive for BUY
+   - NEUTRAL sentiment (40-60) = No strong bias
+   - NEGATIVE sentiment (<40) = Cautionary for SELL`;
+      } else {
+        sentimentAnalysis = `
+   ⚠️ NO SENTIMENT DATA AVAILABLE - PROCEED WITH CAUTION`;
+      }
+
+      // Build user context analysis
+      let userContext = '';
+      if (comprehensiveData?.userPreferences) {
+        const up = comprehensiveData.userPreferences;
+        const isHolder = up.currentHolding === 'yes';
+        userContext = `
+
+=== 👤 USER INVESTMENT CONTEXT ===
+- Current Position: ${isHolder ? 'EXISTING STOCKHOLDER' : 'NEW INVESTOR (No current holdings)'}
+- Investment Horizon: ${up.investmentPeriod.toUpperCase().replace('-', ' ')} (${up.investmentPeriod === 'short-term' ? '< 1 year' : '> 1 year'})
+- Risk Tolerance: ${up.riskTolerance.toUpperCase()} risk appetite
+- Stock: ${up.stockName} (${up.stockSymbol})
+
+🚨 CRITICAL RECOMMENDATION LOGIC:
+${isHolder ? `
+⚠️ USER OWNS THE STOCK - Can recommend BUY (add more), HOLD, or SELL
+- BUY = Add to existing position if fundamentals/technicals are strong
+- HOLD = Keep existing position, wait for better entry/exit
+- SELL = Exit position if fundamentals/technicals are weak or overvalued` : `
+⚠️ USER DOES NOT OWN THE STOCK - Can ONLY recommend BUY or HOLD, NEVER SELL
+- BUY = Good opportunity to enter a new position  
+- HOLD = Wait for better entry point, not compelling enough to buy now
+- SELL = INVALID RECOMMENDATION (cannot sell what you don't own!)`}
+
+Risk Tolerance Impact:
+- ${up.riskTolerance === 'low' ? 'Conservative investor - prefer stable, dividend-paying stocks with strong fundamentals' : up.riskTolerance === 'medium' ? 'Balanced investor - mix of growth and stability, moderate volatility acceptable' : 'Aggressive investor - growth-focused, higher volatility acceptable for higher returns'}
+
+Time Horizon Impact:
+- ${up.investmentPeriod === 'short-term' ? 'Short-term focus - prioritize technical analysis, momentum, near-term catalysts' : 'Long-term focus - prioritize fundamental analysis, business quality, competitive advantages'}`;
+      } else {
+        userContext = `
+
+=== 👤 USER INVESTMENT CONTEXT ===
+⚠️ NO USER CONTEXT AVAILABLE - ASSUMING NEW INVESTOR
+- Will provide general recommendation without specific user context
+- Cannot recommend SELL without knowing user's current position`;
+      }
+
+      const systemPrompt = `You are a COMPREHENSIVE INVESTMENT ANALYST with 20+ years of experience combining technical, fundamental, and sentiment analysis for Indian stock markets. 
+
+**CRITICAL MISSION**: Provide a HOLISTIC investment recommendation that considers ALL available data - not just price charts. You have access to real fundamental metrics, news sentiment, and technical indicators.
+
+**STOCK BEING ANALYZED**: ${symbol}
+**CURRENT PRICE**: ₹${currentPrice}
+
+=== TECHNICAL INDICATORS ===
 - SMA20: ₹${basicMetrics.sma20.toFixed(2)}
 - SMA50: ₹${basicMetrics.sma50.toFixed(2)}
 - RSI: ${basicMetrics.rsi.toFixed(1)}
 - Recent High: ₹${basicMetrics.recentHigh}
 - Recent Low: ₹${basicMetrics.recentLow}
 
-HISTORICAL DATA (Last 30 days):
+HISTORICAL PRICE DATA (Last 30 days):
 ${JSON.stringify(priceData, null, 2)}
 
-ANALYSIS REQUIREMENTS:
+=== FUNDAMENTAL ANALYSIS ===${fundamentalData}
 
-1. **SUPPORT & RESISTANCE**: Identify key support and resistance levels using:
-   - Recent pivot highs/lows that price has tested multiple times
-   - Volume-confirmed levels where significant buying/selling occurred
-   - Fibonacci retracements from recent swing high/low
-   - Round number psychology levels
+=== NEWS & SENTIMENT ===${newsData}
 
-   CRITICAL RULES:
-   - Support MUST be below current price (₹${currentPrice})
-   - Resistance MUST be above current price (₹${currentPrice})
-   - Support should be 3-20% below current price (₹${(currentPrice * 0.8).toFixed(0)} - ₹${(currentPrice * 0.97).toFixed(0)})
-   - Resistance should be 3-20% above current price (₹${(currentPrice * 1.03).toFixed(0)} - ₹${(currentPrice * 1.2).toFixed(0)})
-   - Use ACTUAL data points from the historical candles provided
+=== MARKET METRICS ===${marketData}${userContext}
 
-2. **VOLATILITY**: Calculate accurate volatility using:
-   - Daily returns standard deviation from the historical data
-   - Average True Range (ATR) from high-low-close data
-   - Express as percentage (e.g., 2.5% for moderate volatility)
+**COMPREHENSIVE ANALYSIS FRAMEWORK**:
 
-3. **TARGET PRICE & STOP LOSS**: Based on technical levels:
-   - Target: Next significant resistance level or measured move
-   - Stop Loss: Below key support with 2-3% buffer for noise
-   - Must be realistic and based on actual price action
+🔍 **HOLISTIC INVESTMENT DECISION**: Your recommendation must weigh ALL THREE PILLARS:
 
-4. **RECOMMENDATION**: BUY/SELL/HOLD based on:
-   - Price position vs key moving averages
-   - RSI momentum and divergences (RSI=${basicMetrics.rsi.toFixed(1)} - ${basicMetrics.rsi > 70 ? 'OVERBOUGHT WARNING' : basicMetrics.rsi < 30 ? 'OVERSOLD OPPORTUNITY' : 'NEUTRAL'})
-   - Volume confirmation
-   - Support/resistance proximity
-   - Current trend strength
+**1. FUNDAMENTAL ANALYSIS WEIGHT (40%)**:${fundamentalAnalysis}
 
-**CRITICAL RSI ANALYSIS REQUIRED:**
-- Current RSI: ${basicMetrics.rsi.toFixed(1)}
-- If RSI >70: MANDATORY WARNING about overbought conditions and correction risk
-- If RSI <30: Highlight oversold bounce opportunity
-- If RSI 30-70: Normal momentum conditions
+**2. TECHNICAL ANALYSIS WEIGHT (35%)**:
+   📈 PRICE ACTION & MOMENTUM:
+   - Current Price: ₹${currentPrice}
+   - SMA20: ₹${basicMetrics.sma20.toFixed(2)} | SMA50: ₹${basicMetrics.sma50.toFixed(2)}
+   - RSI Level: ${basicMetrics.rsi.toFixed(1)}
+   - Recent High: ₹${basicMetrics.recentHigh} | Recent Low: ₹${basicMetrics.recentLow}
+   - Historical Data: ${JSON.stringify(priceData.slice(-5))} (last 5 days)
+   
+   🎯 INTELLIGENT TECHNICAL INTERPRETATION:
+   Analyze the price action contextually - don't use rigid RSI/SMA rules. Consider:
+   - Is the stock at a technical inflection point (support/resistance test)?
+   - Does current price level make sense relative to recent trading range?
+   - What story does the price action tell when combined with fundamentals?
+   - Support MUST be below current price, Resistance MUST be above - use actual levels from data
 
-5. **RISK ASSESSMENT**: Provide specific warnings:
-   - Overbought conditions (RSI >70): High risk of near-term pullback
-   - Technical divergences: Price vs momentum conflicts  
-   - Volume weakness: Lack of conviction in current move
-   - Support breaks: Risk of further downside
+**3. SENTIMENT ANALYSIS WEIGHT (25%)**:${sentimentAnalysis}
+
+**🎯 INTELLIGENT RECOMMENDATION FRAMEWORK** (Think holistically, not mechanically):
+
+${comprehensiveData?.userPreferences?.currentHolding === 'yes' ? `
+🏠 **EXISTING STOCKHOLDER CONTEXT** - Consider position management:
+You can recommend BUY (add more), HOLD (maintain), or SELL (exit/reduce). Think beyond simple rules:
+
+Examples of nuanced recommendations:
+- "HOLD - Stock trading near highs, wait for dip toward ₹X before adding"
+- "SELL 50% - Book profits after strong run, hold rest for long-term"  
+- "BUY on dips - Strong fundamentals support higher prices over time"
+- "HOLD but avoid fresh buying - Overvalued short-term, good long-term"` : `
+
+🆕 **NEW INVESTOR CONTEXT** - Entry point analysis:
+Can ONLY recommend BUY or HOLD (NEVER SELL - they don't own it!). Be nuanced:
+
+Examples of intelligent entry advice:
+- "HOLD - Wait for dip toward ₹X-₹Y support zone before buying"
+- "BUY gradually - Good fundamentals, enter in 2-3 tranches over 3-6 months"
+- "BUY - Attractive entry at current levels with 12-18 month horizon"
+- "HOLD - Stock fairly valued, wait for better entry or market correction"`}
+
+🧠 **CONTEXTUAL ANALYSIS REQUIREMENTS**:
+- User Risk Tolerance: ${comprehensiveData?.userPreferences?.riskTolerance || 'UNKNOWN'}  
+- Investment Horizon: ${comprehensiveData?.userPreferences?.investmentPeriod || 'UNKNOWN'}
+- Current RSI: ${basicMetrics.rsi.toFixed(1)} (interpret contextually, not mechanically)
+- Price vs Moving Averages: Analyze trend and momentum intelligently
+- News Sentiment: Factor into timing and conviction level
+
+🎯 **AVOID MECHANICAL RULES** - Think like a professional analyst:
+- Don't just say "RSI >70 = SELL" - maybe it's "HOLD, reduce on strength"
+- Don't just say "Low P/E = BUY" - maybe it's a value trap
+- Consider market context, sector rotation, business cycles
+- Provide specific entry/exit levels and timeframes
+- Give conditional recommendations: "IF this THEN that"
 
 Provide ONLY accurate values derived from the actual data. No generic or placeholder numbers.
 
+**MANDATORY COMPREHENSIVE ANALYSIS REQUIRED:**
+
+🎯 Your reasoning MUST be NUANCED and CONTEXTUAL across all pillars:
+1. **Fundamental Factor**: Don't just state metrics - interpret them in context (Is low P/E a bargain or value trap?)
+2. **Technical Factor**: Think beyond RSI rules - what does price action really tell us about supply/demand?
+3. **Sentiment Factor**: How does news sentiment affect timing and conviction levels?
+4. **User Context Factor**: How does holdings status change the risk/reward calculation?
+5. **Risk Alignment**: Does the stock's risk profile truly match user's tolerance and timeline?
+6. **Holistic Synthesis**: What's the most intelligent action given ALL the evidence?
+
+🚨 **CRITICAL**: Provide specific, actionable guidance with price levels, timeframes, and conditions.
+Examples: "HOLD until ₹250-260, then consider buying" or "BUY 50% now, 50% if drops to ₹X"
+
 Return response in this exact JSON format:
 {
-  "support": number (actual support level from data),
-  "resistance": number (actual resistance level from data), 
-  "volatility": number (calculated from price data, as percentage),
-  "targetPrice": number or null (realistic target based on resistance),
-  "stopLoss": number or null (below support with buffer),
+  "support": number (actual support level from historical data),
+  "resistance": number (actual resistance level from historical data), 
+  "volatility": number (calculated percentage from price movements),
+  "targetPrice": number or null (next key resistance or measured move),
+  "stopLoss": number or null (below support with safety buffer),
   "trend": "BULLISH" | "BEARISH" | "SIDEWAYS",
-  "confidence": number (0-100, based on signal strength),
+  "confidence": number (0-100, weighted across all three analysis pillars),
   "recommendation": "BUY" | "SELL" | "HOLD",
-  "reasoning": ["key reason 1", "key reason 2", "key reason 3"],
-  "keyInsights": ["technical insight 1", "technical insight 2"]
+  "reasoning": [
+    "Fundamental factor: [Contextual analysis - is valuation justified? Any red flags?]",
+    "Technical factor: [Price action story - what's really happening with supply/demand?]", 
+    "Sentiment factor: [How does market mood affect timing and risk?]",
+    "User context factor: [How does holdings status change the optimal action?]",
+    "Risk-reward synthesis: [Is the potential return worth the risk for this user?]",
+    "Actionable guidance: [Specific prices, timeframes, conditions for action]"
+  ],
+  "keyInsights": [
+    "Market positioning: [Where is stock in its cycle? Cheap/fair/expensive and why?]",
+    "Timing intelligence: [Is now the right time or should we wait? Why?]",
+    "Strategic approach: [Best way to approach this opportunity given all factors]"
+  ]
 }`;
 
       const response = await fetch(this.OPENAI_API_URL, {
@@ -305,7 +574,7 @@ Return response in this exact JSON format:
       trend,
       confidence: 75,
       recommendation,
-      reasoning: this.generateReasoning(trend, rsi, currentPrice, sma20),
+      reasoning: this.generateReasoning(trend, rsi, currentPrice, sma20, support, resistance, recommendation),
       keyInsights: [`Real volatility: ${volatility.toFixed(1)}%`, `Key levels: Support ₹${support}, Resistance ₹${resistance}`]
     };
 
@@ -390,17 +659,87 @@ Return response in this exact JSON format:
     rsi: number, 
     trend: string
   ): 'BUY' | 'SELL' | 'HOLD' {
-    if (trend === 'BULLISH' && rsi < 70 && currentPrice < resistance * 0.95) return 'BUY';
-    if (trend === 'BEARISH' && rsi > 30 && currentPrice > support * 1.05) return 'SELL';
+    // Strong bullish conditions - clear BUY signal
+    if (trend === 'BULLISH' && rsi < 65 && currentPrice < resistance * 0.92) {
+      return 'BUY';
+    }
+    
+    // Strong bearish conditions - clear SELL signal  
+    if (trend === 'BEARISH' && rsi > 35 && currentPrice > support * 1.08) {
+      return 'SELL';
+    }
+    
+    // Additional BUY conditions - oversold bounce opportunity
+    if (rsi < 35 && currentPrice > support * 1.03) {
+      return 'BUY';
+    }
+    
+    // Additional SELL conditions - overbought correction
+    if (rsi > 65 && currentPrice < resistance * 0.97) {
+      return 'SELL';
+    }
+    
+    // Contextual recommendation logic - avoid mechanical rules
+    const priceRange = (resistance - support) / support * 100;
+    const midPoint = (support + resistance) / 2;
+    const priceFromMid = Math.abs(currentPrice - midPoint) / midPoint * 100;
+    
+    // Intelligent analysis considering multiple factors
+    const isNearResistance = currentPrice >= resistance * 0.95;
+    const isNearSupport = currentPrice <= support * 1.05;
+    const isInMiddleRange = priceFromMid < 8;
+    const hasNeutralMomentum = rsi >= 35 && rsi <= 65;
+    
+    // Priority 1: Context-aware decision making
+    if (isNearResistance && trend === 'BULLISH') {
+      // At resistance in uptrend - could breakout or pullback
+      return hasNeutralMomentum ? 'HOLD' : (rsi > 70 ? 'HOLD' : 'BUY');
+    }
+    
+    if (isNearSupport && trend === 'BEARISH') {
+      // At support in downtrend - could bounce or breakdown  
+      return hasNeutralMomentum ? 'HOLD' : (rsi < 30 ? 'BUY' : 'HOLD');
+    }
+    
+    if (isInMiddleRange && trend === 'SIDEWAYS') {
+      // In middle of range with sideways trend - typically HOLD
+      return 'HOLD';
+    }
+    
+    // Priority 2: Trend-based with momentum consideration
+    if (trend === 'BULLISH' && rsi < 70) return 'BUY';
+    if (trend === 'BEARISH' && rsi > 30) return 'SELL';
+    
+    // Default: HOLD when signals are mixed or extreme
     return 'HOLD';
   }
 
-  private static generateReasoning(trend: string, rsi: number, currentPrice: number, sma20: number): string[] {
-    return [
+  private static generateReasoning(trend: string, rsi: number, currentPrice: number, sma20: number, support: number, resistance: number, recommendation: string): string[] {
+    const baseReasons = [
       `Trend analysis shows ${trend.toLowerCase()} momentum`,
       `RSI at ${rsi.toFixed(1)} indicates ${rsi > 70 ? 'overbought' : rsi < 30 ? 'oversold' : 'neutral'} conditions`,
       `Price ${currentPrice > sma20 ? 'above' : 'below'} key moving average (₹${sma20.toFixed(2)})`
     ];
+    
+    // Add specific reasoning for HOLD recommendations
+    if (recommendation === 'HOLD') {
+      const midPoint = (support + resistance) / 2;
+      const priceFromMid = Math.abs(currentPrice - midPoint) / midPoint * 100;
+      
+      if (currentPrice >= resistance * 0.95 && trend === 'BULLISH') {
+        baseReasons.push(`Approaching resistance at ₹${resistance.toFixed(2)} - wait for breakout confirmation`);
+      } else if (currentPrice <= support * 1.05 && trend === 'BEARISH') {
+        baseReasons.push(`Near support at ₹${support.toFixed(2)} - wait for bounce or breakdown`);
+      } else if (priceFromMid < 8 && rsi >= 40 && rsi <= 60) {
+        baseReasons.push(`Price in neutral zone with balanced momentum - suitable for wait and watch`);
+      } else if (rsi >= 35 && rsi <= 65 && trend === 'SIDEWAYS') {
+        baseReasons.push(`Sideways trend with neutral RSI suggests consolidation phase`);
+      } else {
+        baseReasons.push(`Mixed technical signals warrant cautious approach`);
+      }
+    }
+    
+    return baseReasons;
   }
 
   /**

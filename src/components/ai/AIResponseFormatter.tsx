@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { StockChart } from './StockChart';
 
 // Add CSS styles for financial tables with proper dark mode support
 const tableStyles = `
@@ -259,6 +260,21 @@ interface AIResponseFormatterProps {
   text: string;
   stockAnalysis?: any; // Add optional stockAnalysis prop
 }
+
+
+// Function to check if text contains stock-related queries
+const isStockRelatedQuery = (text: string): boolean => {
+  const stockKeywords = [
+    'should i buy', 'should i sell', 'should i invest',
+    'stock price', 'share price', 'stock analysis',
+    'stock recommendation', 'buy or sell', 'investment advice',
+    'stock chart', 'price movement', 'technical analysis'
+  ];
+  
+  return stockKeywords.some(keyword => 
+    text.toLowerCase().includes(keyword.toLowerCase())
+  );
+};
 
 const formatCurrency = (amount: string): string => {
   const num = parseFloat(amount.replace(/[₹,]/g, ''));
@@ -2236,6 +2252,20 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text, 
   // Apply financial formatting to fix interest rates, EMI values, and currency display
   const formattedText = formatFinancialText(text);
   
+  // Check if this is a stock-related query and if stockAnalysis data is available
+  const isStockQuery = isStockRelatedQuery(text);
+  const hasStockData = stockAnalysis && stockAnalysis.stock_info;
+  const shouldShowStockChart = isStockQuery && hasStockData;
+  
+  // Get stock data from existing stockAnalysis (uses your fuzzy logic system)
+  const stockData = shouldShowStockChart ? {
+    symbol: stockAnalysis.stock_info?.trading_symbol || stockAnalysis.stock_info?.symbol || 'N/A',
+    companyName: stockAnalysis.stock_info?.company_name || 'Unknown Company',
+    currentPrice: stockAnalysis.stock_info?.current_price || 0,
+    dayChange: stockAnalysis.stock_info?.day_change || 0,
+    dayChangePercent: stockAnalysis.stock_info?.day_change_percent || 0
+  } : null;
+  
   const keyMetrics = extractKeyMetrics(formattedText);
   const comparisonData = extractTableData(formattedText);
   const savingsChartData = createSavingsChart(formattedText);
@@ -2285,6 +2315,18 @@ export const AIResponseFormatter: React.FC<AIResponseFormatterProps> = ({ text, 
       
       {/* Key Analysis Card for stock recommendations */}
       <KeyAnalysisCard text={formattedText} />
+      
+      {/* Interactive Stock Chart - shown for stock-related queries */}
+      {shouldShowStockChart && stockData && (
+        <StockChart
+          symbol={stockData.symbol}
+          companyName={stockData.companyName}
+          currentPrice={stockData.currentPrice}
+          dayChange={stockData.dayChange}
+          dayChangePercent={stockData.dayChangePercent}
+          className="mb-6"
+        />
+      )}
       
       {/* Key Insights Card for detailed financial metrics */}
       <KeyInsightsCard text={formattedText} />

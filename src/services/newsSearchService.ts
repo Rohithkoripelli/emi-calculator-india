@@ -95,12 +95,102 @@ export class NewsSearchService {
         .slice(0, 15); // Return top 15 stocks
       
       console.log(`✅ Discovered ${trendingStocks.length} trending stocks`);
-      return trendingStocks;
+      
+      // If we found stocks, return them; otherwise use more targeted searches
+      if (trendingStocks.length > 0) {
+        return trendingStocks;
+      } else {
+        console.log(`⚠️ No trending stocks found via web search, trying targeted stock discovery...`);
+        return await this.getTargetedStockDiscovery();
+      }
       
     } catch (error) {
       console.error('❌ Error discovering trending stocks:', error);
-      return [];
+      console.log(`🎯 Using targeted stock discovery due to discovery error...`);
+      return await this.getTargetedStockDiscovery();
     }
+  }
+
+  /**
+   * Targeted stock discovery using rate-limited searches for specific high-quality companies
+   */
+  private static async getTargetedStockDiscovery(): Promise<TrendingStock[]> {
+    console.log(`🎯 Starting CONSERVATIVE targeted stock discovery with minimal API calls...`);
+    
+    // MUCH reduced targeted search queries - only essential ones to minimize API usage
+    const targetedQueries = [
+      // Only top 3 large cap searches  
+      "TCS Tata Consultancy Services stock NSE latest",
+      "HDFCBANK HDFC Bank stock analysis",
+      "RELIANCE Industries stock price",
+      
+      // Only 1 mid cap search
+      "CIPLA pharmaceutical stock NSE",
+      
+      // Only 1 small cap search  
+      "TRENT retail stock NSE performance"
+    ];
+    
+    const discoveredStocks: Map<string, TrendingStock> = new Map();
+    
+    // Use rate-limited searches for each targeted query
+    for (const query of targetedQueries) {
+      try {
+        console.log(`🔍 Targeted search: "${query}"`);
+        
+        const { WebSearch } = await import('../utils/webSearchUtil');
+        const searchResults = await WebSearch(query, 3); // Limit to 3 results per query
+        
+        if (searchResults && searchResults.length > 0) {
+          const extractedStocks = await this.extractStocksFromSearchResults(searchResults, query);
+          extractedStocks.forEach(stock => {
+            const existing = discoveredStocks.get(stock.symbol);
+            if (!existing || stock.confidence > existing.confidence) {
+              discoveredStocks.set(stock.symbol, stock);
+            }
+          });
+        }
+        
+        // Add LONGER delay between searches to be very conservative with API usage
+        await new Promise(resolve => setTimeout(resolve, 2500)); // 2.5 seconds between searches
+        
+      } catch (error) {
+        console.warn(`⚠️ Error in targeted search for "${query}":`, error);
+        // Continue with other searches even if one fails
+      }
+    }
+    
+    // Convert to array and sort by confidence
+    const targetedStocks = Array.from(discoveredStocks.values())
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 15); // Return top 15 stocks
+    
+    console.log(`✅ Targeted discovery found ${targetedStocks.length} quality stocks`);
+    
+    // If we still don't have enough stocks, use a minimal emergency set
+    if (targetedStocks.length < 5) {
+      console.log(`⚠️ Insufficient stocks from targeted discovery, using emergency minimal set...`);
+      return this.getEmergencyMinimalStocks();
+    }
+    
+    return targetedStocks;
+  }
+  
+  /**
+   * Emergency minimal stock set when all discovery methods fail
+   */
+  private static getEmergencyMinimalStocks(): TrendingStock[] {
+    // Only return the absolute minimum required for basic functionality
+    const emergencyStocks: TrendingStock[] = [
+      { symbol: 'RELIANCE', companyName: 'Reliance Industries Limited', marketCap: 'LARGE_CAP', sector: 'Oil & Gas', reason: 'Market leader - emergency fallback', confidence: 80 },
+      { symbol: 'TCS', companyName: 'Tata Consultancy Services Limited', marketCap: 'LARGE_CAP', sector: 'Information Technology', reason: 'IT services leader - emergency fallback', confidence: 79 },
+      { symbol: 'HDFCBANK', companyName: 'HDFC Bank Limited', marketCap: 'LARGE_CAP', sector: 'Banking', reason: 'Banking leader - emergency fallback', confidence: 78 },
+      { symbol: 'CIPLA', companyName: 'Cipla Limited', marketCap: 'MID_CAP', sector: 'Pharmaceuticals', reason: 'Pharma leader - emergency fallback', confidence: 77 },
+      { symbol: 'TRENT', companyName: 'Trent Limited', marketCap: 'SMALL_CAP', sector: 'Retail', reason: 'Retail growth - emergency fallback', confidence: 76 }
+    ];
+    
+    console.log(`🚨 Using emergency minimal stock set: ${emergencyStocks.length} stocks`);
+    return emergencyStocks;
   }
 
   /**
@@ -224,34 +314,22 @@ export class NewsSearchService {
    * Get search queries for different timeframes
    */
   private static getTrendingStockQueries(timeframe: string): string[] {
+    // DRASTICALLY reduced queries to prevent API overuse
     const baseQueries = [
-      'best performing indian stocks NSE BSE',
-      'top gainers indian stock market today',
-      'most active stocks india high volume'
+      'best indian stocks NSE 2025' // Only 1 base query instead of 3
     ];
     
     switch (timeframe) {
       case '6months':
         return [
-          'best performing indian stocks last 6 months 2025',
-          'top stock gainers india 6 month returns',
-          'highest return stocks india 2024 2025',
-          ...baseQueries
+          'top indian stocks 6 months 2025' // Only 1 query per timeframe
         ];
       case '1year':
         return [
-          'best performing indian stocks 2024 annual returns',
-          'top stock performers india yearly gains',
-          'multibagger stocks india 2024 2025',
-          ...baseQueries
+          'best indian stocks 2024 returns' // Only 1 query per timeframe
         ];
       default: // recent
-        return [
-          'trending stocks india today latest',
-          'breakout stocks NSE BSE current month',
-          'momentum stocks indian market 2025',
-          ...baseQueries
-        ];
+        return baseQueries; // Use only the 1 base query
     }
   }
 

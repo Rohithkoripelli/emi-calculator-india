@@ -11,6 +11,21 @@ export interface GenericInvestmentQuery {
 }
 
 /**
+ * Patterns that indicate market cap allocation queries (should NOT trigger questionnaire)
+ */
+const MARKET_CAP_ALLOCATION_PATTERNS = [
+  // Explicit percentage splits
+  /(\d+)[\/\-\s]+(\d+)[\/\-\s]+(\d+)/,
+  /(\d+)%?\s*(?:large|big),?\s*(\d+)%?\s*(?:mid|medium),?\s*(\d+)%?\s*(?:small|little)/i,
+  /large[:\s]*(\d+)%?.*mid[:\s]*(\d+)%?.*small[:\s]*(\d+)%?/i,
+  
+  // Market cap terminology
+  /(?:large\s*cap|mid\s*cap|small\s*cap|largecap|midcap|smallcap)/i,
+  /(?:allocation|allocate|distribute|split|diversif)/i,
+  /(?:portfolio\s*mix|market\s*cap\s*allocation)/i
+];
+
+/**
  * Patterns that indicate generic investment questions requiring questionnaire
  */
 const GENERIC_INVESTMENT_PATTERNS = [
@@ -26,7 +41,7 @@ const GENERIC_INVESTMENT_PATTERNS = [
   // Generic "what stocks to buy" patterns
   /(?:what|which|where)\s+(?:stocks?|shares?|companies?)\s+(?:should|to|can)\s+(?:i|we)\s+(?:buy|invest|purchase)/i,
   
-  // Portfolio allocation questions
+  // Portfolio allocation questions (but NOT market cap allocation)
   /(?:how|where)\s+(?:should|to|can)\s+(?:i|we)\s+(?:allocate|invest|distribute)\s+(?:my|our)?\s*(?:money|funds|capital)/i,
   
   // Best investment questions
@@ -127,7 +142,18 @@ export function extractTimeframe(query: string): string | undefined {
 export function detectGenericInvestmentQuery(query: string): GenericInvestmentQuery {
   const cleanQuery = query.toLowerCase().trim();
   
-  // First check if it's a specific stock query (should NOT trigger questionnaire)
+  // First check if it's a market cap allocation query (should NOT trigger questionnaire)
+  for (const pattern of MARKET_CAP_ALLOCATION_PATTERNS) {
+    if (pattern.test(query)) {
+      return {
+        isGeneric: false,
+        confidence: 95,
+        reasoning: `Detected market cap allocation query: "${query.substring(0, 50)}..." - will use Railway stock recommendation API`
+      };
+    }
+  }
+  
+  // Then check if it's a specific stock query (should NOT trigger questionnaire)
   for (const pattern of SPECIFIC_STOCK_PATTERNS) {
     if (pattern.test(query)) {
       return {

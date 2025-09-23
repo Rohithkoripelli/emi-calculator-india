@@ -124,7 +124,7 @@ export const StockScreener: React.FC<StockScreenerProps> = ({ onAIOpen }) => {
                   ) : data ? (
                     <div>
                       <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        {HybridStockApiService.formatNumber(data.price)}
+                        {HybridStockApiService.formatIndexPointsDetailed(data.price)}
                       </div>
                       <div className={`flex items-center justify-end gap-1 text-xs font-semibold ${
                         isPositive 
@@ -191,14 +191,14 @@ export const StockScreener: React.FC<StockScreenerProps> = ({ onAIOpen }) => {
               ) : data ? (
                 <div>
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {HybridStockApiService.formatNumber(data.price)}
+                    {HybridStockApiService.formatIndexPointsDetailed(data.price)}
                   </div>
                   <div className={`flex items-center justify-end gap-1 text-sm font-semibold ${
                     isPositive 
                       ? 'text-green-600 dark:text-green-300' 
                       : 'text-red-600 dark:text-red-300'
                   }`}>
-                    <span>{isPositive ? '+' : ''}{HybridStockApiService.formatNumber(data.change)}</span>
+                    <span>{isPositive ? '+' : ''}{data.change.toFixed(2)}</span>
                     <span>({isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%)</span>
                     {isPositive ? (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
