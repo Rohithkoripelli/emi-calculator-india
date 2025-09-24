@@ -341,82 +341,65 @@ export class StockRecommendationService {
       midCap: recommendations.midCap || [],
       smallCap: recommendations.smallCap || []
     };
-    const { totalAmount, allocation, summary } = recommendations;
+    const { totalAmount, allocation } = recommendations;
 
-    let response = `# 💼 Smart Portfolio Recommendation\n\n`;
+    let response = `# 💼 Smart Stock Recommendations\n\n`;
     response += `**Investment Amount:** ₹${totalAmount.toLocaleString()}\n`;
-    response += `**Allocation Strategy:** ${allocation.largeCap}% Large Cap, ${allocation.midCap}% Mid Cap, ${allocation.smallCap}% Small Cap\n\n`;
+    response += `**Suggested Allocation:** ${allocation.largeCap}% Large Cap, ${allocation.midCap}% Mid Cap, ${allocation.smallCap}% Small Cap\n\n`;
 
-    response += `## 📊 Portfolio Allocation\n\n`;
+    response += `Based on my analysis of 1000+ stocks, here are the **top-quality stocks** in each category:\n\n`;
 
-    // Large Cap section
+    // Large Cap section - simplified
     if (recs.largeCap.length > 0) {
-      response += `### 🏢 Large Cap Stocks (₹${summary.largeCapAmount.toLocaleString()})\n`;
+      response += `## 🏢 **Large Cap Stocks** (Stable, Blue-chip companies)\n`;
+      response += `**Recommended for ${allocation.largeCap}% of your ₹${totalAmount.toLocaleString()} (₹${Math.round(totalAmount * allocation.largeCap / 100).toLocaleString()}):**\n\n`;
+      
       recs.largeCap.forEach((stock, index) => {
-        response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
-        response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
-        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
-        response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
-          response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
-        }
+        response += `**${index + 1}. ${stock.companyName}** (${stock.symbol}) - ₹${stock.currentPrice.toLocaleString()}\n`;
+        response += `   Quality Score: ${stock.stockScore}/100`;
         if (stock.scoreMetrics && stock.scoreMetrics.roe) {
-          response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
+          response += ` | ROE: ${stock.scoreMetrics.roe.toFixed(1)}%`;
         }
-        response += `\n`;
+        response += `\n\n`;
       });
     }
 
-    // Mid Cap section
+    // Mid Cap section - simplified
     if (recs.midCap.length > 0) {
-      response += `### 🏭 Mid Cap Stocks (₹${summary.midCapAmount.toLocaleString()})\n`;
+      response += `## 🏭 **Mid Cap Stocks** (Growth-oriented companies)\n`;
+      response += `**Recommended for ${allocation.midCap}% of your ₹${totalAmount.toLocaleString()} (₹${Math.round(totalAmount * allocation.midCap / 100).toLocaleString()}):**\n\n`;
+      
       recs.midCap.forEach((stock, index) => {
-        response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
-        response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
-        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
-        response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
-          response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
-        }
+        response += `**${index + 1}. ${stock.companyName}** (${stock.symbol}) - ₹${stock.currentPrice.toLocaleString()}\n`;
+        response += `   Quality Score: ${stock.stockScore}/100`;
         if (stock.scoreMetrics && stock.scoreMetrics.roe) {
-          response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
+          response += ` | ROE: ${stock.scoreMetrics.roe.toFixed(1)}%`;
         }
-        response += `\n`;
+        response += `\n\n`;
       });
     }
 
-    // Small Cap section
+    // Small Cap section - simplified
     if (recs.smallCap.length > 0) {
-      response += `### 🚀 Small Cap Stocks (₹${summary.smallCapAmount.toLocaleString()})\n`;
+      response += `## 🚀 **Small Cap Stocks** (High-growth potential)\n`;
+      response += `**Recommended for ${allocation.smallCap}% of your ₹${totalAmount.toLocaleString()} (₹${Math.round(totalAmount * allocation.smallCap / 100).toLocaleString()}):**\n\n`;
+      
       recs.smallCap.forEach((stock, index) => {
-        response += `**${index + 1}. ${stock.companyName} (${stock.symbol})**\n`;
-        response += `- **Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
-        response += `- **Quantity:** ${stock.shares || stock.quantity || 0} shares\n`;
-        response += `- **Allocation:** ₹${(stock.amount || stock.allocation || 0).toLocaleString()}\n`;
-        response += `- **Quality Score:** ${stock.stockScore}/1.0\n`;
-        if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
-          response += `- **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
-        }
+        response += `**${index + 1}. ${stock.companyName}** (${stock.symbol}) - ₹${stock.currentPrice.toLocaleString()}\n`;
+        response += `   Quality Score: ${stock.stockScore}/100`;
         if (stock.scoreMetrics && stock.scoreMetrics.roe) {
-          response += `- **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
+          response += ` | ROE: ${stock.scoreMetrics.roe.toFixed(1)}%`;
         }
-        response += `\n`;
+        response += `\n\n`;
       });
     }
 
-    response += `## 🎯 Portfolio Summary\n\n`;
-    response += `- **Total Stocks:** ${summary.totalStocks}\n`;
-    response += `- **Market Cap Distribution:** Diversified across ${recs.largeCap.length} large cap, ${recs.midCap.length} mid cap, and ${recs.smallCap.length} small cap stocks\n`;
-    response += `- **Scoring Methodology:** AI-powered analysis using PE Ratio, ROE, ROCE, Debt-to-Equity, Revenue Growth, and Profit Margins\n`;
-    response += `- **Data Source:** Real-time Yahoo Finance data covering 1800+ Indian stocks\n\n`;
+    response += `---\n\n`;
+    response += `## 💡 **How to Invest:**\n`;
+    response += `You can allocate your ₹${totalAmount.toLocaleString()} among these recommended stocks based on your preferences. Each stock is selected based on strong financial metrics including PE Ratio, ROE, ROCE, Debt-to-Equity, Revenue Growth, and Profit Margins.\n\n`;
 
-    response += `## ⚠️ Important Notes\n\n`;
-    response += `- This recommendation is based on quantitative analysis of financial metrics\n`;
-    response += `- Past performance does not guarantee future results\n`;
-    response += `- Consider your risk tolerance and investment goals\n`;
-    response += `- Consult with a financial advisor for personalized advice\n`;
+    response += `## ⚠️ **Important Note:**\n`;
+    response += `These recommendations are based on quantitative analysis of financial data. Past performance doesn't guarantee future results. Consider your risk tolerance and consult with a financial advisor for personalized advice.`;
 
     return response;
   }
