@@ -494,6 +494,155 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
   };
 
   /**
+   * Handle top stocks queries (trending, best large cap, etc.)
+   */
+  const handleTopStocksQuery = async (
+    query: string,
+    marketCapCategory: 'all' | 'large' | 'mid' | 'small',
+    intentResult: any,
+    aiMessageId: string
+  ) => {
+    console.log(`🔝 Using Railway API to fetch top ${marketCapCategory} cap stocks`);
+
+    setStreamingMessageId(aiMessageId);
+
+    const categoryDisplay = marketCapCategory === 'all' ? 'all categories' : `${marketCapCategory} cap`;
+
+    setMessages(prev => prev.map(msg =>
+      msg.id === aiMessageId
+        ? {
+            ...msg,
+            text: `🎯 Fetching top stocks from ${categoryDisplay}...\n\n⏳ Querying MongoDB database with 1800+ stocks\n⏳ Analyzing comprehensive scoring metrics\n⏳ Ranking stocks by quality score\n⏳ Preparing recommendations`,
+            isStreaming: true,
+            isComplete: false
+          }
+        : msg
+    ));
+
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      const { StockRecommendationService } = await import('../../services/stockRecommendationService');
+
+      // Fetch top 10 stocks from the category
+      const topStocksData = await StockRecommendationService.getTopStocks(marketCapCategory, 10);
+
+      if (!topStocksData || !topStocksData.stocks || topStocksData.stocks.length === 0) {
+        throw new Error(`No stocks found in ${categoryDisplay} category`);
+      }
+
+      // Format the response
+      let response = `# 🌟 Top ${categoryDisplay.charAt(0).toUpperCase() + categoryDisplay.slice(1)} Stocks\n\n`;
+      response += `**Based on comprehensive analysis of 1800+ stocks from MongoDB database**\n\n`;
+
+      response += `These stocks are ranked by our proprietary **Quality Score** (0-100), which analyzes:\n`;
+      response += `• **PE Ratio** - Price to Earnings valuation\n`;
+      response += `• **ROE** - Return on Equity profitability\n`;
+      response += `• **ROCE** - Return on Capital Employed efficiency\n`;
+      response += `• **Debt-to-Equity** - Financial stability\n`;
+      response += `• **Revenue Growth** - Business expansion\n`;
+      response += `• **Profit Margins** - Operational efficiency\n\n`;
+
+      response += `---\n\n`;
+
+      // Group stocks by category if "all" is selected
+      if (marketCapCategory === 'all') {
+        const groupedStocks = {
+          'Large Cap': topStocksData.stocks.filter(s => s.category === 'Large Cap'),
+          'Mid Cap': topStocksData.stocks.filter(s => s.category === 'Mid Cap'),
+          'Small Cap': topStocksData.stocks.filter(s => s.category === 'Small Cap')
+        };
+
+        Object.entries(groupedStocks).forEach(([category, stocks]) => {
+          if (stocks.length > 0) {
+            const emoji = category === 'Large Cap' ? '🏢' : category === 'Mid Cap' ? '🏭' : '🚀';
+            response += `## ${emoji} ${category} Stocks\n\n`;
+
+            stocks.slice(0, 5).forEach((stock, index) => {
+              response += `**${index + 1}. ${stock.companyName}** (${stock.symbol})\n`;
+              response += `   • **Current Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
+              response += `   • **Quality Score:** ${stock.stockScore}/100\n`;
+              response += `   • **Market Cap:** ₹${stock.marketCapCrores.toLocaleString()} Cr\n`;
+              if (stock.scoreMetrics && stock.scoreMetrics.roe) {
+                response += `   • **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
+              }
+              if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
+                response += `   • **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
+              }
+              response += `\n`;
+            });
+          }
+        });
+      } else {
+        // Show stocks for specific category
+        const emoji = marketCapCategory === 'large' ? '🏢' : marketCapCategory === 'mid' ? '🏭' : '🚀';
+        const categoryName = marketCapCategory.charAt(0).toUpperCase() + marketCapCategory.slice(1) + ' Cap';
+
+        response += `## ${emoji} Top ${categoryName} Stocks\n\n`;
+
+        topStocksData.stocks.slice(0, 10).forEach((stock, index) => {
+          response += `**${index + 1}. ${stock.companyName}** (${stock.symbol})\n`;
+          response += `   • **Current Price:** ₹${stock.currentPrice.toLocaleString()}\n`;
+          response += `   • **Quality Score:** ${stock.stockScore}/100\n`;
+          response += `   • **Market Cap:** ₹${stock.marketCapCrores.toLocaleString()} Cr\n`;
+          if (stock.scoreMetrics && stock.scoreMetrics.roe) {
+            response += `   • **ROE:** ${stock.scoreMetrics.roe.toFixed(1)}%\n`;
+          }
+          if (stock.scoreMetrics && stock.scoreMetrics.peRatio) {
+            response += `   • **PE Ratio:** ${stock.scoreMetrics.peRatio.toFixed(1)}\n`;
+          }
+          response += `\n`;
+        });
+      }
+
+      response += `---\n\n`;
+      response += `## 💡 How to Use This Information\n\n`;
+      response += `These stocks represent the highest quality companies based on our comprehensive analysis. Consider:\n\n`;
+      response += `• **Diversification:** Don't put all your money in one stock\n`;
+      response += `• **Research:** Review each company's latest financials and news\n`;
+      response += `• **Time Horizon:** Match investments to your financial goals\n`;
+      response += `• **Risk Tolerance:** Higher scores indicate better fundamentals, but all investments carry risk\n\n`;
+
+      response += `**Need personalized recommendations?** Try asking:\n`;
+      response += `• "I want to invest ₹50,000 in stocks" - Get a diversified portfolio\n`;
+      response += `• "Analyze TCS stock" - Get detailed analysis of a specific stock\n`;
+      response += `• "Compare Reliance and TCS" - Compare multiple stocks\n\n`;
+
+      response += `## ⚠️ Important Disclaimer\n`;
+      response += `These recommendations are based on quantitative financial metrics. Past performance doesn't guarantee future results. Always do your own research and consult with a financial advisor before investing.`;
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              text: response,
+              isStreaming: false,
+              isComplete: true
+            }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+      return;
+    } catch (error) {
+      console.error('❌ Top stocks query failed:', error);
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              text: `❌ I'm having trouble fetching top stocks right now. ${error instanceof Error ? error.message : 'Please try again in a few moments.'}\n\nIn the meantime, you can ask me about:\n• Specific stocks you're interested in\n• Investment recommendations with an amount\n• Market trends and analysis`,
+              isStreaming: false,
+              isComplete: true
+            }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+    }
+  };
+
+  /**
    * Handle Railway API-based recommendations
    */
   const handleRailwayApiRecommendation = async (
@@ -663,15 +812,20 @@ Let me ask you a few quick questions to provide the best recommendations tailore
       
       // Route based on intelligent recommendation strategy
       switch (intentResult.recommendationStrategy) {
+        case 'TOP_STOCKS':
+          // User wants top/trending stocks by category
+          const category = intentResult.extractedParams.marketCapCategory || 'all';
+          return await handleTopStocksQuery(query, category, intentResult, aiMessageId);
+
         case 'RAILWAY_API':
           return await handleRailwayApiRecommendation(query, finalAmount, intentResult, aiMessageId);
-          
+
         case 'SPECIFIC_ANALYSIS':
           return await handleSpecificStockAnalysis(query, intentResult, aiMessageId);
-          
+
         case 'QUESTIONNAIRE':
           return await handleQuestionnaireFlow(query, finalAmount, intentResult, aiMessageId);
-          
+
         default:
           // Continue with default flow
           break;

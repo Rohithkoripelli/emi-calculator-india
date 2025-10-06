@@ -16,11 +16,12 @@ export interface InvestmentIntent {
       midCap?: number;
       smallCap?: number;
     };
+    marketCapCategory?: 'all' | 'large' | 'mid' | 'small'; // For top stocks queries
     sectors?: string[];
     specificStocks?: string[];
   };
   reasoning: string[];
-  recommendationStrategy: 'RAILWAY_API' | 'QUESTIONNAIRE' | 'SPECIFIC_ANALYSIS' | 'GENERAL_GUIDANCE';
+  recommendationStrategy: 'RAILWAY_API' | 'TOP_STOCKS' | 'QUESTIONNAIRE' | 'SPECIFIC_ANALYSIS' | 'GENERAL_GUIDANCE';
 }
 
 /**
@@ -71,13 +72,17 @@ const INVESTMENT_INTENT_PATTERNS = {
     /(?:price\s*target|target\s*price|fair\s*value)\s+(?:for|of)\s+/i,
   ],
 
-  // Market Research Queries (should use Railway API for trending stocks)
+  // Market Research Queries (should use TOP_STOCKS for trending/top stocks)
   MARKET_RESEARCH: [
-    /(?:trending|hot|popular|rising)\s+(?:stocks?|shares?)/i,
+    /(?:trending|hot|popular|rising|top|best)\s+(?:stocks?|shares?)/i,
+    /(?:give|show|suggest|recommend)\s+(?:me\s+)?(?:some\s+)?(?:trending|top|best|good)\s+(?:stocks?|shares?)/i,
+    /(?:what|which)\s+(?:are\s+)?(?:the\s+)?(?:trending|top|best)\s+(?:stocks?|shares?)/i,
     /(?:market\s*outlook|market\s*analysis|market\s*trends)/i,
     /(?:sector\s*analysis|sector\s*performance)/i,
     /(?:nifty|sensex|index)\s+(?:stocks?|analysis|outlook)/i,
     /(?:upcoming|future|promising)\s+(?:stocks?|companies?|sectors?)/i,
+    /(?:top|best|leading)\s+(?:large|mid|small)\s*cap\s+(?:stocks?|companies?)/i,
+    /(?:invest|investment)\s+in\s+(?:large|mid|small)\s*cap\s+(?:stocks?|companies?)/i,
   ],
 
   // General Investment Advice (should use questionnaire or general guidance)
@@ -141,6 +146,11 @@ export class IntelligentInvestmentDetector {
     if (extractedParams.marketCapPreference) {
       confidence += 20;
       reasoning.push('Detected market cap allocation preferences');
+    }
+
+    if (extractedParams.marketCapCategory) {
+      confidence += 15;
+      reasoning.push(`Detected market cap category preference: ${extractedParams.marketCapCategory}`);
     }
     
     // Step 6: Determine recommendation strategy
@@ -322,25 +332,55 @@ export class IntelligentInvestmentDetector {
     
     // Extract amount
     params.amount = this.extractAmount(query);
-    
+
     // Extract market cap preferences
     params.marketCapPreference = this.extractMarketCapAllocation(query);
-    
+
+    // Extract market cap category (for top stocks queries)
+    params.marketCapCategory = this.extractMarketCapCategory(query);
+
     // Extract time horizon
     params.timeHorizon = this.extractTimeHorizon(query);
-    
+
     // Extract risk level
     params.riskLevel = this.extractRiskLevel(query);
-    
+
     // Extract specific stocks
     params.specificStocks = this.extractSpecificStocks(query);
-    
+
     // Extract sectors
     params.sectors = this.extractSectors(query);
     
     return params;
   }
   
+  /**
+   * Extract market cap category for top stocks queries
+   */
+  private static extractMarketCapCategory(query: string): 'all' | 'large' | 'mid' | 'small' | undefined {
+    const lowerQuery = query.toLowerCase();
+
+    // Check for specific market cap mentions
+    if (lowerQuery.includes('large cap') || lowerQuery.includes('largecap') || lowerQuery.includes('blue chip')) {
+      return 'large';
+    }
+
+    if (lowerQuery.includes('mid cap') || lowerQuery.includes('midcap')) {
+      return 'mid';
+    }
+
+    if (lowerQuery.includes('small cap') || lowerQuery.includes('smallcap')) {
+      return 'small';
+    }
+
+    // If it's a general trending/top stocks query without specific category
+    if (/(?:trending|hot|popular|rising|top|best)\s+(?:stocks?|shares?)/i.test(query)) {
+      return 'all';
+    }
+
+    return undefined;
+  }
+
   /**
    * Extract investment amount from query
    */
@@ -482,47 +522,57 @@ export class IntelligentInvestmentDetector {
     params: InvestmentIntent['extractedParams'],
     confidence: number
   ): InvestmentIntent['recommendationStrategy'] {
-    
+
     // If specific stocks mentioned, use specific analysis
     if (intentType === 'STOCK_ANALYSIS' && params.specificStocks && params.specificStocks.length > 0) {
       return 'SPECIFIC_ANALYSIS';
     }
-    
-    // PRIORITY: Portfolio recommendation with investment intent -> Railway API
+
+    // PRIORITY 1: Market research with category preference (trending/top stocks) -> TOP_STOCKS
+    if (intentType === 'MARKET_RESEARCH' && params.marketCapCategory) {
+      return 'TOP_STOCKS';
+    }
+
+    // PRIORITY 2: "I want to invest in Large Cap" without amount -> TOP_STOCKS
+    if (params.marketCapCategory && !params.amount && !params.marketCapPreference) {
+      return 'TOP_STOCKS';
+    }
+
+    // PRIORITY 3: Portfolio recommendation with investment intent -> Railway API
     if (intentType === 'PORTFOLIO_RECOMMENDATION') {
       return 'RAILWAY_API';
     }
-    
-    // Market research queries -> Railway API  
+
+    // Market research queries without category -> Railway API
     if (intentType === 'MARKET_RESEARCH') {
       return 'RAILWAY_API';
     }
-    
+
     // Investment queries with amount should use Railway API
     if (params.amount && params.amount > 0) {
       return 'RAILWAY_API';
     }
-    
+
     // Investment queries with market cap allocation should use Railway API
     if (params.marketCapPreference) {
       return 'RAILWAY_API';
     }
-    
+
     // High confidence investment queries should use Railway API
     if (confidence >= 80 && (intentType === 'STOCK_ANALYSIS' || intentType === 'GENERAL_ADVICE' || intentType === 'OTHER')) {
       return 'RAILWAY_API';
     }
-    
+
     // If general advice or low confidence, use questionnaire
     if (intentType === 'GENERAL_ADVICE' || confidence < 70) {
       return 'QUESTIONNAIRE';
     }
-    
+
     // Medium confidence investment queries -> Railway API
     if (confidence >= 70) {
       return 'RAILWAY_API';
     }
-    
+
     return 'GENERAL_GUIDANCE';
   }
   
