@@ -483,7 +483,7 @@ class DailyStockScheduler {
         }
       } else if (url.startsWith('/mongodb-stocks')) {
         // Get stocks from MongoDB with optional symbol filter
-        res.writeHead(200, { 
+        res.writeHead(200, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -493,13 +493,212 @@ class DailyStockScheduler {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
           const symbol = parsedUrl.searchParams.get('symbol');
           const limit = parseInt(parsedUrl.searchParams.get('limit')) || null;
-          
+
           const result = await this.mongoService.getStockData(symbol, limit);
           res.end(JSON.stringify(result, null, 2));
         } catch (error) {
-          res.end(JSON.stringify({ 
+          res.end(JSON.stringify({
             error: 'Failed to get MongoDB stocks',
-            message: error.message 
+            message: error.message
+          }));
+        }
+      } else if (url === '/api/place-order' && req.method === 'POST') {
+        // 🆕 ORDER PLACEMENT ENDPOINT - Place orders via Groww API
+        console.log('🛒 Received order placement request...');
+
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk.toString();
+        });
+
+        req.on('end', async () => {
+          try {
+            const orderParams = JSON.parse(body);
+            console.log('📝 Order parameters:', orderParams);
+
+            // TRADING CONFIG - Load from environment or use defaults
+            const TRADING_CONFIG = {
+              paper_trading_mode: process.env.PAPER_TRADING_MODE === 'true' || true, // Default to paper trading
+              max_order_value: parseInt(process.env.MAX_ORDER_VALUE) || 100000,
+              require_confirmation: true
+            };
+
+            console.log(`🎯 Trading mode: ${TRADING_CONFIG.paper_trading_mode ? 'PAPER TRADING' : 'LIVE TRADING'}`);
+
+            // Validate required fields
+            if (!orderParams.trading_symbol || !orderParams.quantity || !orderParams.transaction_type) {
+              res.writeHead(400, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(JSON.stringify({
+                status: 'FAILED',
+                error: 'Missing required fields: trading_symbol, quantity, transaction_type'
+              }));
+              return;
+            }
+
+            // Set defaults
+            const finalOrderParams = {
+              trading_symbol: orderParams.trading_symbol.toUpperCase(),
+              quantity: parseInt(orderParams.quantity),
+              transaction_type: orderParams.transaction_type,
+              order_type: orderParams.order_type || 'MARKET',
+              exchange: orderParams.exchange || 'NSE',
+              segment: 'CASH',
+              product: orderParams.product || 'CNC',
+              validity: orderParams.validity || 'DAY',
+              ...( orderParams.price && { price: parseFloat(orderParams.price) }),
+              ...( orderParams.trigger_price && { trigger_price: parseFloat(orderParams.trigger_price) }),
+              order_reference_id: `AI-${Date.now()}`
+            };
+
+            // PAPER TRADING MODE - Simulate order without calling Groww API
+            if (TRADING_CONFIG.paper_trading_mode) {
+              console.log('📝 PAPER TRADING MODE - Simulating order...');
+
+              const paperOrderResponse = {
+                status: 'SUCCESS',
+                payload: {
+                  groww_order_id: `PAPER-${Date.now()}`,
+                  order_status: 'PAPER_TRADE_SIMULATED',
+                  order_reference_id: finalOrderParams.order_reference_id,
+                  remark: '⚠️ This is a PAPER TRADING simulation. No real order was placed.'
+                },
+                paper_trading: true,
+                order_details: finalOrderParams,
+                timestamp: new Date().toISOString()
+              };
+
+              console.log('✅ Paper trade simulated:', paperOrderResponse);
+
+              res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(JSON.stringify(paperOrderResponse));
+              return;
+            }
+
+            // LIVE TRADING MODE - Actually place order with Groww
+            console.log('🚀 LIVE TRADING MODE - Placing real order with Groww...');
+
+            // Get Groww access token
+            const GROWW_ACCESS_TOKEN = process.env.GROWW_ACCESS_TOKEN;
+
+            if (!GROWW_ACCESS_TOKEN) {
+              throw new Error('Groww access token not configured. Set GROWW_ACCESS_TOKEN environment variable.');
+            }
+
+            // Call Groww API to place order
+            const https = require('https');
+            const orderData = JSON.stringify(finalOrderParams);
+
+            const growwOptions = {
+              hostname: 'api.groww.in',
+              port: 443,
+              path: '/v1/order/create',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${GROWW_ACCESS_TOKEN}`,
+                'X-API-VERSION': '1.0',
+                'Content-Length': Buffer.byteLength(orderData)
+              }
+            };
+
+            const growwReq = https.request(growwOptions, (growwRes) => {
+              let responseBody = '';
+
+              growwRes.on('data', (chunk) => {
+                responseBody += chunk;
+              });
+
+              growwRes.on('end', () => {
+                try {
+                  const orderResponse = JSON.parse(responseBody);
+                  console.log('✅ Groww API response:', orderResponse);
+
+                  res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                  });
+                  res.end(JSON.stringify(orderResponse));
+                } catch (parseError) {
+                  console.error('❌ Failed to parse Groww response:', parseError);
+                  res.writeHead(500, {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                  });
+                  res.end(JSON.stringify({
+                    status: 'FAILED',
+                    error: 'Failed to parse Groww API response',
+                    details: responseBody
+                  }));
+                }
+              });
+            });
+
+            growwReq.on('error', (error) => {
+              console.error('❌ Groww API request failed:', error);
+              res.writeHead(500, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(JSON.stringify({
+                status: 'FAILED',
+                error: 'Groww API request failed',
+                message: error.message
+              }));
+            });
+
+            growwReq.write(orderData);
+            growwReq.end();
+
+          } catch (error) {
+            console.error('❌ Order placement error:', error);
+            res.writeHead(500, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({
+              status: 'FAILED',
+              error: error.message || 'Order placement failed',
+              timestamp: new Date().toISOString()
+            }));
+          }
+        });
+      } else if (url.startsWith('/api/order-status/') && req.method === 'GET') {
+        // 🆕 ORDER STATUS ENDPOINT - Get order status by ID
+        const orderId = url.split('/api/order-status/')[1];
+
+        console.log(`📊 Fetching order status for: ${orderId}`);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+
+        // For paper trading orders, return simulated status
+        if (orderId.startsWith('PAPER-')) {
+          res.end(JSON.stringify({
+            status: 'SUCCESS',
+            payload: {
+              groww_order_id: orderId,
+              order_status: 'PAPER_TRADE_COMPLETE',
+              remark: 'Paper trading order (simulated)'
+            }
+          }));
+        } else {
+          // TODO: Implement real Groww API order status check
+          res.end(JSON.stringify({
+            status: 'SUCCESS',
+            payload: {
+              groww_order_id: orderId,
+              order_status: 'PENDING',
+              remark: 'Order status check not yet implemented'
+            }
           }));
         }
       } else {
