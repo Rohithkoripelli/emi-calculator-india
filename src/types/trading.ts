@@ -69,9 +69,9 @@ export interface TradingConfig {
   require_confirmation: boolean;     // Always require user confirmation
 }
 
-// Default trading configuration (very conservative for MVP)
+// Default trading configuration (live trading with safety limits)
 export const DEFAULT_TRADING_CONFIG: TradingConfig = {
-  paper_trading_mode: true,         // Start with paper trading
+  paper_trading_mode: false,        // LIVE TRADING enabled by default
   max_order_value: 100000,          // ₹1 Lakh max per order
   max_daily_orders: 10,             // 10 orders per day
   max_daily_value: 500000,          // ₹5 Lakhs max per day

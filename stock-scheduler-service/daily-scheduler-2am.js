@@ -518,7 +518,7 @@ class DailyStockScheduler {
 
             // TRADING CONFIG - Load from environment or use defaults
             const TRADING_CONFIG = {
-              paper_trading_mode: process.env.PAPER_TRADING_MODE === 'true' || true, // Default to paper trading
+              paper_trading_mode: process.env.PAPER_TRADING_MODE === 'true', // Default to LIVE trading
               max_order_value: parseInt(process.env.MAX_ORDER_VALUE) || 100000,
               require_confirmation: true
             };
