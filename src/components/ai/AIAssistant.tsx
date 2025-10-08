@@ -192,11 +192,42 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, loanD
    */
   const analyzeUserQuery = async (query: string): Promise<any> => {
     console.log(`🧠 Starting intelligent analysis for: "${query}"`);
-    
+
     try {
+      // FIRST: Check for ORDER_PLACEMENT using IntelligentInvestmentDetector
+      const { IntelligentInvestmentDetector } = await import('../../services/intelligentInvestmentDetector');
+      const intelligentIntent = IntelligentInvestmentDetector.detectInvestmentIntent(query);
+
+      console.log(`🧠 IntelligentInvestmentDetector result:`, intelligentIntent);
+
+      // If ORDER_PLACEMENT detected, return immediately with mapped format
+      if (intelligentIntent.recommendationStrategy === 'ORDER_PLACEMENT') {
+        console.log(`✅ ORDER_PLACEMENT detected!`);
+        return {
+          type: 'ORDER_PLACEMENT',
+          confidence: intelligentIntent.confidence,
+          entities: intelligentIntent.extractedParams,
+          reasoning: intelligentIntent.reasoning.join(', '),
+          suggestedActions: []
+        };
+      }
+
+      // If investment-related, use IntelligentInvestmentDetector result
+      if (intelligentIntent.isInvestmentQuery && intelligentIntent.confidence >= 60) {
+        console.log(`✅ Investment query detected, using IntelligentInvestmentDetector`);
+        return {
+          type: 'INVESTMENT_RECOMMENDATION',
+          confidence: intelligentIntent.confidence,
+          entities: intelligentIntent.extractedParams,
+          reasoning: intelligentIntent.reasoning.join(', '),
+          suggestedActions: []
+        };
+      }
+
+      // Fallback to IntentAnalysisService for other queries
       const { IntentAnalysisService } = await import('../../services/intentAnalysisService');
       const intent = await IntentAnalysisService.analyzeIntent(query);
-      console.log(`✅ Intent analysis result:`, intent);
+      console.log(`✅ Intent analysis result (IntentAnalysisService):`, intent);
       return intent;
     } catch (error) {
       console.error('❌ Error in intent analysis:', error);
@@ -2028,6 +2059,15 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
       
       // Route to appropriate handler based on intent type
       switch (queryIntent.type) {
+        case 'ORDER_PLACEMENT':
+          // 🆕 Handle order placement (buy/sell stocks)
+          if (queryIntent.entities.orderParams) {
+            await handleOrderPlacement(userMessage, queryIntent.entities.orderParams, queryIntent, aiMessageId);
+          } else {
+            throw new Error('Order parameters not extracted. Please specify stock symbol and quantity.');
+          }
+          break;
+
         case 'SINGLE_STOCK_ANALYSIS':
           // Use both AI-extracted stocks AND fuzzy logic for accurate symbol identification
           let stockSymbol: string | undefined;
