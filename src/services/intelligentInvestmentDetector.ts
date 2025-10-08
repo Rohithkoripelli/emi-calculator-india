@@ -6,7 +6,7 @@
 export interface InvestmentIntent {
   isInvestmentQuery: boolean;
   confidence: number;
-  intentType: 'PORTFOLIO_RECOMMENDATION' | 'STOCK_ANALYSIS' | 'MARKET_RESEARCH' | 'GENERAL_ADVICE' | 'OTHER';
+  intentType: 'PORTFOLIO_RECOMMENDATION' | 'STOCK_ANALYSIS' | 'MARKET_RESEARCH' | 'GENERAL_ADVICE' | 'ORDER_PLACEMENT' | 'OTHER';
   extractedParams: {
     amount?: number;
     timeHorizon?: string;
@@ -19,9 +19,17 @@ export interface InvestmentIntent {
     marketCapCategory?: 'all' | 'large' | 'mid' | 'small'; // For top stocks queries
     sectors?: string[];
     specificStocks?: string[];
+    orderParams?: {  // 🆕 NEW: Order placement parameters
+      action: 'BUY' | 'SELL';
+      symbol: string;
+      quantity: number;
+      orderType?: 'MARKET' | 'LIMIT' | 'SL' | 'SL-M';
+      price?: number;
+      triggerPrice?: number;
+    };
   };
   reasoning: string[];
-  recommendationStrategy: 'RAILWAY_API' | 'TOP_STOCKS' | 'QUESTIONNAIRE' | 'SPECIFIC_ANALYSIS' | 'GENERAL_GUIDANCE';
+  recommendationStrategy: 'RAILWAY_API' | 'TOP_STOCKS' | 'ORDER_PLACEMENT' | 'QUESTIONNAIRE' | 'SPECIFIC_ANALYSIS' | 'GENERAL_GUIDANCE';
 }
 
 /**
@@ -92,6 +100,29 @@ const INVESTMENT_INTENT_PATTERNS = {
     /(?:learn|understand)\s+(?:investing|stock\s+market|trading)/i,
     /(?:risk\s+management|investment\s+risk)/i,
     /(?:sip|systematic\s+investment\s+plan)/i,
+  ],
+
+  // 🆕 Order Placement Patterns (should use ORDER_PLACEMENT strategy)
+  ORDER_PLACEMENT: [
+    // Basic buy/sell patterns
+    /(?:buy|purchase|order)\s+(\d+)\s+(?:shares?|stocks?)\s+(?:of\s+)?(\w+)/i,
+    /(?:buy|purchase|get)\s+(\w+)\s+(?:stock|share)/i,
+    /(?:place|execute)\s+(?:a\s+)?(?:buy|sell)\s+order\s+(?:for\s+)?(\w+)/i,
+
+    // With quantity
+    /(?:i\s+want\s+to\s+buy)\s+(\d+)?\s*(?:shares?\s+of\s+)?(\w+)/i,
+    /(?:order|buy)\s+(\d+)\s+(\w+)/i,
+
+    // Sell patterns
+    /(?:sell|exit|square\s+off)\s+(\d+)?\s*(?:shares?\s+of\s+)?(\w+)/i,
+
+    // Market/Limit order patterns
+    /(?:place|execute)\s+(?:a\s+)?(?:market|limit)\s+order/i,
+    /(?:buy|sell)\s+(?:at\s+)?(?:market|limit)/i,
+
+    // Price-based patterns
+    /(?:buy|purchase)\s+(\w+)\s+at\s+₹?\s*([\d,]+)/i,
+    /(?:buy|purchase)\s+(\w+)\s+(?:for|@)\s+₹?\s*([\d,]+)/i,
   ]
 };
 
@@ -152,7 +183,13 @@ export class IntelligentInvestmentDetector {
       confidence += 15;
       reasoning.push(`Detected market cap category preference: ${extractedParams.marketCapCategory}`);
     }
-    
+
+    // 🆕 Boost confidence for order placement
+    if (extractedParams.orderParams) {
+      confidence += 25;
+      reasoning.push(`Detected order placement: ${extractedParams.orderParams.action} ${extractedParams.orderParams.quantity} shares of ${extractedParams.orderParams.symbol}`);
+    }
+
     // Step 6: Determine recommendation strategy
     recommendationStrategy = this.determineRecommendationStrategy(intentType, extractedParams, confidence);
     
@@ -229,6 +266,15 @@ export class IntelligentInvestmentDetector {
         break;
       }
     }
+
+    // 🆕 Check Order Placement patterns (highest priority for buy/sell orders)
+    for (const pattern of INVESTMENT_INTENT_PATTERNS.ORDER_PLACEMENT) {
+      if (pattern.test(query)) {
+        matchedPatterns.push({ type: 'ORDER_PLACEMENT', confidence: 30 });
+        reasoning.push(`Matched order placement pattern`);
+        break;
+      }
+    }
     
     // Prioritize portfolio recommendation if allocation keywords are present
     const hasAllocationKeywords = /(?:allocation|allocate|split|diversif|portfolio|30\/40\/30|large.*cap.*mid.*cap.*small.*cap)/i.test(query);
@@ -252,7 +298,7 @@ export class IntelligentInvestmentDetector {
       
       // Type-safe assignment
       const validIntentTypes: InvestmentIntent['intentType'][] = [
-        'PORTFOLIO_RECOMMENDATION', 'STOCK_ANALYSIS', 'MARKET_RESEARCH', 'GENERAL_ADVICE', 'OTHER'
+        'PORTFOLIO_RECOMMENDATION', 'STOCK_ANALYSIS', 'MARKET_RESEARCH', 'GENERAL_ADVICE', 'ORDER_PLACEMENT', 'OTHER'
       ];
       
       if (validIntentTypes.includes(bestMatch.type as InvestmentIntent['intentType'])) {
@@ -350,8 +396,107 @@ export class IntelligentInvestmentDetector {
 
     // Extract sectors
     params.sectors = this.extractSectors(query);
-    
+
+    // 🆕 Extract order parameters
+    params.orderParams = this.extractOrderParams(query);
+
     return params;
+  }
+
+  /**
+   * 🆕 Extract order placement parameters from query
+   */
+  private static extractOrderParams(query: string): { action: 'BUY' | 'SELL'; symbol: string; quantity: number; orderType?: 'MARKET' | 'LIMIT'; price?: number } | undefined {
+    const lowerQuery = query.toLowerCase();
+
+    // Determine action (BUY or SELL)
+    let action: 'BUY' | 'SELL' = 'BUY'; // Default to BUY
+    if (/\b(sell|exit|square\s+off)\b/i.test(query)) {
+      action = 'SELL';
+    }
+
+    // Extract symbol - try multiple patterns
+    let symbol: string | undefined;
+
+    // Pattern 1: "buy 10 shares of TCS" or "buy TCS"
+    const symbolPattern1 = /(?:buy|purchase|sell|order|get|exit)\s+(?:\d+\s+)?(?:shares?\s+of\s+)?(\w+)/i;
+    const match1 = query.match(symbolPattern1);
+    if (match1 && match1[1]) {
+      symbol = match1[1].toUpperCase();
+    }
+
+    // Pattern 2: "order TCS" or "place order for TCS"
+    if (!symbol) {
+      const symbolPattern2 = /(?:order|place)\s+(?:for\s+)?(\w+)/i;
+      const match2 = query.match(symbolPattern2);
+      if (match2 && match2[1]) {
+        symbol = match2[1].toUpperCase();
+      }
+    }
+
+    // Pattern 3: "I want to buy TCS"
+    if (!symbol) {
+      const symbolPattern3 = /want\s+to\s+(?:buy|purchase)\s+(\w+)/i;
+      const match3 = query.match(symbolPattern3);
+      if (match3 && match3[1]) {
+        symbol = match3[1].toUpperCase();
+      }
+    }
+
+    // Extract quantity
+    let quantity = 1; // Default to 1 share
+    const qtyPattern1 = /(\d+)\s+(?:shares?|stocks?)/i;
+    const qtyMatch1 = query.match(qtyPattern1);
+    if (qtyMatch1 && qtyMatch1[1]) {
+      quantity = parseInt(qtyMatch1[1]);
+    } else {
+      // Try pattern: "buy 10 TCS"
+      const qtyPattern2 = /(?:buy|purchase|sell|order)\s+(\d+)\s+\w+/i;
+      const qtyMatch2 = query.match(qtyPattern2);
+      if (qtyMatch2 && qtyMatch2[1]) {
+        quantity = parseInt(qtyMatch2[1]);
+      }
+    }
+
+    // Extract order type
+    let orderType: 'MARKET' | 'LIMIT' | undefined;
+    if (/\bmarket\s+order\b/i.test(query) || (/\bmarket\b/i.test(query) && /\border\b/i.test(query))) {
+      orderType = 'MARKET';
+    } else if (/\blimit\s+order\b/i.test(query) || (/\blimit\b/i.test(query) && /\border\b/i.test(query))) {
+      orderType = 'LIMIT';
+    } else if (/\bat\s+(?:market|current\s+price)\b/i.test(query)) {
+      orderType = 'MARKET';
+    } else if (/\bat\s+₹?\s*[\d,]+/i.test(query)) {
+      orderType = 'LIMIT';
+    }
+
+    // Extract price (for limit orders)
+    let price: number | undefined;
+    const pricePattern1 = /(?:at|@|price|for)\s*₹?\s*([\d,]+)/i;
+    const priceMatch = query.match(pricePattern1);
+    if (priceMatch && priceMatch[1]) {
+      price = parseFloat(priceMatch[1].replace(/,/g, ''));
+      if (!orderType) orderType = 'LIMIT'; // If price specified, assume LIMIT order
+    }
+
+    // Only return if we found a symbol
+    if (!symbol) {
+      return undefined;
+    }
+
+    // Filter out common words that might be mistaken for symbols
+    const commonWords = ['STOCK', 'SHARE', 'MARKET', 'ORDER', 'PRICE', 'LIMIT', 'AT', 'FOR', 'THE', 'A', 'AN', 'IN', 'TO', 'OF', 'AND', 'OR'];
+    if (commonWords.includes(symbol)) {
+      return undefined;
+    }
+
+    return {
+      action,
+      symbol,
+      quantity,
+      ...(orderType && { orderType }),
+      ...(price && { price })
+    };
   }
   
   /**
@@ -523,22 +668,32 @@ export class IntelligentInvestmentDetector {
     confidence: number
   ): InvestmentIntent['recommendationStrategy'] {
 
+    // 🆕 HIGHEST PRIORITY: Order placement intent -> ORDER_PLACEMENT
+    if (intentType === 'ORDER_PLACEMENT' && params.orderParams) {
+      return 'ORDER_PLACEMENT';
+    }
+
+    // If order params detected but intent type is different, still use ORDER_PLACEMENT
+    if (params.orderParams && params.orderParams.symbol && params.orderParams.quantity) {
+      return 'ORDER_PLACEMENT';
+    }
+
     // If specific stocks mentioned, use specific analysis
     if (intentType === 'STOCK_ANALYSIS' && params.specificStocks && params.specificStocks.length > 0) {
       return 'SPECIFIC_ANALYSIS';
     }
 
-    // PRIORITY 1: Market research with category preference (trending/top stocks) -> TOP_STOCKS
+    // PRIORITY 2: Market research with category preference (trending/top stocks) -> TOP_STOCKS
     if (intentType === 'MARKET_RESEARCH' && params.marketCapCategory) {
       return 'TOP_STOCKS';
     }
 
-    // PRIORITY 2: "I want to invest in Large Cap" without amount -> TOP_STOCKS
+    // PRIORITY 3: "I want to invest in Large Cap" without amount -> TOP_STOCKS
     if (params.marketCapCategory && !params.amount && !params.marketCapPreference) {
       return 'TOP_STOCKS';
     }
 
-    // PRIORITY 3: Portfolio recommendation with investment intent -> Railway API
+    // PRIORITY 4: Portfolio recommendation with investment intent -> Railway API
     if (intentType === 'PORTFOLIO_RECOMMENDATION') {
       return 'RAILWAY_API';
     }

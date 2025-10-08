@@ -5,6 +5,15 @@
  */
 
 import { GrowwTokenManager } from './growwTokenManager';
+import type {
+  OrderParams,
+  OrderResponse,
+  OrderPreview,
+  MarketStatus,
+  OrderValidation,
+  TradingConfig,
+  DEFAULT_TRADING_CONFIG
+} from '../types/trading';
 
 interface GrowwQuoteResponse {
   status: string;
@@ -1078,10 +1087,10 @@ export class GrowwApiService {
    */
   static async testConnection(): Promise<boolean> {
     console.log('🧪 Testing Groww API connection...');
-    
+
     // Test with a well-known stock
     const testQuote = await this.getRealTimeQuote('RELIANCE');
-    
+
     if (testQuote) {
       console.log('✅ Groww API connection successful');
       console.log(`📊 Test quote: ${testQuote.companyName} - ₹${testQuote.currentPrice}`);
@@ -1089,6 +1098,324 @@ export class GrowwApiService {
     } else {
       console.log('❌ Groww API connection failed');
       return false;
+    }
+  }
+
+  // ========================================================================
+  // 🆕 ORDER PLACEMENT & TRADING METHODS
+  // ========================================================================
+
+  /**
+   * Check if market is currently open
+   */
+  static isMarketOpen(exchange: 'NSE' | 'BSE' = 'NSE'): MarketStatus {
+    const now = new Date();
+    const day = now.getDay();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // Weekend check
+    if (day === 0 || day === 6) {
+      const nextMonday = new Date(now);
+      nextMonday.setDate(now.getDate() + ((1 + 7 - day) % 7 || 7));
+      nextMonday.setHours(9, 15, 0, 0);
+
+      return {
+        is_open: false,
+        next_open_time: nextMonday.toISOString(),
+        market: exchange,
+        current_time: now.toISOString()
+      };
+    }
+
+    // Market hours: 9:15 AM - 3:30 PM
+    const currentTime = hours * 60 + minutes;
+    const marketOpen = 9 * 60 + 15;  // 9:15 AM
+    const marketClose = 15 * 60 + 30; // 3:30 PM
+
+    const isOpen = currentTime >= marketOpen && currentTime <= marketClose;
+
+    // Calculate next open time if market is closed
+    let nextOpenTime: string | undefined;
+    if (!isOpen) {
+      const nextOpen = new Date(now);
+      if (currentTime > marketClose) {
+        // After market close, next open is tomorrow
+        nextOpen.setDate(now.getDate() + 1);
+      }
+      // Skip weekends
+      if (nextOpen.getDay() === 0) nextOpen.setDate(nextOpen.getDate() + 1);
+      if (nextOpen.getDay() === 6) nextOpen.setDate(nextOpen.getDate() + 2);
+      nextOpen.setHours(9, 15, 0, 0);
+      nextOpenTime = nextOpen.toISOString();
+    }
+
+    return {
+      is_open: isOpen,
+      next_open_time: nextOpenTime,
+      market: exchange,
+      current_time: now.toISOString()
+    };
+  }
+
+  /**
+   * Calculate brokerage and charges for order
+   * Based on typical Indian brokerage structure
+   */
+  static calculateOrderCharges(
+    orderValue: number,
+    transactionType: 'BUY' | 'SELL',
+    orderType: 'MARKET' | 'LIMIT' | 'SL' | 'SL-M'
+  ): {
+    brokerage: number;
+    stt: number;
+    exchangeCharges: number;
+    gst: number;
+    sebiCharges: number;
+    stampDuty: number;
+    totalCharges: number;
+  } {
+    // Brokerage: ₹20 per order or 0.03% (whichever is lower) for delivery
+    const brokerage = Math.min(20, orderValue * 0.0003);
+
+    // STT: 0.1% on sell side for delivery
+    const stt = transactionType === 'SELL' ? orderValue * 0.001 : 0;
+
+    // Exchange charges: 0.00325% of turnover
+    const exchangeCharges = orderValue * 0.0000325;
+
+    // SEBI charges: ₹10 per crore
+    const sebiCharges = (orderValue / 10000000) * 10;
+
+    // Stamp duty: 0.015% on buy side
+    const stampDuty = transactionType === 'BUY' ? orderValue * 0.00015 : 0;
+
+    // GST: 18% on brokerage + exchange charges
+    const gst = (brokerage + exchangeCharges) * 0.18;
+
+    const totalCharges = brokerage + stt + exchangeCharges + gst + sebiCharges + stampDuty;
+
+    return {
+      brokerage: Math.round(brokerage * 100) / 100,
+      stt: Math.round(stt * 100) / 100,
+      exchangeCharges: Math.round(exchangeCharges * 100) / 100,
+      gst: Math.round(gst * 100) / 100,
+      sebiCharges: Math.round(sebiCharges * 100) / 100,
+      stampDuty: Math.round(stampDuty * 100) / 100,
+      totalCharges: Math.round(totalCharges * 100) / 100
+    };
+  }
+
+  /**
+   * Validate order parameters before placing
+   */
+  static async validateOrder(orderParams: OrderParams): Promise<OrderValidation> {
+    const errors: string[] = [];
+
+    // 1. Check if symbol is valid
+    if (!orderParams.trading_symbol || orderParams.trading_symbol.trim().length === 0) {
+      errors.push('Trading symbol is required');
+    }
+
+    // 2. Check quantity
+    if (!orderParams.quantity || orderParams.quantity <= 0) {
+      errors.push('Quantity must be greater than 0');
+    }
+
+    // 3. Check price for LIMIT orders
+    if (orderParams.order_type === 'LIMIT' && (!orderParams.price || orderParams.price <= 0)) {
+      errors.push('Price is required for LIMIT orders');
+    }
+
+    // 4. Check trigger price for SL/SL-M orders
+    if ((orderParams.order_type === 'SL' || orderParams.order_type === 'SL-M') &&
+        (!orderParams.trigger_price || orderParams.trigger_price <= 0)) {
+      errors.push('Trigger price is required for Stop Loss orders');
+    }
+
+    // 5. Check market hours (only for MARKET orders)
+    if (orderParams.order_type === 'MARKET') {
+      const marketStatus = this.isMarketOpen(orderParams.exchange);
+      if (!marketStatus.is_open) {
+        errors.push(`Market is closed. Opens at ${marketStatus.next_open_time}. Use LIMIT order for After Market Orders (AMO)`);
+      }
+    }
+
+    // 6. Validate order value limits
+    const currentPrice = orderParams.price || 0;
+    const orderValue = currentPrice * orderParams.quantity;
+
+    // Import trading config
+    const { DEFAULT_TRADING_CONFIG } = await import('../types/trading');
+
+    if (orderValue > DEFAULT_TRADING_CONFIG.max_order_value) {
+      errors.push(`Order value ₹${orderValue.toLocaleString()} exceeds maximum allowed ₹${DEFAULT_TRADING_CONFIG.max_order_value.toLocaleString()}`);
+    }
+
+    return {
+      valid: errors.length === 0,
+      message: errors.length === 0 ? 'Order validation successful' : 'Order validation failed',
+      errors: errors.length > 0 ? errors : undefined
+    };
+  }
+
+  /**
+   * Preview order with all charges before placing
+   */
+  static async previewOrder(orderParams: OrderParams): Promise<OrderPreview> {
+    console.log('🔍 Generating order preview...');
+
+    // Get current price if not provided
+    let currentPrice = orderParams.price || 0;
+    if (!currentPrice || orderParams.order_type === 'MARKET') {
+      const quote = await this.getRealTimeQuote(orderParams.trading_symbol, orderParams.exchange);
+      if (quote) {
+        currentPrice = quote.currentPrice;
+      } else {
+        throw new Error(`Unable to fetch current price for ${orderParams.trading_symbol}`);
+      }
+    }
+
+    // Calculate order value
+    const totalValue = currentPrice * orderParams.quantity;
+
+    // Calculate charges
+    const charges = this.calculateOrderCharges(totalValue, orderParams.transaction_type, orderParams.order_type);
+
+    // Get company name
+    const { ExcelBasedStockAnalysisService } = await import('./excelBasedStockAnalysis');
+    const companyInfo = ExcelBasedStockAnalysisService.getCompanyBySymbol(orderParams.trading_symbol);
+
+    // Calculate net amount
+    const netAmount = orderParams.transaction_type === 'BUY'
+      ? totalValue + charges.totalCharges
+      : totalValue - charges.totalCharges;
+
+    const preview: OrderPreview = {
+      preview: true,
+      stock: orderParams.trading_symbol,
+      company_name: companyInfo?.name || orderParams.trading_symbol,
+      quantity: orderParams.quantity,
+      current_price: currentPrice,
+      order_type: orderParams.order_type,
+      transaction_type: orderParams.transaction_type,
+      total_value: Math.round(totalValue * 100) / 100,
+      brokerage: charges.brokerage,
+      stt: charges.stt,
+      exchange_charges: charges.exchangeCharges,
+      gst: charges.gst,
+      sebi_charges: charges.sebiCharges,
+      stamp_duty: charges.stampDuty,
+      total_charges: charges.totalCharges,
+      net_amount: Math.round(netAmount * 100) / 100
+    };
+
+    console.log('✅ Order preview generated:', preview);
+    return preview;
+  }
+
+  /**
+   * Place order via Railway backend service
+   * This endpoint will handle the actual Groww API call with proper authentication
+   */
+  static async placeOrder(orderParams: OrderParams): Promise<OrderResponse> {
+    try {
+      console.log('🛒 Placing order via Railway service...');
+      console.log('📝 Order params:', orderParams);
+
+      // Validate order first
+      const validation = await this.validateOrder(orderParams);
+      if (!validation.valid) {
+        return {
+          status: 'FAILED',
+          error: `Validation failed: ${validation.errors?.join(', ')}`
+        };
+      }
+
+      // Use Railway backend endpoint
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL ||
+                            process.env.REACT_APP_GROWW_AUTH_SERVICE_URL ||
+                            'https://emi-calculator-india-production.up.railway.app';
+
+      const apiUrl = `${authServiceUrl}/api/place-order`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderParams),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Railway order placement error: ${response.status} - ${errorText}`);
+        return {
+          status: 'FAILED',
+          error: `Order placement failed: ${response.status} - ${errorText}`
+        };
+      }
+
+      const result: OrderResponse = await response.json();
+
+      if (result.status === 'SUCCESS') {
+        console.log('✅ Order placed successfully!');
+        console.log(`📝 Order ID: ${result.payload?.groww_order_id}`);
+        console.log(`📊 Status: ${result.payload?.order_status}`);
+      } else {
+        console.error('❌ Order placement failed:', result.error);
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('❌ Error placing order:', error);
+      return {
+        status: 'FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get order status by order ID
+   */
+  static async getOrderStatus(orderId: string): Promise<OrderResponse | null> {
+    try {
+      console.log(`📊 Fetching order status for ${orderId}...`);
+
+      const authServiceUrl = process.env.NEXT_PUBLIC_GROWW_AUTH_SERVICE_URL ||
+                            process.env.REACT_APP_GROWW_AUTH_SERVICE_URL ||
+                            'https://emi-calculator-india-production.up.railway.app';
+
+      const apiUrl = `${authServiceUrl}/api/order-status/${orderId}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Failed to fetch order status: ${response.status}`);
+        return null;
+      }
+
+      const result = await response.json();
+      console.log('✅ Order status fetched:', result);
+
+      return result;
+
+    } catch (error) {
+      console.error('❌ Error fetching order status:', error);
+      return null;
     }
   }
 }

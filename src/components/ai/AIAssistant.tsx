@@ -17,7 +17,7 @@ interface Message {
   isUser: boolean;
   timestamp: Date;
   stockAnalysis?: any; // Dynamic import
-  stockComparison?: any; // Dynamic import  
+  stockComparison?: any; // Dynamic import
   investmentRecommendation?: any; // Dynamic import
   isStreaming?: boolean;
   isComplete?: boolean;
@@ -32,6 +32,8 @@ interface Message {
     stockSymbol: string;
     stockName: string;
   };
+  awaitingOrderConfirmation?: boolean;
+  pendingOrderData?: any;
 }
 
 
@@ -643,6 +645,328 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
   };
 
   /**
+   * 🆕 Handle Order Placement (Buy/Sell stocks)
+   */
+  const handleOrderPlacement = async (
+    query: string,
+    orderParams: any,
+    intentResult: any,
+    aiMessageId: string
+  ) => {
+    console.log('🛒 Handling order placement request:', orderParams);
+
+    setStreamingMessageId(aiMessageId);
+
+    // Step 1: Show initial processing message
+    setMessages(prev => prev.map(msg =>
+      msg.id === aiMessageId
+        ? {
+            ...msg,
+            text: `🔍 Processing ${orderParams.action} order for ${orderParams.symbol}...\n\n⏳ Fetching current price\n⏳ Validating order parameters\n⏳ Calculating charges`,
+            isStreaming: true,
+            isComplete: false
+          }
+        : msg
+    ));
+
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      // Step 2: Import Groww service and get preview
+      const { GrowwApiService } = await import('../../services/growwApiService');
+
+      console.log('📊 Getting order preview...');
+
+      const orderPreviewParams = {
+        trading_symbol: orderParams.symbol,
+        quantity: orderParams.quantity,
+        transaction_type: orderParams.action,
+        order_type: orderParams.orderType || 'MARKET',
+        exchange: 'NSE',
+        segment: 'CASH' as const,
+        product: 'CNC' as const,
+        validity: 'DAY' as const,
+        ...(orderParams.price && { price: orderParams.price })
+      };
+
+      const preview = await GrowwApiService.previewOrder(orderPreviewParams);
+
+      console.log('✅ Order preview generated:', preview);
+
+      // Step 3: Show order confirmation
+      const confirmationMessage = `
+## 🛒 Order Preview - **Confirmation Required**
+
+### Stock Details
+**Company:** ${preview.company_name}
+**Symbol:** ${preview.stock}
+**Current Price:** ₹${preview.current_price.toLocaleString()}
+
+### Order Details
+**Action:** ${preview.transaction_type === 'BUY' ? '🟢 BUY' : '🔴 SELL'}
+**Quantity:** ${preview.quantity} shares
+**Order Type:** ${preview.order_type}
+
+---
+
+### Cost Breakdown
+| Item | Amount |
+|------|--------|
+| Stock Value | ₹${preview.total_value.toLocaleString()} |
+| Brokerage | ₹${preview.brokerage.toFixed(2)} |
+| STT | ₹${preview.stt.toFixed(2)} |
+| Exchange Charges | ₹${preview.exchange_charges.toFixed(2)} |
+| GST | ₹${preview.gst.toFixed(2)} |
+| SEBI Charges | ₹${preview.sebi_charges.toFixed(2)} |
+| Stamp Duty | ₹${preview.stamp_duty.toFixed(2)} |
+| **Total Charges** | **₹${preview.total_charges.toFixed(2)}** |
+
+---
+
+### **${preview.transaction_type === 'BUY' ? 'Amount to Pay' : 'Amount to Receive'}: ₹${preview.net_amount.toLocaleString()}**
+
+---
+
+⚠️ **IMPORTANT:**
+- This order will be placed in **PAPER TRADING MODE** (no real money)
+- Orders placed after market hours will be queued for next trading session
+- Market hours: 9:15 AM - 3:30 PM (Mon-Fri)
+
+---
+
+**To confirm this order, reply:**
+- **"Yes, place order"** or **"Confirm"**
+
+**To cancel, reply:**
+- **"No, cancel"** or **"Cancel order"**
+      `.trim();
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              text: confirmationMessage,
+              isStreaming: false,
+              isComplete: false,
+              awaitingOrderConfirmation: true, // Special flag for order confirmation
+              pendingOrderData: {
+                orderParams: orderPreviewParams,
+                preview: preview
+              }
+            }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+
+    } catch (error) {
+      console.error('❌ Order preview failed:', error);
+
+      const errorMessage = `
+❌ **Order Preview Failed**
+
+Unable to process order for ${orderParams.symbol}.
+
+**Error:** ${error instanceof Error ? error.message : 'Unknown error occurred'}
+
+**Possible reasons:**
+- Stock symbol might be invalid
+- Market data temporarily unavailable
+- Network connectivity issue
+
+**Try:**
+- Check the stock symbol (e.g., TCS, RELIANCE, INFY)
+- Try again in a moment
+- Ask for stock recommendations first
+      `.trim();
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMessageId
+          ? {
+              ...msg,
+              text: errorMessage,
+              isStreaming: false,
+              isComplete: true
+            }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+    }
+  };
+
+  /**
+   * 🆕 Handle Order Confirmation (user confirms/cancels order)
+   */
+  const handleOrderConfirmation = async (
+    userMessage: string,
+    pendingOrderData: any,
+    originalMessageId: string
+  ) => {
+    const lowerMessage = userMessage.toLowerCase();
+    const isConfirmed = /\b(yes|confirm|proceed|place|ok|sure|go ahead)\b/i.test(lowerMessage);
+    const isCancelled = /\b(no|cancel|dont|don't|stop|abort|nevermind)\b/i.test(lowerMessage);
+
+    if (!isConfirmed && !isCancelled) {
+      // User didn't clearly confirm or cancel - ask again
+      const clarificationMessage = `
+⚠️ **Please confirm or cancel the order**
+
+Reply with:
+- **"Yes"** or **"Confirm"** to place the order
+- **"No"** or **"Cancel"** to cancel the order
+      `.trim();
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: clarificationMessage,
+        isUser: false,
+        timestamp: new Date(),
+        isComplete: true
+      }]);
+      return;
+    }
+
+    if (isCancelled) {
+      // User cancelled the order
+      const cancellationMessage = `
+❌ **Order Cancelled**
+
+The order for **${pendingOrderData.preview.stock}** has been cancelled.
+
+No action was taken. Your funds are safe.
+
+You can:
+- Ask for stock recommendations
+- Request analysis of specific stocks
+- Place a different order
+      `.trim();
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: cancellationMessage,
+        isUser: false,
+        timestamp: new Date(),
+        isComplete: true
+      }]);
+
+      // Clear the pending order flag on the original message
+      setMessages(prev => prev.map(msg =>
+        msg.id === originalMessageId
+          ? { ...msg, awaitingOrderConfirmation: false, pendingOrderData: undefined }
+          : msg
+      ));
+
+      return;
+    }
+
+    // User confirmed - place the order
+    const processingMessageId = Date.now().toString();
+    setMessages(prev => [...prev, {
+      id: processingMessageId,
+      text: '⏳ Placing your order...',
+      isUser: false,
+      timestamp: new Date(),
+      isStreaming: true,
+      isComplete: false
+    }]);
+
+    setStreamingMessageId(processingMessageId);
+
+    try {
+      // Import Groww service
+      const { GrowwApiService } = await import('../../services/growwApiService');
+
+      console.log('🛒 Placing order with params:', pendingOrderData.orderParams);
+
+      // Place the order
+      const orderResult = await GrowwApiService.placeOrder(pendingOrderData.orderParams);
+
+      console.log('📊 Order result:', orderResult);
+
+      if (orderResult.status === 'SUCCESS') {
+        const successMessage = `
+✅ **Order Placed Successfully!**
+
+**Order ID:** \`${orderResult.payload?.groww_order_id}\`
+**Status:** ${orderResult.payload?.order_status}
+**Stock:** ${pendingOrderData.preview.stock} (${pendingOrderData.preview.company_name})
+**Quantity:** ${pendingOrderData.preview.quantity} shares
+**Action:** ${pendingOrderData.preview.transaction_type}
+
+${orderResult.payload?.remark}
+
+${orderResult.paper_trading ? '📝 **Note:** This was a paper trading order (simulation). No real money was used.' : ''}
+
+---
+
+**Next Steps:**
+- Your order is now active
+- You'll be notified when it's executed
+- Check your portfolio for updates
+
+**Need help?**
+- Ask "What are my orders?" to see all orders
+- Ask "Show my portfolio" to see holdings
+        `.trim();
+
+        setMessages(prev => prev.map(msg =>
+          msg.id === processingMessageId
+            ? {
+                ...msg,
+                text: successMessage,
+                isStreaming: false,
+                isComplete: true
+              }
+            : msg
+        ));
+      } else {
+        throw new Error(orderResult.error || 'Order placement failed');
+      }
+
+      // Clear the pending order flag
+      setMessages(prev => prev.map(msg =>
+        msg.id === originalMessageId
+          ? { ...msg, awaitingOrderConfirmation: false, pendingOrderData: undefined }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+
+    } catch (error) {
+      console.error('❌ Order placement failed:', error);
+
+      const errorMessage = `
+❌ **Order Placement Failed**
+
+Unable to place order for ${pendingOrderData.preview.stock}.
+
+**Error:** ${error instanceof Error ? error.message : 'Unknown error occurred'}
+
+Your funds are safe. No order was placed.
+
+**Try:**
+- Check market hours (9:15 AM - 3:30 PM)
+- Verify you have sufficient balance
+- Try placing the order again
+      `.trim();
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === processingMessageId
+          ? {
+              ...msg,
+              text: errorMessage,
+              isStreaming: false,
+              isComplete: true
+            }
+          : msg
+      ));
+
+      setStreamingMessageId(null);
+    }
+  };
+
+  /**
    * Handle Railway API-based recommendations
    */
   const handleRailwayApiRecommendation = async (
@@ -652,7 +976,7 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
     aiMessageId: string
   ) => {
     console.log('🎯 Using Railway API for investment recommendation');
-    
+
     setStreamingMessageId(aiMessageId);
     
     setMessages(prev => prev.map(msg => 
@@ -812,6 +1136,13 @@ Let me ask you a few quick questions to provide the best recommendations tailore
       
       // Route based on intelligent recommendation strategy
       switch (intentResult.recommendationStrategy) {
+        case 'ORDER_PLACEMENT':
+          // 🆕 User wants to place a buy/sell order
+          if (intentResult.extractedParams.orderParams) {
+            return await handleOrderPlacement(query, intentResult.extractedParams.orderParams, intentResult, aiMessageId);
+          }
+          break;
+
         case 'TOP_STOCKS':
           // User wants top/trending stocks by category
           const category = intentResult.extractedParams.marketCapCategory || 'all';
@@ -1656,6 +1987,16 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
     const userMessage = inputMessage.trim();
     setInputMessage('');
     setIsLoading(true);
+
+    // Check if there's a pending order awaiting confirmation
+    const pendingOrderMessage = messages.find(msg => msg.awaitingOrderConfirmation && msg.pendingOrderData);
+
+    if (pendingOrderMessage) {
+      // User is responding to order confirmation
+      await handleOrderConfirmation(userMessage, pendingOrderMessage.pendingOrderData, pendingOrderMessage.id);
+      setIsLoading(false);
+      return; // Don't process as normal query
+    }
 
     // Add user message
     const userMsg: Message = {
