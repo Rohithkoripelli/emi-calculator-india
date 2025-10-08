@@ -104,25 +104,34 @@ const INVESTMENT_INTENT_PATTERNS = {
 
   // 🆕 Order Placement Patterns (should use ORDER_PLACEMENT strategy)
   ORDER_PLACEMENT: [
-    // Basic buy/sell patterns
-    /(?:buy|purchase|order)\s+(\d+)\s+(?:shares?|stocks?)\s+(?:of\s+)?(\w+)/i,
-    /(?:buy|purchase|get)\s+(\w+)\s+(?:stock|share)/i,
-    /(?:place|execute)\s+(?:a\s+)?(?:buy|sell)\s+order\s+(?:for\s+)?(\w+)/i,
+    // HIGHEST PRIORITY: "Buy 2 BHEL stocks" format (quantity then symbol then stocks/shares)
+    /(?:buy|purchase|order|get)\s+(\d+)\s+([A-Z]{2,10}|[a-z]+)\s+(?:shares?|stocks?)/i,
 
-    // With quantity
-    /(?:i\s+want\s+to\s+buy)\s+(\d+)?\s*(?:shares?\s+of\s+)?(\w+)/i,
-    /(?:order|buy)\s+(\d+)\s+(\w+)/i,
+    // "Buy 2 stocks of BHEL" format (quantity then stocks/shares then symbol)
+    /(?:buy|purchase|order)\s+(\d+)\s+(?:shares?|stocks?)\s+(?:of\s+)?([A-Z]{2,10}|[a-z]+)/i,
 
-    // Sell patterns
-    /(?:sell|exit|square\s+off)\s+(\d+)?\s*(?:shares?\s+of\s+)?(\w+)/i,
+    // "Buy BHEL stock" format (no quantity specified)
+    /(?:buy|purchase|get|order)\s+([A-Z]{2,10}|[a-z]+)\s+(?:stock|share)/i,
+
+    // "Place buy order for BHEL"
+    /(?:place|execute)\s+(?:a\s+)?(?:buy|sell)\s+order\s+(?:for\s+)?([A-Z]{2,10}|[a-z]+)/i,
+
+    // "I want to buy 5 shares of TCS"
+    /(?:i\s+want\s+to\s+buy|want\s+to\s+buy)\s+(\d+)?\s*(?:shares?\s+of\s+)?([A-Z]{2,10}|[a-z]+)/i,
+
+    // "Buy 10 Reliance" or "Order 5 TCS"
+    /(?:order|buy|purchase)\s+(\d+)\s+([A-Z]{2,10}|[a-z]+)/i,
+
+    // Sell patterns - "Sell 20 BHEL shares"
+    /(?:sell|exit|square\s+off)\s+(\d+)?\s*([A-Z]{2,10}|[a-z]+)?\s*(?:shares?\s+of\s+)?([A-Z]{2,10}|[a-z]+)?/i,
 
     // Market/Limit order patterns
     /(?:place|execute)\s+(?:a\s+)?(?:market|limit)\s+order/i,
     /(?:buy|sell)\s+(?:at\s+)?(?:market|limit)/i,
 
-    // Price-based patterns
-    /(?:buy|purchase)\s+(\w+)\s+at\s+₹?\s*([\d,]+)/i,
-    /(?:buy|purchase)\s+(\w+)\s+(?:for|@)\s+₹?\s*([\d,]+)/i,
+    // Price-based patterns - "Buy TCS at 3500"
+    /(?:buy|purchase)\s+([A-Z]{2,10}|[a-z]+)\s+at\s+₹?\s*([\d,]+)/i,
+    /(?:buy|purchase)\s+([A-Z]{2,10}|[a-z]+)\s+(?:for|@)\s+₹?\s*([\d,]+)/i,
   ]
 };
 
@@ -230,7 +239,16 @@ export class IntelligentInvestmentDetector {
     let confidence = 0;
     let intentType: InvestmentIntent['intentType'] = 'OTHER';
     let matchedPatterns: { type: string; confidence: number }[] = [];
-    
+
+    // 🆕 Check Order Placement patterns FIRST (highest priority for buy/sell orders)
+    for (const pattern of INVESTMENT_INTENT_PATTERNS.ORDER_PLACEMENT) {
+      if (pattern.test(query)) {
+        matchedPatterns.push({ type: 'ORDER_PLACEMENT', confidence: 40 });
+        reasoning.push(`Matched order placement pattern - buy/sell detected`);
+        break;
+      }
+    }
+
     // Check Portfolio Recommendation patterns (highest priority for allocation requests)
     for (const pattern of INVESTMENT_INTENT_PATTERNS.PORTFOLIO_RECOMMENDATION) {
       if (pattern.test(query)) {
@@ -239,7 +257,7 @@ export class IntelligentInvestmentDetector {
         break; // Only count one pattern match per category
       }
     }
-    
+
     // Check Stock Analysis patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.STOCK_ANALYSIS) {
       if (pattern.test(query)) {
@@ -248,7 +266,7 @@ export class IntelligentInvestmentDetector {
         break;
       }
     }
-    
+
     // Check Market Research patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.MARKET_RESEARCH) {
       if (pattern.test(query)) {
@@ -257,21 +275,12 @@ export class IntelligentInvestmentDetector {
         break;
       }
     }
-    
+
     // Check General Advice patterns
     for (const pattern of INVESTMENT_INTENT_PATTERNS.GENERAL_ADVICE) {
       if (pattern.test(query)) {
         matchedPatterns.push({ type: 'GENERAL_ADVICE', confidence: 10 });
         reasoning.push(`Matched general investment advice pattern`);
-        break;
-      }
-    }
-
-    // 🆕 Check Order Placement patterns (highest priority for buy/sell orders)
-    for (const pattern of INVESTMENT_INTENT_PATTERNS.ORDER_PLACEMENT) {
-      if (pattern.test(query)) {
-        matchedPatterns.push({ type: 'ORDER_PLACEMENT', confidence: 30 });
-        reasoning.push(`Matched order placement pattern`);
         break;
       }
     }
@@ -418,28 +427,46 @@ export class IntelligentInvestmentDetector {
     // Extract symbol - try multiple patterns
     let symbol: string | undefined;
 
-    // Pattern 1: "buy 10 shares of TCS" or "buy TCS"
-    const symbolPattern1 = /(?:buy|purchase|sell|order|get|exit)\s+(?:\d+\s+)?(?:shares?\s+of\s+)?(\w+)/i;
+    // Pattern 1: "buy 2 BHEL stocks" (quantity then symbol then stocks/shares)
+    const symbolPattern1 = /(?:buy|purchase|order|get)\s+(\d+)\s+([A-Z]{2,10}|[a-z]+)\s+(?:shares?|stocks?)/i;
     const match1 = query.match(symbolPattern1);
-    if (match1 && match1[1]) {
-      symbol = match1[1].toUpperCase();
+    if (match1 && match1[2]) {
+      symbol = match1[2].toUpperCase();
     }
 
-    // Pattern 2: "order TCS" or "place order for TCS"
+    // Pattern 2: "buy 10 shares of TCS" (quantity then shares then symbol)
     if (!symbol) {
-      const symbolPattern2 = /(?:order|place)\s+(?:for\s+)?(\w+)/i;
+      const symbolPattern2 = /(?:buy|purchase|sell|order)\s+(?:\d+\s+)?(?:shares?\s+of\s+)?([A-Z]{2,10}|[a-z]+)/i;
       const match2 = query.match(symbolPattern2);
       if (match2 && match2[1]) {
         symbol = match2[1].toUpperCase();
       }
     }
 
-    // Pattern 3: "I want to buy TCS"
+    // Pattern 3: "buy TCS stock" (symbol then stock/share)
     if (!symbol) {
-      const symbolPattern3 = /want\s+to\s+(?:buy|purchase)\s+(\w+)/i;
+      const symbolPattern3 = /(?:buy|purchase|order|get)\s+([A-Z]{2,10}|[a-z]+)\s+(?:stock|share)/i;
       const match3 = query.match(symbolPattern3);
       if (match3 && match3[1]) {
         symbol = match3[1].toUpperCase();
+      }
+    }
+
+    // Pattern 4: "place order for TCS"
+    if (!symbol) {
+      const symbolPattern4 = /(?:order|place)\s+(?:for\s+)?([A-Z]{2,10}|[a-z]+)/i;
+      const match4 = query.match(symbolPattern4);
+      if (match4 && match4[1]) {
+        symbol = match4[1].toUpperCase();
+      }
+    }
+
+    // Pattern 5: "I want to buy TCS"
+    if (!symbol) {
+      const symbolPattern5 = /want\s+to\s+(?:buy|purchase)\s+([A-Z]{2,10}|[a-z]+)/i;
+      const match5 = query.match(symbolPattern5);
+      if (match5 && match5[1]) {
+        symbol = match5[1].toUpperCase();
       }
     }
 
