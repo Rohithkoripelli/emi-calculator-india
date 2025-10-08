@@ -1233,13 +1233,9 @@ export class GrowwApiService {
       errors.push('Trigger price is required for Stop Loss orders');
     }
 
-    // 5. Check market hours (only for MARKET orders)
-    if (orderParams.order_type === 'MARKET') {
-      const marketStatus = this.isMarketOpen(orderParams.exchange);
-      if (!marketStatus.is_open) {
-        errors.push(`Market is closed. Opens at ${marketStatus.next_open_time}. Use LIMIT order for After Market Orders (AMO)`);
-      }
-    }
+    // 5. Allow orders anytime - AMO (After Market Orders) will be queued
+    // Market hours check removed to support 24/7 order placement
+    // Orders placed after hours will be executed when market opens
 
     // 6. Validate order value limits
     const currentPrice = orderParams.price || 0;

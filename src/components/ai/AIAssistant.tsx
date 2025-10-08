@@ -759,9 +759,9 @@ Let me ask you a few quick questions to provide the most relevant buy/sell recom
 ---
 
 ⚠️ **IMPORTANT:**
-- This order will be placed in **PAPER TRADING MODE** (no real money)
 - Orders placed after market hours will be queued for next trading session
 - Market hours: 9:15 AM - 3:30 PM (Mon-Fri)
+- **This is a LIVE order - real money will be used**
 
 ---
 
