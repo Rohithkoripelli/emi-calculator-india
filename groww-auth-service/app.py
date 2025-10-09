@@ -514,7 +514,7 @@ def place_order():
         logger.info("🔥 LIVE TRADING MODE - Placing real order via Groww API...")
 
         # Get authentication token
-        token = auth_manager.get_token()
+        token = auth_manager.get_access_token()
         if not token:
             logger.error("❌ No authentication token available")
             return jsonify({
@@ -625,7 +625,7 @@ def get_order_status(order_id):
             return response, 200
 
         # Get real order status from Groww
-        token = auth_manager.get_token()
+        token = auth_manager.get_access_token()
         if not token:
             return jsonify({
                 "status": "FAILED",
