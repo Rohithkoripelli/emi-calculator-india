@@ -492,7 +492,6 @@ def place_order():
 
         # PAPER TRADING MODE - Simulates order without calling Groww
         if paper_trading_mode:
-            import time
             paper_order_response = {
                 "status": "SUCCESS",
                 "payload": {
@@ -523,7 +522,6 @@ def place_order():
             }), 401
 
         # Prepare Groww API request
-        import requests
         groww_url = "https://api.groww.in/v1/order/create"
 
         headers = {
