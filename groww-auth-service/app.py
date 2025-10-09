@@ -465,6 +465,207 @@ def get_historical(symbol):
             "error": str(e)
         }), 500
 
+@app.route('/api/place-order', methods=['POST', 'OPTIONS'])
+def place_order():
+    """Place a buy/sell order via Groww API"""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        logger.info("📤 Response: 200 for OPTIONS /api/place-order")
+        return response, 200
+
+    logger.info(f"🛒 Received order placement request...")
+
+    try:
+        # Get order parameters from request body
+        order_params = request.get_json()
+        logger.info(f"📝 Order parameters: {order_params}")
+
+        # Check if paper trading mode is enabled
+        paper_trading_mode = os.getenv('PAPER_TRADING_MODE', 'false').lower() == 'true'
+
+        logger.info(f"🎯 Trading mode: {'PAPER TRADING' if paper_trading_mode else 'LIVE TRADING'}")
+
+        # PAPER TRADING MODE - Simulates order without calling Groww
+        if paper_trading_mode:
+            import time
+            paper_order_response = {
+                "status": "SUCCESS",
+                "payload": {
+                    "groww_order_id": f"PAPER-{int(time.time() * 1000)}",
+                    "order_status": "PAPER_TRADE_SIMULATED",
+                    "order_reference_id": order_params.get('order_reference_id', ''),
+                    "remark": "⚠️ This is a PAPER TRADING simulation. No real order was placed."
+                },
+                "paper_trading": True
+            }
+            logger.info(f"📝 Paper trading order simulated: {paper_order_response['payload']['groww_order_id']}")
+
+            response = jsonify(paper_order_response)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            logger.info(f"📤 Response: 200 for POST /api/place-order (PAPER TRADING)")
+            return response, 200
+
+        # LIVE TRADING MODE - Actually calls Groww API
+        logger.info("🔥 LIVE TRADING MODE - Placing real order via Groww API...")
+
+        # Get authentication token
+        token = auth_manager.get_token()
+        if not token:
+            logger.error("❌ No authentication token available")
+            return jsonify({
+                "status": "FAILED",
+                "error": "Authentication token not available. Please configure Groww credentials."
+            }), 401
+
+        # Prepare Groww API request
+        import requests
+        groww_url = "https://api.groww.in/v1/order/create"
+
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+            'X-API-VERSION': '1.0',
+            'User-Agent': 'Mozilla/5.0'
+        }
+
+        # Map order parameters to Groww format
+        groww_order_payload = {
+            "trading_symbol": order_params.get('trading_symbol'),
+            "quantity": order_params.get('quantity'),
+            "price": order_params.get('price'),
+            "trigger_price": order_params.get('trigger_price'),
+            "validity": order_params.get('validity', 'DAY'),
+            "exchange": order_params.get('exchange', 'NSE'),
+            "segment": order_params.get('segment', 'CASH'),
+            "product": order_params.get('product', 'CNC'),
+            "order_type": order_params.get('order_type', 'MARKET'),
+            "transaction_type": order_params.get('transaction_type'),
+            "order_reference_id": order_params.get('order_reference_id', f"AI-{int(time.time())}")
+        }
+
+        # Remove None values
+        groww_order_payload = {k: v for k, v in groww_order_payload.items() if v is not None}
+
+        logger.info(f"📡 Calling Groww API: {groww_url}")
+        logger.info(f"📝 Payload: {groww_order_payload}")
+
+        # Make request to Groww API
+        groww_response = requests.post(
+            groww_url,
+            json=groww_order_payload,
+            headers=headers,
+            timeout=30
+        )
+
+        logger.info(f"📊 Groww API response status: {groww_response.status_code}")
+        logger.info(f"📊 Groww API response: {groww_response.text}")
+
+        if groww_response.status_code == 200 or groww_response.status_code == 201:
+            groww_data = groww_response.json()
+
+            response_data = {
+                "status": "SUCCESS",
+                "payload": groww_data.get('payload', groww_data),
+                "paper_trading": False
+            }
+
+            logger.info(f"✅ Order placed successfully: {response_data}")
+
+            response = jsonify(response_data)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            logger.info(f"📤 Response: 200 for POST /api/place-order (LIVE ORDER)")
+            return response, 200
+        else:
+            logger.error(f"❌ Groww API error: {groww_response.status_code} - {groww_response.text}")
+            return jsonify({
+                "status": "FAILED",
+                "error": f"Groww API error: {groww_response.text}"
+            }), groww_response.status_code
+
+    except Exception as e:
+        logger.error(f"❌ Error in /api/place-order: {e}")
+        return jsonify({
+            "status": "FAILED",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/order-status/<order_id>', methods=['GET', 'OPTIONS'])
+def get_order_status(order_id):
+    """Get order status from Groww API"""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
+
+    logger.info(f"📊 Checking order status for: {order_id}")
+
+    try:
+        # Handle paper trading orders
+        if order_id.startswith('PAPER-'):
+            response_data = {
+                "status": "SUCCESS",
+                "payload": {
+                    "groww_order_id": order_id,
+                    "order_status": "PAPER_TRADE_COMPLETE",
+                    "remark": "Paper trading order (simulation)"
+                }
+            }
+
+            response = jsonify(response_data)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 200
+
+        # Get real order status from Groww
+        token = auth_manager.get_token()
+        if not token:
+            return jsonify({
+                "status": "FAILED",
+                "error": "Authentication token not available"
+            }), 401
+
+        import requests
+        groww_url = f"https://api.groww.in/v1/order/{order_id}"
+
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'X-API-VERSION': '1.0'
+        }
+
+        groww_response = requests.get(groww_url, headers=headers, timeout=10)
+
+        if groww_response.status_code == 200:
+            groww_data = groww_response.json()
+
+            response_data = {
+                "status": "SUCCESS",
+                "payload": groww_data.get('payload', groww_data)
+            }
+
+            response = jsonify(response_data)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 200
+        else:
+            return jsonify({
+                "status": "FAILED",
+                "error": f"Groww API error: {groww_response.text}"
+            }), groww_response.status_code
+
+    except Exception as e:
+        logger.error(f"❌ Error in /api/order-status/{order_id}: {e}")
+        return jsonify({
+            "status": "FAILED",
+            "error": str(e)
+        }), 500
+
 @app.errorhandler(404)
 def not_found(error):
     logger.error(f"❌ 404 Error: {request.method} {request.path} not found")
