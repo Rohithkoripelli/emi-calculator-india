@@ -206,12 +206,35 @@ export class ExcelBasedStockAnalysisService {
     const threshold = meaningfulWords.length === 1 ? 50 : 40; // Higher threshold for single words
     if (bestScore < threshold) {
       console.log(`⚠️ Best match score too low (${bestScore} < ${threshold}), rejecting`);
-      
+
       // Additional check: if multiple candidates have similar scores, it's ambiguous
       if (sorted.length > 1 && sorted[1][1] > bestScore * 0.7) {
         console.log(`⚠️ Ambiguous match detected - top scores too close: ${bestScore} vs ${sorted[1][1]}`);
         return null;
       }
+      return null;
+    }
+
+    // CRITICAL: Check if query contains words that DON'T match the company
+    // This prevents "Ather Energy" from matching "BGR Energy Systems"
+    const companyWords = bestCompany.cleanName.toLowerCase().split(/\s+/);
+    let unmatchedCount = 0;
+    for (const word of meaningfulWords) {
+      const lowerWord = word.toLowerCase();
+      // Check if this word appears in company name or search terms
+      const matchesCompany = companyWords.some(cw => cw.includes(lowerWord) || lowerWord.includes(cw)) ||
+                             bestCompany.searchTerms.some(term => term.includes(lowerWord) || lowerWord.includes(term));
+      if (!matchesCompany) {
+        unmatchedCount++;
+        console.log(`⚠️ Query word "${word}" does NOT match company "${bestCompany.name}"`);
+      }
+    }
+
+    // Reject if more than 50% of query words don't match the company
+    if (meaningfulWords.length >= 2 && unmatchedCount >= meaningfulWords.length * 0.5) {
+      console.log(`❌ Rejecting match: ${unmatchedCount}/${meaningfulWords.length} query words don't match "${bestCompany.name}"`);
+      console.log(`   Query words: ${meaningfulWords.join(', ')}`);
+      console.log(`   Company words: ${companyWords.join(', ')}`);
       return null;
     }
 
