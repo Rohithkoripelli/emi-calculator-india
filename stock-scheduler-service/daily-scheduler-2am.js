@@ -297,8 +297,8 @@ class DailyStockScheduler {
           }));
         }
       } else if (url.startsWith('/recommend')) {
-        // Stock recommendation endpoint (Fast fallback for Railway)
-        res.writeHead(200, { 
+        // Stock recommendation endpoint - LIVE MongoDB query by stockScore
+        res.writeHead(200, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -310,48 +310,37 @@ class DailyStockScheduler {
           const largeCap = parseInt(parsedUrl.searchParams.get('largeCap')) || 30;
           const midCap = parseInt(parsedUrl.searchParams.get('midCap')) || 40;
           const smallCap = parseInt(parsedUrl.searchParams.get('smallCap')) || 30;
+          const topN = parseInt(parsedUrl.searchParams.get('topN')) || 3;
 
-          // Fast hardcoded recommendations based on recent analysis
-          const recommendations = {
-            totalAmount: amount,
-            allocation: { largeCap, midCap, smallCap },
-            largeCap: [
-              { symbol: 'ICICIPRULI', companyName: 'ICICI Prudential Life Insurance', currentPrice: 580, stockScore: 55, amount: Math.floor(amount * largeCap / 100 / 3), shares: Math.floor((amount * largeCap / 100 / 3) / 580) },
-              { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', currentPrice: 2650, stockScore: 52, amount: Math.floor(amount * largeCap / 100 / 3), shares: Math.floor((amount * largeCap / 100 / 3) / 2650) },
-              { symbol: 'INFY', companyName: 'Infosys Limited', currentPrice: 1850, stockScore: 48, amount: Math.floor(amount * largeCap / 100 / 3), shares: Math.floor((amount * largeCap / 100 / 3) / 1850) }
-            ],
-            midCap: [
-              { symbol: 'BEML', companyName: 'BEML Limited', currentPrice: 4200, stockScore: 55, amount: Math.floor(amount * midCap / 100 / 3), shares: Math.floor((amount * midCap / 100 / 3) / 4200) },
-              { symbol: 'LALPATHLAB', companyName: 'Dr. Lal PathLabs Limited', currentPrice: 2800, stockScore: 51, amount: Math.floor(amount * midCap / 100 / 3), shares: Math.floor((amount * midCap / 100 / 3) / 2800) },
-              { symbol: 'METROPOLIS', companyName: 'Metropolis Healthcare Limited', currentPrice: 1950, stockScore: 49, amount: Math.floor(amount * midCap / 100 / 3), shares: Math.floor((amount * midCap / 100 / 3) / 1950) }
-            ],
-            smallCap: [
-              { symbol: 'SELAN', companyName: 'Selan Exploration Technology Limited', currentPrice: 880, stockScore: 100, amount: Math.floor(amount * smallCap / 100 / 3), shares: Math.floor((amount * smallCap / 100 / 3) / 880) },
-              { symbol: 'FIVESTAR', companyName: 'Five Star Business Finance Limited', currentPrice: 720, stockScore: 68, amount: Math.floor(amount * smallCap / 100 / 3), shares: Math.floor((amount * smallCap / 100 / 3) / 720) },
-              { symbol: 'ORIENTBELL', companyName: 'Orient Bell Limited', currentPrice: 450, stockScore: 62, amount: Math.floor(amount * smallCap / 100 / 3), shares: Math.floor((amount * smallCap / 100 / 3) / 450) }
-            ],
-            summary: {
-              totalAmount: amount,
-              largeCapAmount: Math.floor(amount * largeCap / 100),
-              midCapAmount: Math.floor(amount * midCap / 100),
-              smallCapAmount: Math.floor(amount * smallCap / 100)
-            },
-            dataSource: 'Railway Fast Response (MongoDB data cached)',
-            totalStocksAnalyzed: 1028,
-            lastUpdated: new Date().toISOString(),
-            note: 'Based on latest MongoDB analysis with weighted scoring'
-          };
+          console.log(`💼 /recommend called: amount=${amount}, allocation=${largeCap}/${midCap}/${smallCap}, topN=${topN}`);
 
+          // Query MongoDB for real recommendations sorted by stockScore
+          const recommendations = await this.mongoService.getPortfolioRecommendations(
+            amount,
+            { largeCap, midCap, smallCap },
+            topN
+          );
+
+          if (!recommendations.success) {
+            throw new Error(recommendations.error || 'Failed to get recommendations from MongoDB');
+          }
+
+          // Add metadata
+          recommendations.dataSource = 'MongoDB Live Query (sorted by stockScore)';
+          recommendations.lastUpdated = new Date().toISOString();
+
+          console.log(`✅ Recommendations generated: ${recommendations.summary.totalStocks} stocks`);
           res.end(JSON.stringify(recommendations, null, 2));
         } catch (error) {
-          res.end(JSON.stringify({ 
+          console.error('❌ Error in /recommend:', error.message);
+          res.end(JSON.stringify({
             error: 'Failed to generate recommendations',
-            message: error.message 
+            message: error.message
           }));
         }
       } else if (url.startsWith('/top-stocks')) {
-        // Top stocks by category endpoint (Fast Railway response)
-        res.writeHead(200, { 
+        // Top stocks by category endpoint - LIVE MongoDB query by stockScore
+        res.writeHead(200, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -359,60 +348,34 @@ class DailyStockScheduler {
         });
         try {
           const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
-          const category = parsedUrl.searchParams.get('category') || 'all';
+          let category = parsedUrl.searchParams.get('category') || 'all';
           const limit = parseInt(parsedUrl.searchParams.get('limit')) || 10;
 
-          // Fast hardcoded top stocks based on MongoDB analysis
-          const topStocksByCategory = {
-            large: [
-              { symbol: 'ICICIPRULI', companyName: 'ICICI Prudential Life Insurance', currentPrice: 580, stockScore: 55, marketCapCrores: 85000 },
-              { symbol: 'HINDUNILVR', companyName: 'Hindustan Unilever Limited', currentPrice: 2650, stockScore: 52, marketCapCrores: 620000 },
-              { symbol: 'INFY', companyName: 'Infosys Limited', currentPrice: 1850, stockScore: 48, marketCapCrores: 780000 },
-              { symbol: 'TCS', companyName: 'Tata Consultancy Services', currentPrice: 4200, stockScore: 47, marketCapCrores: 1520000 },
-              { symbol: 'RELIANCE', companyName: 'Reliance Industries', currentPrice: 2950, stockScore: 45, marketCapCrores: 2000000 }
-            ],
-            mid: [
-              { symbol: 'BEML', companyName: 'BEML Limited', currentPrice: 4200, stockScore: 55, marketCapCrores: 15000 },
-              { symbol: 'LALPATHLAB', companyName: 'Dr. Lal PathLabs Limited', currentPrice: 2800, stockScore: 51, marketCapCrores: 12000 },
-              { symbol: 'METROPOLIS', companyName: 'Metropolis Healthcare Limited', currentPrice: 1950, stockScore: 49, marketCapCrores: 10000 },
-              { symbol: 'DIXON', companyName: 'Dixon Technologies Limited', currentPrice: 15000, stockScore: 47, marketCapCrores: 18000 },
-              { symbol: 'POLYCAB', companyName: 'Polycab India Limited', currentPrice: 6800, stockScore: 46, marketCapCrores: 16000 }
-            ],
-            small: [
-              { symbol: 'SELAN', companyName: 'Selan Exploration Technology Limited', currentPrice: 880, stockScore: 100, marketCapCrores: 2500 },
-              { symbol: 'FIVESTAR', companyName: 'Five Star Business Finance Limited', currentPrice: 720, stockScore: 68, marketCapCrores: 4200 },
-              { symbol: 'ORIENTBELL', companyName: 'Orient Bell Limited', currentPrice: 450, stockScore: 62, marketCapCrores: 1800 },
-              { symbol: 'KPRMILL', companyName: 'KPR Mill Limited', currentPrice: 850, stockScore: 58, marketCapCrores: 3200 },
-              { symbol: 'CERA', companyName: 'Cera Sanitaryware Limited', currentPrice: 9200, stockScore: 55, marketCapCrores: 4800 }
-            ]
-          };
+          // Normalize category names
+          if (category === 'large' || category === 'largeCap') category = 'large-cap';
+          if (category === 'mid' || category === 'midCap') category = 'mid-cap';
+          if (category === 'small' || category === 'smallCap') category = 'small-cap';
 
-          let stocks = [];
-          if (category === 'large' || category === 'largeCap') {
-            stocks = topStocksByCategory.large;
-          } else if (category === 'mid' || category === 'midCap') {
-            stocks = topStocksByCategory.mid;
-          } else if (category === 'small' || category === 'smallCap') {
-            stocks = topStocksByCategory.small;
-          } else {
-            // All categories combined
-            stocks = [...topStocksByCategory.large, ...topStocksByCategory.mid, ...topStocksByCategory.small]
-              .sort((a, b) => b.stockScore - a.stockScore);
+          console.log(`📈 /top-stocks called: category=${category}, limit=${limit}`);
+
+          // Query MongoDB for top stocks sorted by stockScore
+          const result = await this.mongoService.getTopStocksByCategory(category, limit);
+
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to get top stocks from MongoDB');
           }
 
-          res.end(JSON.stringify({
-            category,
-            limit,
-            stocks: stocks.slice(0, limit),
-            dataSource: 'Railway Fast Response (MongoDB data cached)',
-            totalStocksAnalyzed: 1028,
-            lastUpdated: new Date().toISOString(),
-            note: 'Based on latest MongoDB analysis with weighted scoring'
-          }, null, 2));
+          // Add metadata
+          result.dataSource = 'MongoDB Live Query (sorted by stockScore)';
+          result.lastUpdated = new Date().toISOString();
+
+          console.log(`✅ Top stocks retrieved: ${result.stocks.length} stocks`);
+          res.end(JSON.stringify(result, null, 2));
         } catch (error) {
-          res.end(JSON.stringify({ 
+          console.error('❌ Error in /top-stocks:', error.message);
+          res.end(JSON.stringify({
             error: 'Failed to get top stocks',
-            message: error.message 
+            message: error.message
           }));
         }
       } else if (url === '/scoring-info') {

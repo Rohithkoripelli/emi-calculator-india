@@ -266,7 +266,7 @@ class MongoDBService {
 
       // Simple ping to check connection
       await this.db.admin().ping();
-      
+
       return {
         status: 'healthy',
         connected: this.isConnected,
@@ -280,6 +280,144 @@ class MongoDBService {
         connected: false,
         error: error.message,
         timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get top stocks by category sorted by stockScore
+   * @param {string} category - 'large-cap', 'mid-cap', 'small-cap', or 'all'
+   * @param {number} limit - Number of stocks to return (default: 10)
+   * @returns {Promise<object>} Top stocks sorted by stockScore
+   */
+  async getTopStocksByCategory(category = 'all', limit = 10) {
+    try {
+      if (!this.isConnected) {
+        const connected = await this.connect();
+        if (!connected) {
+          throw new Error('Failed to connect to MongoDB');
+        }
+      }
+
+      const collection = this.db.collection(this.collectionName);
+
+      // Build query filter based on category
+      let query = { stockScore: { $exists: true, $ne: null } };
+
+      if (category !== 'all') {
+        query.category = category;
+      }
+
+      // Query MongoDB, sort by stockScore descending, limit results
+      const stocks = await collection
+        .find(query)
+        .sort({ stockScore: -1 })
+        .limit(limit)
+        .toArray();
+
+      console.log(`📈 Retrieved ${stocks.length} top ${category} stocks sorted by stockScore`);
+
+      return {
+        success: true,
+        category: category,
+        limit: limit,
+        stocks: stocks.map(stock => ({
+          symbol: stock.symbol,
+          companyName: stock.companyName,
+          category: stock.category,
+          currentPrice: stock.currentPrice,
+          marketCapCrores: stock.marketCapCrores,
+          stockScore: stock.stockScore,
+          scoreMetrics: stock.scoreMetrics,
+          recommendationKey: stock.recommendationKey
+        })),
+        count: stocks.length
+      };
+
+    } catch (error) {
+      console.error('❌ Error getting top stocks by category:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        stocks: []
+      };
+    }
+  }
+
+  /**
+   * Get stock recommendations for portfolio allocation
+   * @param {number} amount - Investment amount
+   * @param {object} allocation - { largeCap: 30, midCap: 40, smallCap: 30 }
+   * @param {number} topN - Number of stocks per category (default: 3)
+   * @returns {Promise<object>} Portfolio recommendations
+   */
+  async getPortfolioRecommendations(amount, allocation, topN = 3) {
+    try {
+      if (!this.isConnected) {
+        const connected = await this.connect();
+        if (!connected) {
+          throw new Error('Failed to connect to MongoDB');
+        }
+      }
+
+      console.log(`💼 Generating portfolio for ₹${amount} with allocation:`, allocation);
+
+      // Get top stocks for each category
+      const largeCapStocks = await this.getTopStocksByCategory('large-cap', topN);
+      const midCapStocks = await this.getTopStocksByCategory('mid-cap', topN);
+      const smallCapStocks = await this.getTopStocksByCategory('small-cap', topN);
+
+      // Calculate amounts for each category
+      const largeCapAmount = Math.floor(amount * allocation.largeCap / 100);
+      const midCapAmount = Math.floor(amount * allocation.midCap / 100);
+      const smallCapAmount = Math.floor(amount * allocation.smallCap / 100);
+
+      // Calculate per-stock allocation
+      const largeCapPerStock = largeCapStocks.stocks.length > 0 ? Math.floor(largeCapAmount / largeCapStocks.stocks.length) : 0;
+      const midCapPerStock = midCapStocks.stocks.length > 0 ? Math.floor(midCapAmount / midCapStocks.stocks.length) : 0;
+      const smallCapPerStock = smallCapStocks.stocks.length > 0 ? Math.floor(smallCapAmount / smallCapStocks.stocks.length) : 0;
+
+      // Enrich stocks with allocation details
+      const enrichLargeCap = largeCapStocks.stocks.map(stock => ({
+        ...stock,
+        amount: largeCapPerStock,
+        shares: stock.currentPrice > 0 ? Math.floor(largeCapPerStock / stock.currentPrice) : 0
+      }));
+
+      const enrichMidCap = midCapStocks.stocks.map(stock => ({
+        ...stock,
+        amount: midCapPerStock,
+        shares: stock.currentPrice > 0 ? Math.floor(midCapPerStock / stock.currentPrice) : 0
+      }));
+
+      const enrichSmallCap = smallCapStocks.stocks.map(stock => ({
+        ...stock,
+        amount: smallCapPerStock,
+        shares: stock.currentPrice > 0 ? Math.floor(smallCapPerStock / stock.currentPrice) : 0
+      }));
+
+      console.log(`✅ Portfolio generated: ${enrichLargeCap.length} large-cap, ${enrichMidCap.length} mid-cap, ${enrichSmallCap.length} small-cap`);
+
+      return {
+        success: true,
+        totalAmount: amount,
+        allocation: allocation,
+        largeCap: enrichLargeCap,
+        midCap: enrichMidCap,
+        smallCap: enrichSmallCap,
+        summary: {
+          totalStocks: enrichLargeCap.length + enrichMidCap.length + enrichSmallCap.length,
+          largeCapAmount: largeCapAmount,
+          midCapAmount: midCapAmount,
+          smallCapAmount: smallCapAmount
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error generating portfolio recommendations:', error.message);
+      return {
+        success: false,
+        error: error.message
       };
     }
   }
