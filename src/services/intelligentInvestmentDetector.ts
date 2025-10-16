@@ -240,12 +240,25 @@ export class IntelligentInvestmentDetector {
     let intentType: InvestmentIntent['intentType'] = 'OTHER';
     let matchedPatterns: { type: string; confidence: number }[] = [];
 
+    // 🛡️ CRITICAL: Check if this is a QUESTION about buying/selling vs an actual ORDER command
+    const isQuestion = /^(?:should|can|could|would|may|is|are|will|shall|do|does)\s+(?:i|you|we|it)/i.test(query) || // "Should I buy..."
+                       /\b(?:should|can|could|would)\s+(?:i|you|we)\s+(?:buy|sell|invest)/i.test(query) || // "...should I buy..."
+                       /\?/.test(query) || // Contains question mark
+                       /\b(?:is\s+it|good\s+(?:time|idea)|right\s+time|worth|recommend|suggest|analysis|analyze|opinion|thoughts)\b/i.test(query); // Analysis keywords
+
+    if (isQuestion) {
+      reasoning.push(`Question detected - routing to analysis, not order placement`);
+    }
+
     // 🆕 Check Order Placement patterns FIRST (highest priority for buy/sell orders)
-    for (const pattern of INVESTMENT_INTENT_PATTERNS.ORDER_PLACEMENT) {
-      if (pattern.test(query)) {
-        matchedPatterns.push({ type: 'ORDER_PLACEMENT', confidence: 40 });
-        reasoning.push(`Matched order placement pattern - buy/sell detected`);
-        break;
+    // BUT ONLY if this is NOT a question
+    if (!isQuestion) {
+      for (const pattern of INVESTMENT_INTENT_PATTERNS.ORDER_PLACEMENT) {
+        if (pattern.test(query)) {
+          matchedPatterns.push({ type: 'ORDER_PLACEMENT', confidence: 40 });
+          reasoning.push(`Matched order placement pattern - buy/sell command detected`);
+          break;
+        }
       }
     }
 
