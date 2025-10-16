@@ -269,27 +269,54 @@ function getIntelligentFallback(query: string, maxResults: number): SearchResult
  */
 export function extractStockSymbolFromResults(results: SearchResult[], companyQuery: string): string | null {
   console.log(`🔍 Extracting stock symbol from ${results.length} search results for: "${companyQuery}"`);
-  
+
+  // First, check if company is mentioned as private/unlisted
   for (const result of results) {
     const text = `${result.title} ${result.snippet}`.toLowerCase();
-    
+
+    // Check for indicators that company is not publicly traded
+    const privateIndicators = [
+      /private\s+company/i,
+      /not\s+(?:yet\s+)?(?:publicly\s+)?listed/i,
+      /unlisted\s+company/i,
+      /pre-?ipo/i,
+      /planning\s+(?:to\s+)?(?:go\s+)?public/i,
+      /awaiting\s+ipo/i,
+      /private\s+(?:limited|ltd)/i,
+      /not\s+trading/i,
+      /not\s+available\s+for\s+trading/i
+    ];
+
+    for (const indicator of privateIndicators) {
+      if (indicator.test(text)) {
+        console.log(`⚠️ Company appears to be private/unlisted: "${companyQuery}"`);
+        console.log(`   Found indicator: ${indicator.source} in: "${result.snippet.substring(0, 100)}..."`);
+        throw new Error(`PRIVATE_COMPANY:${companyQuery} is a private company and is not listed on NSE/BSE. Only publicly traded companies can be analyzed.`);
+      }
+    }
+  }
+
+  // If not private, look for stock symbol
+  for (const result of results) {
+    const text = `${result.title} ${result.snippet}`.toLowerCase();
+
     // Look for common patterns that indicate stock symbols
     const symbolPatterns = [
       // Pattern 1: Symbol followed by NSE/BSE/stock/symbol/ticker
       /\b([A-Z]{2,10})\s*(?:nse|bse|stock|symbol|ticker|share)/gi,
       // Pattern 2: (SYMBOL) in parentheses
       /\(([A-Z]{2,10})\)/g,
-      // Pattern 3: symbol: SYMBOL or ticker: SYMBOL  
+      // Pattern 3: symbol: SYMBOL or ticker: SYMBOL
       /(?:symbol|ticker)[\s:]*([A-Z]{2,10})/gi,
       // Pattern 4: Company Name (SYMBOL) format
       /(?:limited|ltd|pvt)\s*\(([A-Z]{2,10})\)/gi
     ];
-    
+
     for (const pattern of symbolPatterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
         const symbol = match[1].toUpperCase();
-        
+
         // Validate symbol (2-10 characters, all uppercase)
         if (symbol.length >= 2 && symbol.length <= 10 && /^[A-Z]+$/.test(symbol)) {
           console.log(`✅ Found stock symbol: ${symbol} from pattern: ${pattern.source}`);

@@ -2130,6 +2130,13 @@ ${loanData ? `\n## 🎯 **Your Current Loan Analysis Available:**\n• **Loan Am
               }
             } catch (webSearchError) {
               console.error('❌ Web search failed:', webSearchError);
+
+              // Check if it's a private company error
+              if (webSearchError instanceof Error && webSearchError.message.startsWith('PRIVATE_COMPANY:')) {
+                const companyName = webSearchError.message.split(':')[1];
+                throw new Error(`**${companyName}** is a private company and is not listed on NSE/BSE stock exchanges yet.\n\n💡 **Only publicly traded companies** can be analyzed. Some well-known public companies you can analyze:\n• Reliance Industries\n• TCS (Tata Consultancy Services)\n• HDFC Bank\n• Infosys\n• Bajaj Finance`);
+              }
+
               throw new Error(`Could not identify stock symbol for "${userMessage}". Please try with specific company names like "Reliance", "TCS", "HDFC Bank", etc.`);
             }
           }
